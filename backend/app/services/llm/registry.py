@@ -2,7 +2,7 @@ import os
 from typing import Dict
 
 from .base import LLMEngine
-from .hf import HuggingFaceEngine
+from .huggingface import HuggingFaceEngine
 
 
 _DEFAULT_MODEL = os.getenv(
