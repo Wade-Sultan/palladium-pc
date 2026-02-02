@@ -19,7 +19,7 @@ class PCPart(Base):
     manufacturer = Column(String(255), nullable=True)
     model_number = Column(String(255), nullable=True)
 
-    category = Column(String(50), nullable=False)
+    parttype = Column(String(50), nullable=False)
 
     amazon_url = Column(Text, nullable=True)
     amazon_asin = Column(String(32), nullable=True)
@@ -37,30 +37,3 @@ class PCPart(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
-
-class CPU(PCPart):
-    pass
-
-class CPUCooler(PCPart):
-    pass
-
-class Motherboard(PCPart):
-    pass
-
-class RAM(PCPart):
-    pass
-
-class Storage(PCPart):
-    pass
-
-class GPU(PCPart):
-    pass
-
-class Case(PCPart):
-    pass
-
-class PSU(PCPart):
-    pass
-
-class Fans(PCPart):
-    pass
