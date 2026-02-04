@@ -13,10 +13,10 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from sqlalchemy.sql import func
 
-from app.db.base import Base  # adjust if needed
+from app.db.base import Base
 
 
 class BuildComponentRole(str, enum.Enum):
@@ -29,6 +29,19 @@ class BuildComponentRole(str, enum.Enum):
     PSU = "psu"
     CASE = "case"
     FAN = "fan"
+
+
+REQUIRED_COMPONENT_BY_ROLE = {
+    BuildComponentRole.CPU: True,
+    BuildComponentRole.CPU_COOLER: True,
+    BuildComponentRole.MOTHERBOARD: True,
+    BuildComponentRole.RAM: True,
+    BuildComponentRole.STORAGE: True,
+    BuildComponentRole.GPU: False,
+    BuildComponentRole.PSU: True,
+    BuildComponentRole.CASE: True,
+    BuildComponentRole.FAN: False,
+}
 
 
 class PCBuild(Base):
@@ -123,3 +136,9 @@ class BuildPart(Base):
 
     build = relationship("PCBuild", back_populates="parts")
     part = relationship("PCPart")
+
+    @validates("role")
+    def _set_required_component_default(self, _key, role):
+        if self.required_component is None:
+            self.required_component = REQUIRED_COMPONENT_BY_ROLE.get(role, False)
+        return role
