@@ -48,3 +48,16 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    items = relationship(
+        "Item",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+    )
+
+    @property
+    def full_name(self) -> str | None:
+        return self.username
+
+    @full_name.setter
+    def full_name(self, value: str | None) -> None:
+        self.username = value
