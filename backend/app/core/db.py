@@ -1,11 +1,3 @@
-"""
-Database engine & session factory.
-
-Supports two connection modes:
-  • Supabase (via SUPABASE_DB_URL) — with SSL and pgBouncer-safe settings
-  • Local Docker Postgres (via individual POSTGRES_* vars)
-"""
-
 from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -16,13 +8,6 @@ from app.schemas import UserCreate
 
 
 def _build_engine_kwargs() -> dict:
-    """
-    Return engine keyword arguments tuned for the current environment.
-
-    When connecting through Supabase's Supavisor (connection pooler on port 6543),
-    we must disable server-side prepared statements because Supavisor uses
-    transaction-level pooling.
-    """
     kwargs: dict = {
         "pool_pre_ping": True,
         "pool_size": 5,
@@ -30,7 +15,7 @@ def _build_engine_kwargs() -> dict:
     }
 
     if settings.SUPABASE_DB_URL:
-        # ── Supabase-specific tuning ─────────────────────────────────────
+        # Supabase-specific tuning
         connect_args: dict = {
             # Supabase requires SSL for remote connections
             "sslmode": "require",
@@ -55,7 +40,6 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def get_db() -> Session:
-    """FastAPI dependency that yields a DB session."""
     db = SessionLocal()
     try:
         yield db  # type: ignore[misc]
@@ -64,7 +48,6 @@ def get_db() -> Session:
 
 
 def init_db(session: Session) -> None:
-    """Seed the first superuser if it doesn't exist yet."""
     user = session.execute(
         select(User).where(User.email == settings.FIRST_SUPERUSER)
     ).scalar_one_or_none()

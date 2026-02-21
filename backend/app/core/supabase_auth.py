@@ -1,28 +1,3 @@
-"""
-Supabase JWT verification.
-
-Supabase Auth issues JWTs signed with your project's JWT secret (HS256).
-This module verifies those tokens and extracts the claims your API needs.
-
-Supabase JWT payload structure (relevant fields)::
-
-    {
-      "aud": "authenticated",
-      "exp": 1700000000,
-      "iat": 1699999000,
-      "iss": "https://<project-ref>.supabase.co/auth/v1",
-      "sub": "a1b2c3d4-...",          ← auth.users UUID
-      "email": "user@example.com",
-      "role": "authenticated",
-      "app_metadata": { "provider": "email", ... },
-      "user_metadata": { "full_name": "Jane Doe", ... },
-      ...
-    }
-
-The ``sub`` claim is the user's UUID in ``auth.users`` — this is the value
-we store in ``users.auth_user_id``.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -37,11 +12,9 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-# ── Supabase JWT claims ──────────────────────────────────────────────────
+# Supabase JWT claims
 
 class SupabaseTokenPayload(BaseModel):
-    """Validated claims extracted from a Supabase JWT."""
-
     sub: UUID = Field(..., description="auth.users UUID")
     email: str | None = None
     role: str = "authenticated"
@@ -51,7 +24,7 @@ class SupabaseTokenPayload(BaseModel):
     user_metadata: dict | None = Field(default=None, alias="user_metadata")
 
 
-# ── Verification ─────────────────────────────────────────────────────────
+# Verification
 
 ALGORITHM = "HS256"
 
