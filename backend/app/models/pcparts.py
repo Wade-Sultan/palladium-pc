@@ -2,7 +2,7 @@ import uuid
 import enum
 
 from sqlalchemy import Boolean, Column, DateTime, String, Text, Integer, ForeignKey, Float
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -125,15 +125,20 @@ class CPU(PCPart):
     )
 
     # Compatability Requirements
-
     brand = Column(String(20), nullable=False)
     socket = Column(String(30), nullable=False)
     tdp_watts = Column(Integer, nullable=False)
     has_igpu = Column(Boolean, nullable=False)
     ddr_generation = Column(String(10), nullable=False) 
+    supported_features = Column(ARRAY(String), nullable=True) # e.g. ["avx2", "sse4.2", "avx512"] (for certain games)
+
+    # Validated in benchmarks.py
+    benchmark_scores = Column(
+        JSONB, nullable=True,
+        doc='e.g. {"cinebench_r24_single": 2150, "cinebench_r24_multi": 14500, ...}',
+    )
 
     # Other
-
     cores = Column(Integer, nullable=False)
     threads = Column(Integer, nullable=False)
     base_clock_ghz = Column(Float, nullable=True)
@@ -266,6 +271,13 @@ class GPU(PCPart):
     length_mm = Column(Integer, nullable=False)
     pcie_power_pins = Column(String(50), nullable=True)
     recommended_psu_watts = Column(Integer, nullable=True)
+    supported_features = Column(ARRAY(String), nullable=True) # e.g. ["dx12_ultimate", "vulkan_rt", "nvenc", "mesh_shaders"] (for certain games)
+
+    # Validated in benchmarks.py
+    benchmark_scores = Column(
+        JSONB, nullable=True,
+        doc='e.g. {"timespy": 22400, "port_royal": 14200, "speed_way": 5800, ...}',
+    )
 
     # Other
     vram_type = Column(String(20), nullable=True)
@@ -273,10 +285,19 @@ class GPU(PCPart):
     pcie_generation = Column(Integer, nullable=True)
     base_clock_mhz = Column(Integer, nullable=True)
     boost_clock_mhz = Column(Integer, nullable=True)
-    cuda_cores = Column(Integer, nullable=True) # Nvidia
-    stream_processors = Column(Integer, nullable=True) # AMD
     has_ray_tracing = Column(Boolean, nullable=True)
-    display_outputs = Column(Text, nullable=True)   
+
+    # Nvidia
+    cuda_cores = Column(Integer, nullable=True)
+    tensor_cores = Column(Integer, nullable=True)
+
+    # AMD
+    stream_processors = Column(Integer, nullable=True)
+    matrix_cores = Column(Integer, nullable=True)
+
+    display_outputs = Column(Text, nullable=True)
+    hdmi_version = Column(Text, nullable=True)
+    dp_version = Column(Text, nullable=True)
 
     __mapper_args__ = {"polymorphic_identity": "gpu"}
 
