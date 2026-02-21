@@ -98,7 +98,7 @@ class PartRecommendation(BaseModel):
     name: str = Field(..., description="Full product name")
     category: str = Field(..., description="Component category, e.g. 'CPU'")
     reason: str = Field(..., description="Why this part was chosen")
-    # ---- Pricing (populated by Amazon lookup, NOT by the LLM) ----
+    # Pricing (populated by Amazon lookup, NOT by the LLM)
     price_usd: float | None = Field(None)
     amazon_url: str | None = Field(None)
     amazon_asin: str | None = Field(None)
@@ -121,7 +121,7 @@ class BuildRecommendation(BaseModel):
     fans: PartRecommendation | None = None
     build_notes: str = ""
 
-    # ---- Deterministic pricing ----
+    # Deterministic pricing
     total_price_usd: float | None = None
 
     def compute_total_price(self) -> float | None:
@@ -146,14 +146,14 @@ class PipelineState(BaseModel):
     """
     model_config = {"arbitrary_types_allowed": True}
 
-    # --- Inputs (set once at the start) ---
+    # Inputs (set once at the start)
     request: BuildRequest
     progress_callback: Callable[[str, str], None] | None = Field(
         default=None, exclude=True,
         description="Optional callback(step_name, message) for live UI updates",
     )
 
-    # --- Accumulated part picks (set one-by-one as nodes execute) ---
+    # Accumulated part picks (set one-by-one as nodes execute)
     cpu: LLMPartPick | None = None
     cpu_cooler: LLMPartPick | None = None
     motherboard: LLMPartPick | None = None
@@ -171,7 +171,7 @@ class PipelineState(BaseModel):
     build_notes: str = ""
     gpu_required: bool = True              # determined during the GPU step
 
-    # --- Error tracking ---
+    # Error tracking
     error: str | None = None
 
 

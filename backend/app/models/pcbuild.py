@@ -8,11 +8,12 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy.sql import func
 
@@ -30,6 +31,12 @@ class BuildComponentRole(str, enum.Enum):
     CASE = "case"
     FAN = "fan"
 
+class BuildStatus(str, enum.Enum):
+    DRAFT = "draft" # User is still in the configurator
+    RECOMMENDED = "recommended" # Pipeline finished — parts selected
+    PRICED = "priced" # Amazon pricing pipeline has run
+    FINALIZED = "finalized" # User confirmed the build
+    ORDERED = "ordered" # Parts purchased (future)
 
 REQUIRED_COMPONENT_BY_ROLE = {
     BuildComponentRole.CPU: True,
@@ -58,6 +65,35 @@ class PCBuild(Base):
     description = Column(Text, nullable=True)
 
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
+    status = Column(
+        Enum(BuildStatus, name="build_status"),
+        nullable=False,
+        default=BuildStatus.DRAFT,
+        server_default="draft",
+    )
+
+    total_price_cents = Column(
+        Integer,
+        nullable=True,
+        doc="Sum of all part prices after pricing pipeline runs",
+    )
+
+    use_cases = Column(
+        ARRAY(String),
+        nullable=True,
+        doc="e.g. ['gaming', 'streaming']",
+    )
+    preferences = Column(
+        JSONB,
+        nullable=True,
+        doc="Snapshot of UserPreferences dict from the configurator",
+    )
+    questionnaire_answers = Column(
+        JSONB,
+        nullable=True,
+        doc="Snapshot of the flat answers dict from the configurator",
+    )
 
     created_at = Column(
         DateTime(timezone=True),
@@ -126,6 +162,18 @@ class BuildPart(Base):
         nullable=False,
         default=False,
         server_default="false",
+    )
+
+    price_at_build_cents = Column(
+        Integer,
+        nullable=True,
+        doc="Part price in USD cents at the time this build was finalized",
+    )
+
+    selection_reason = Column(
+        Text,
+        nullable=True,
+        doc="Short rationale from the recommender pipeline",
     )
 
     created_at = Column(
