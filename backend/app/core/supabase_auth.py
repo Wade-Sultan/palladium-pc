@@ -30,13 +30,6 @@ ALGORITHM = "HS256"
 
 
 def _get_jwt_secret() -> str:
-    """
-    Return the Supabase JWT secret used to verify tokens.
-
-    This is found in: Supabase Dashboard → Settings → API → JWT Secret.
-    It must be set as SUPABASE_JWT_SECRET in your environment.
-    Falls back to SECRET_KEY for local dev with self-issued tokens.
-    """
     secret = getattr(settings, "SUPABASE_JWT_SECRET", None) or settings.SECRET_KEY
     if secret == settings.SECRET_KEY:
         logger.warning(
@@ -47,19 +40,6 @@ def _get_jwt_secret() -> str:
 
 
 def verify_supabase_token(token: str) -> SupabaseTokenPayload:
-    """
-    Decode and validate a Supabase JWT.
-
-    Args:
-        token: The raw Bearer token string from the Authorization header.
-
-    Returns:
-        SupabaseTokenPayload with the verified claims.
-
-    Raises:
-        InvalidTokenError: If the token is expired, tampered with, or
-                           otherwise invalid.
-    """
     try:
         payload = jwt.decode(
             token,
