@@ -4,6 +4,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    ForeignKey,
     String,
     Text,
 )
@@ -11,7 +12,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.db.base import Base
+from app.db.base import AUTH_SCHEMA, Base
 
 
 class User(Base):
@@ -22,6 +23,18 @@ class User(Base):
         primary_key=True,
         default=uuid.uuid4,
         index=True,
+    )
+
+    auth_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            f"{AUTH_SCHEMA}.users.id",
+            ondelete="CASCADE",
+        ),
+        unique=True,
+        nullable=True,   # nullable during migration; tighten to False later
+        index=True,
+        comment="FK to Supabase auth.users(id)",
     )
 
     email = Column(String(255), unique=True, index=True, nullable=False)
