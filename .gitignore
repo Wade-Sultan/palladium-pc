@@ -1,9 +1,48 @@
-.vscode
+# Secrets & Environment
+.env
+.env.*
+*.env
+!.env.example
+!.env.template
+
+# Supabase CLI (local dev)
+supabase/.temp/
+supabase/.branches/
+supabase/.keys/
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# Node / Frontend
 node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDE & OS
+.vscode
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+#Testing
 /test-results/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-.env
-.env.*
-*.env
+/playwright/.auth/
+
+# Docker
+docker-compose.override.yml
