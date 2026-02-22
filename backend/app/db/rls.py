@@ -82,7 +82,7 @@ def drop_policy(op, policy_name: str, table: str, *, schema: str = "public") -> 
     op.execute(text(f'DROP POLICY IF EXISTS "{policy_name}" ON {qualified}'))
 
 
-# ── Pre-built policy templates ───────────────────────────────────────────
+# Pre-built policy templates
 
 def owner_read_write_policy(
     table: str,
