@@ -3,6 +3,7 @@ import enum
 
 from sqlalchemy import Boolean, Column, DateTime, String, Text, Integer, ForeignKey, Float
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -90,11 +91,6 @@ class PCPart(Base):
 
     part_type = Column(String(50), nullable=False)
 
-    amazon_url = Column(Text, nullable=True)
-    amazon_asin = Column(String(32), nullable=True)
-    price_cents = Column(Integer, nullable=True, doc="Last-known price in USD cents")
-
-    image_url = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True, server_default="true")
 
     created_at = Column(
@@ -107,6 +103,11 @@ class PCPart(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+    listings = relationship(
+        "Listing",
+        back_populates="part",
+        cascade="all, delete-orphan",
     )
 
     __mapper_args__ = {
