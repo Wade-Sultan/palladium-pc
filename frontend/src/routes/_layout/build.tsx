@@ -32,7 +32,7 @@ type Step = "select" | "configure" | "done"
 
 type AnswerValue = string | string[]
 
-// --- Data ---
+// Data
 
 const USE_CASES: Record<UseCaseKey, UseCase> = {
   gaming: {
@@ -209,7 +209,7 @@ const USE_CASES: Record<UseCaseKey, UseCase> = {
         id: "vram",
         label: "How much VRAM do you expect to need?",
         type: "single",
-        options: ["8–12 GB (small models)", "16–24 GB (medium models)", "48 GB+ (large models)", "Multi-GPU setup"],
+        options: ["8-12 GB (small models)", "16-24 GB (medium models)", "48 GB+ (large models)", "Multi-GPU setup"],
       },
     ],
   },
@@ -234,7 +234,7 @@ const USE_CASES: Record<UseCaseKey, UseCase> = {
         id: "capacity",
         label: "How much storage capacity?",
         type: "single",
-        options: ["Under 4 TB", "4–12 TB", "12–50 TB", "50 TB+"],
+        options: ["Under 4 TB", "4-12 TB", "12-50 TB", "50 TB+"],
       },
       {
         id: "redundancy",
