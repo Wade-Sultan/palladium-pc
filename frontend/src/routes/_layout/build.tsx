@@ -1,40 +1,50 @@
-import { useState, useEffect, type ReactNode, type CSSProperties } from "react"
-import { createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute("/_layout/build")({
-  component: BuildConfigurator,
-  head: () => ({
-    meta: [{ title: "Build Configurator" }],
-  }),
-})
+Copy
+
+import { useState, useEffect, type ReactNode, type CSSProperties } from "react";
 
 // --- Types ---
 
-type QuestionType = "single" | "multi"
+type QuestionType = "single" | "multi";
 
 interface Question {
-  id: string
-  label: string
-  type: QuestionType
-  options: string[]
+  id: string;
+  label: string;
+  type: QuestionType;
+  options: string[];
 }
 
 interface UseCase {
-  label: string
-  icon: string
-  description: string
-  questions: Question[]
+  label: string;
+  icon: string;
+  description: string;
+  questions: Question[];
 }
 
-type UseCaseKey = "gaming" | "productivity" | "creative" | "streaming" | "aiml" | "nas"
+type UseCaseKey = "gaming" | "productivity" | "creative" | "streaming" | "aiml" | "nas";
 
-type Step = "select" | "configure" | "done"
+interface UseCasePreferences {
+  category: UseCaseKey;
+  label: string;
+  preferences: Record<string, string | string[]>;
+}
 
-type AnswerValue = string | string[]
+export interface BuildConfiguratorPayload {
+  useCases: UseCasePreferences[];
+  submittedAt: string;
+}
+
+interface BuildConfiguratorProps {
+  onComplete?: (payload: BuildConfiguratorPayload) => void;
+}
+
+type Step = "select" | "configure" | "done";
+
+type Answers = Record<string, string | string[]>;
 
 // Data
 
-const USE_CASES: Record<UseCaseKey, UseCase> = {
+export const USE_CASES: Record<UseCaseKey, UseCase> = {
   gaming: {
     label: "Gaming",
     icon: "🎮",
@@ -209,7 +219,7 @@ const USE_CASES: Record<UseCaseKey, UseCase> = {
         id: "vram",
         label: "How much VRAM do you expect to need?",
         type: "single",
-        options: ["8-12 GB (small models)", "16-24 GB (medium models)", "48 GB+ (large models)", "Multi-GPU setup"],
+        options: ["8–12 GB (small models)", "16–24 GB (medium models)", "48 GB+ (large models)", "Multi-GPU setup"],
       },
     ],
   },
@@ -234,7 +244,7 @@ const USE_CASES: Record<UseCaseKey, UseCase> = {
         id: "capacity",
         label: "How much storage capacity?",
         type: "single",
-        options: ["Under 4 TB", "4-12 TB", "12-50 TB", "50 TB+"],
+        options: ["Under 4 TB", "4–12 TB", "12–50 TB", "50 TB+"],
       },
       {
         id: "redundancy",
@@ -244,22 +254,22 @@ const USE_CASES: Record<UseCaseKey, UseCase> = {
       },
     ],
   },
-}
+};
 
-// --- Sub-components ---
+// Sub-components
 
 interface FadeInProps {
-  children: ReactNode
-  delay?: number
-  className?: string
+  children: ReactNode;
+  delay?: number;
+  className?: string;
 }
 
 function FadeIn({ children, delay = 0, className = "" }: FadeInProps) {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), delay)
-    return () => clearTimeout(t)
-  }, [delay])
+    const t = setTimeout(() => setVisible(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
   return (
     <div
       className={className}
@@ -271,12 +281,12 @@ function FadeIn({ children, delay = 0, className = "" }: FadeInProps) {
     >
       {children}
     </div>
-  )
+  );
 }
 
 interface ProgressDotsProps {
-  total: number
-  current: number
+  total: number;
+  current: number;
 }
 
 function ProgressDots({ total, current }: ProgressDotsProps) {
@@ -295,13 +305,13 @@ function ProgressDots({ total, current }: ProgressDotsProps) {
         />
       ))}
     </div>
-  )
+  );
 }
 
 interface CheckboxProps {
-  checked: boolean
-  onChange: () => void
-  label: string
+  checked: boolean;
+  onChange: () => void;
+  label: string;
 }
 
 function Checkbox({ checked, onChange, label }: CheckboxProps) {
@@ -343,13 +353,13 @@ function Checkbox({ checked, onChange, label }: CheckboxProps) {
       </div>
       <span style={{ fontSize: 14.5, color: "#3d3529", lineHeight: 1.3 }}>{label}</span>
     </div>
-  )
+  );
 }
 
 interface RadioOptionProps {
-  selected: boolean
-  onChange: () => void
-  label: string
+  selected: boolean;
+  onChange: () => void;
+  label: string;
 }
 
 function RadioOption({ selected, onChange, label }: RadioOptionProps) {
@@ -388,87 +398,110 @@ function RadioOption({ selected, onChange, label }: RadioOptionProps) {
       </div>
       <span style={{ fontSize: 14.5, color: "#3d3529", lineHeight: 1.3 }}>{label}</span>
     </div>
-  )
+  );
 }
 
-// --- Main Component ---
+// Main component
 
-function BuildConfigurator() {
-  const [step, setStep] = useState<Step>("select")
-  const [selectedUseCases, setSelectedUseCases] = useState<UseCaseKey[]>([])
-  const [currentUseCaseIndex, setCurrentUseCaseIndex] = useState(0)
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, AnswerValue>>({})
+export default function BuildConfigurator({ onComplete }: BuildConfiguratorProps = {}) {
+  const [step, setStep] = useState<Step>("select");
+  const [selectedUseCases, setSelectedUseCases] = useState<UseCaseKey[]>([]);
+  const [currentUseCaseIndex, setCurrentUseCaseIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Answers>({});
+  const [payload, setPayload] = useState<BuildConfiguratorPayload | null>(null);
+
+  /**
+   * Transforms the flat `answers` state into a structured JSON array
+   * suitable for the LangChain recommendation pipeline.
+   */
+  const buildPayload = (): BuildConfiguratorPayload => {
+    const useCases = selectedUseCases.map((key) => {
+      const uc = USE_CASES[key];
+      const preferences: Record<string, string | string[]> = {};
+      for (const q of uc.questions) {
+        const val = answers[`${key}.${q.id}`];
+        if (val !== undefined) {
+          preferences[q.id] = val;
+        }
+      }
+      return { category: key, label: uc.label, preferences };
+    });
+    return { useCases, submittedAt: new Date().toISOString() };
+  };
 
   const toggleUseCase = (key: UseCaseKey) => {
     setSelectedUseCases((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    )
-  }
+    );
+  };
 
-  const currentUseCase = selectedUseCases[currentUseCaseIndex]
-  const currentUseCaseData = USE_CASES[currentUseCase]
-  const currentQuestion = currentUseCaseData?.questions?.[currentQuestionIndex]
+  const currentUseCase = selectedUseCases[currentUseCaseIndex];
+  const currentUseCaseData = USE_CASES[currentUseCase];
+  const currentQuestion = currentUseCaseData?.questions?.[currentQuestionIndex];
 
   const totalQuestions = selectedUseCases.reduce(
     (sum, key) => sum + USE_CASES[key].questions.length,
     0
-  )
+  );
   const completedQuestions =
     selectedUseCases.slice(0, currentUseCaseIndex).reduce(
       (sum, key) => sum + USE_CASES[key].questions.length,
       0
-    ) + currentQuestionIndex
+    ) + currentQuestionIndex;
 
-  const setAnswerValue = (useCaseKey: UseCaseKey, questionId: string, value: AnswerValue) => {
-    setAnswers((prev) => ({ ...prev, [`${useCaseKey}.${questionId}`]: value }))
-  }
+  const setAnswer = (useCaseKey: string, questionId: string, value: string | string[]) => {
+    setAnswers((prev) => ({ ...prev, [`${useCaseKey}.${questionId}`]: value }));
+  };
 
-  const currentAnswerKey = currentUseCase && currentQuestion ? `${currentUseCase}.${currentQuestion.id}` : null
-  const currentAnswer = currentAnswerKey ? answers[currentAnswerKey] : undefined
+  const currentAnswerKey = currentUseCase && currentQuestion ? `${currentUseCase}.${currentQuestion.id}` : null;
+  const currentAnswer = currentAnswerKey ? answers[currentAnswerKey] : undefined;
 
   const canProceed = (): boolean => {
-    if (!currentQuestion) return false
-    if (currentQuestion.type === "single") return !!currentAnswer
-    if (currentQuestion.type === "multi") return Array.isArray(currentAnswer) && currentAnswer.length > 0
-    return false
-  }
+    if (!currentQuestion) return false;
+    if (currentQuestion.type === "single") return !!currentAnswer;
+    if (currentQuestion.type === "multi") return Array.isArray(currentAnswer) && currentAnswer.length > 0;
+    return false;
+  };
 
   const handleNext = () => {
     if (currentQuestionIndex < currentUseCaseData.questions.length - 1) {
-      setCurrentQuestionIndex((i) => i + 1)
+      setCurrentQuestionIndex((i) => i + 1);
     } else if (currentUseCaseIndex < selectedUseCases.length - 1) {
-      setCurrentUseCaseIndex((i) => i + 1)
-      setCurrentQuestionIndex(0)
+      setCurrentUseCaseIndex((i) => i + 1);
+      setCurrentQuestionIndex(0);
     } else {
-      setStep("done")
+      const built = buildPayload();
+      setPayload(built);
+      onComplete?.(built);
+      setStep("done");
     }
-  }
+  };
 
   const handleBack = () => {
     if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex((i) => i - 1)
+      setCurrentQuestionIndex((i) => i - 1);
     } else if (currentUseCaseIndex > 0) {
-      setCurrentUseCaseIndex((i) => i - 1)
-      const prevUseCase = selectedUseCases[currentUseCaseIndex - 1]
-      setCurrentQuestionIndex(USE_CASES[prevUseCase].questions.length - 1)
+      setCurrentUseCaseIndex((i) => i - 1);
+      const prevUseCase = selectedUseCases[currentUseCaseIndex - 1];
+      setCurrentQuestionIndex(USE_CASES[prevUseCase].questions.length - 1);
     } else {
-      setStep("select")
-      setCurrentUseCaseIndex(0)
-      setCurrentQuestionIndex(0)
+      setStep("select");
+      setCurrentUseCaseIndex(0);
+      setCurrentQuestionIndex(0);
     }
-  }
+  };
 
   const handleStartOver = () => {
-    setStep("select")
-    setSelectedUseCases([])
-    setCurrentUseCaseIndex(0)
-    setCurrentQuestionIndex(0)
-    setAnswers({})
-  }
+    setStep("select");
+    setSelectedUseCases([]);
+    setCurrentUseCaseIndex(0);
+    setCurrentQuestionIndex(0);
+    setAnswers({});
+    setPayload(null);
+  };
 
-  // --- Styles ---
-
+  // Styles
   const pageStyle: CSSProperties = {
     minHeight: "100vh",
     background: "linear-gradient(168deg, #faf8f5 0%, #f3efe9 40%, #ede7df 100%)",
@@ -477,7 +510,7 @@ function BuildConfigurator() {
     justifyContent: "center",
     alignItems: "flex-start",
     padding: "48px 20px",
-  }
+  };
 
   const cardStyle: CSSProperties = {
     width: "100%",
@@ -488,7 +521,7 @@ function BuildConfigurator() {
     border: "1px solid rgba(180,170,160,0.18)",
     boxShadow: "0 8px 40px rgba(120,100,80,0.06), 0 1px 3px rgba(120,100,80,0.04)",
     padding: "40px 36px",
-  }
+  };
 
   const headingStyle: CSSProperties = {
     fontSize: 28,
@@ -497,7 +530,7 @@ function BuildConfigurator() {
     letterSpacing: "-0.02em",
     lineHeight: 1.25,
     margin: 0,
-  }
+  };
 
   const subTextStyle: CSSProperties = {
     fontSize: 15,
@@ -505,7 +538,7 @@ function BuildConfigurator() {
     lineHeight: 1.55,
     margin: "8px 0 0",
     fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-  }
+  };
 
   const buttonPrimary: CSSProperties = {
     padding: "12px 28px",
@@ -519,7 +552,7 @@ function BuildConfigurator() {
     cursor: "pointer",
     transition: "all 0.2s ease",
     letterSpacing: "0.01em",
-  }
+  };
 
   const buttonSecondary: CSSProperties = {
     padding: "12px 28px",
@@ -532,9 +565,9 @@ function BuildConfigurator() {
     fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
     cursor: "pointer",
     transition: "all 0.2s ease",
-  }
+  };
 
-  // --- RENDER ---
+  // Render
 
   // Step 1: Select use cases
   if (step === "select") {
@@ -558,8 +591,7 @@ function BuildConfigurator() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {(Object.entries(USE_CASES) as [UseCaseKey, UseCase][]).map(([key, val], i) => (
               <FadeIn key={key} delay={80 + i * 50}>
-                <div
-                  onClick={() => toggleUseCase(key)}
+                <label
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -590,6 +622,10 @@ function BuildConfigurator() {
                       transition: "all 0.2s ease",
                       flexShrink: 0,
                     }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleUseCase(key);
+                    }}
                   >
                     {selectedUseCases.includes(key) && (
                       <svg width="13" height="13" viewBox="0 0 12 12" fill="none">
@@ -597,7 +633,7 @@ function BuildConfigurator() {
                       </svg>
                     )}
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1 }} onClick={(e) => { e.preventDefault(); toggleUseCase(key); }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 18 }}>{val.icon}</span>
                       <span style={{ fontSize: 15.5, fontWeight: 500, color: "#2c2519", fontFamily: "'DM Sans', sans-serif" }}>
@@ -608,7 +644,7 @@ function BuildConfigurator() {
                       {val.description}
                     </div>
                   </div>
-                </div>
+                </label>
               </FadeIn>
             ))}
           </div>
@@ -622,9 +658,9 @@ function BuildConfigurator() {
                   pointerEvents: selectedUseCases.length === 0 ? "none" : "auto",
                 }}
                 onClick={() => {
-                  setCurrentUseCaseIndex(0)
-                  setCurrentQuestionIndex(0)
-                  setStep("configure")
+                  setCurrentUseCaseIndex(0);
+                  setCurrentQuestionIndex(0);
+                  setStep("configure");
                 }}
               >
                 Continue →
@@ -633,11 +669,11 @@ function BuildConfigurator() {
           </FadeIn>
         </div>
       </div>
-    )
+    );
   }
 
   // Step 2: Configure each use case question-by-question
-  if (step === "configure" && currentUseCaseData && currentQuestion) {
+  if (step === "configure") {
     return (
       <div style={pageStyle}>
         <link
@@ -691,11 +727,11 @@ function BuildConfigurator() {
                       key={opt}
                       label={opt}
                       selected={currentAnswer === opt}
-                      onChange={() => setAnswerValue(currentUseCase, currentQuestion.id, opt)}
+                      onChange={() => setAnswer(currentUseCase, currentQuestion.id, opt)}
                     />
-                  )
+                  );
                 } else {
-                  const arr = Array.isArray(currentAnswer) ? currentAnswer : []
+                  const arr = Array.isArray(currentAnswer) ? currentAnswer : [];
                   return (
                     <Checkbox
                       key={opt}
@@ -704,11 +740,11 @@ function BuildConfigurator() {
                       onChange={() => {
                         const newArr = arr.includes(opt)
                           ? arr.filter((x) => x !== opt)
-                          : [...arr, opt]
-                        setAnswerValue(currentUseCase, currentQuestion.id, newArr)
+                          : [...arr, opt];
+                        setAnswer(currentUseCase, currentQuestion.id, newArr);
                       }}
                     />
-                  )
+                  );
                 }
               })}
             </div>
@@ -735,7 +771,7 @@ function BuildConfigurator() {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   // Step 3: Thank you
@@ -760,7 +796,7 @@ function BuildConfigurator() {
                 Your Selections
               </div>
               {selectedUseCases.map((key) => {
-                const uc = USE_CASES[key]
+                const uc = USE_CASES[key];
                 return (
                   <div
                     key={key}
@@ -779,19 +815,19 @@ function BuildConfigurator() {
                       </span>
                     </div>
                     {uc.questions.map((q) => {
-                      const ans = answers[`${key}.${q.id}`]
-                      if (!ans) return null
-                      const display = Array.isArray(ans) ? ans.join(", ") : ans
+                      const ans = answers[`${key}.${q.id}`];
+                      if (!ans) return null;
+                      const display = Array.isArray(ans) ? ans.join(", ") : ans;
                       return (
                         <div key={q.id} style={{ fontSize: 13, color: "#6b5e4f", fontFamily: "'DM Sans', sans-serif", marginBottom: 4, paddingLeft: 24 }}>
                           <span style={{ color: "#9a8e7e" }}>{q.label}</span>
                           <br />
                           <span style={{ fontWeight: 500, color: "#4a3f32" }}>{display}</span>
                         </div>
-                      )
+                      );
                     })}
                   </div>
-                )
+                );
               })}
             </div>
 
@@ -800,11 +836,52 @@ function BuildConfigurator() {
                 Start Over
               </button>
             </div>
+
+            {/* Dev: JSON payload preview */}
+            {payload && (
+              <div style={{ marginTop: 28, textAlign: "left" as const }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#b8a88a", fontFamily: "'DM Sans', sans-serif" }}>
+                    JSON Payload
+                  </div>
+                  <button
+                    style={{
+                      ...buttonSecondary,
+                      padding: "4px 12px",
+                      fontSize: 12,
+                      borderRadius: 6,
+                    }}
+                    onClick={() => navigator.clipboard.writeText(JSON.stringify(payload, null, 2))}
+                  >
+                    Copy
+                  </button>
+                </div>
+                <pre
+                  style={{
+                    background: "rgba(44,37,25,0.04)",
+                    border: "1px solid rgba(180,170,160,0.2)",
+                    borderRadius: 10,
+                    padding: "16px",
+                    fontSize: 12,
+                    fontFamily: "'SF Mono', 'Fira Code', monospace",
+                    color: "#4a3f32",
+                    overflow: "auto",
+                    maxHeight: 300,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    lineHeight: 1.5,
+                    margin: 0,
+                  }}
+                >
+                  {JSON.stringify(payload, null, 2)}
+                </pre>
+              </div>
+            )}
           </FadeIn>
         </div>
       </div>
-    )
+    );
   }
 
-  return null
+  return null;
 }
