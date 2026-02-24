@@ -1,9 +1,6 @@
-
-Copy
-
 import { useState, useEffect, type ReactNode, type CSSProperties } from "react";
 
-// --- Types ---
+// Types
 
 type QuestionType = "single" | "multi";
 
