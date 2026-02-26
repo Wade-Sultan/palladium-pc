@@ -1,70 +1,117 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useState, useCallback } from "react"
 import { useNavigate } from "@tanstack/react-router"
+import type { User, Session, AuthError } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase"
 
-import {
-  type Body_login_login_access_token as AccessToken,
-  LoginService,
-  type UserPublic,
-  type UserRegister,
-  UsersService,
-} from "@/client"
-import { handleError } from "@/utils"
-import useCustomToast from "./useCustomToast"
-
-const isLoggedIn = () => {
-  return localStorage.getItem("access_token") !== null
+interface UseAuthReturn {
+  user: User | null
+  session: Session | null
+  loading: boolean
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: AuthError | null }>
+  signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>
+  updatePassword: (newPassword: string) => Promise<{ error: AuthError | null }>
 }
 
-const useAuth = () => {
+/**
+ * Check if there's an active session without subscribing to changes.
+ * Useful for route guards (beforeLoad) where hooks can't be used.
+ */
+export async function isLoggedIn(): Promise<boolean> {
+  const { data } = await supabase.auth.getSession()
+  return data.session !== null
+}
+
+/**
+ * Get the current access token for passing to your FastAPI backend.
+ * Returns null if no active session.
+ */
+export async function getAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token ?? null
+}
+
+export default function useAuth(): UseAuthReturn {
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const { showErrorToast } = useCustomToast()
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const { data: user } = useQuery<UserPublic | null, Error>({
-    queryKey: ["currentUser"],
-    queryFn: UsersService.readUserMe,
-    enabled: isLoggedIn(),
-  })
-
-  const signUpMutation = useMutation({
-    mutationFn: (data: UserRegister) =>
-      UsersService.registerUser({ requestBody: data }),
-    onSuccess: () => {
-      navigate({ to: "/login" })
-    },
-    onError: handleError.bind(showErrorToast),
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] })
-    },
-  })
-
-  const login = async (data: AccessToken) => {
-    const response = await LoginService.loginAccessToken({
-      formData: data,
+  useEffect(() => {
+    // Initial session load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setLoading(false)
     })
-    localStorage.setItem("access_token", response.access_token)
-  }
 
-  const loginMutation = useMutation({
-    mutationFn: login,
-    onSuccess: () => {
+    // Auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+      }
+    )
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error) {
       navigate({ to: "/" })
-    },
-    onError: handleError.bind(showErrorToast),
-  })
+    }
+    return { error }
+  }, [navigate])
 
-  const logout = () => {
-    localStorage.removeItem("access_token")
+  const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
+    })
+    if (!error) {
+      // Supabase may require email confirmation depending on your project settings.
+      // Navigate to login so they can confirm and sign in.
+      navigate({ to: "/login" })
+    }
+    return { error }
+  }, [navigate])
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut()
     navigate({ to: "/login" })
-  }
+  }, [navigate])
+
+  const resetPassword = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    return { error }
+  }, [])
+
+  const updatePassword = useCallback(async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (!error) {
+      navigate({ to: "/" })
+    }
+    return { error }
+  }, [navigate])
 
   return {
-    signUpMutation,
-    loginMutation,
-    logout,
     user,
+    session,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
+    updatePassword,
   }
 }
-
-export { isLoggedIn }
-export default useAuth
