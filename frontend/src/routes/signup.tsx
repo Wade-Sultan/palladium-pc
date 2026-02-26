@@ -4,8 +4,10 @@ import {
   Link as RouterLink,
   redirect,
 } from "@tanstack/react-router"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+
 import { AuthLayout } from "@/components/Common/AuthLayout"
 import {
   Form,
@@ -22,8 +24,8 @@ import useAuth, { isLoggedIn } from "@/hooks/useAuth"
 
 const formSchema = z
   .object({
-    email: z.email(),
-    full_name: z.string().min(1, { message: "Full Name is required" }),
+    email: z.string().email({ message: "Please enter a valid email" }),
+    full_name: z.string().min(1, { message: "Full name is required" }),
     password: z
       .string()
       .min(1, { message: "Password is required" })
@@ -42,23 +44,19 @@ type FormData = z.infer<typeof formSchema>
 export const Route = createFileRoute("/signup")({
   component: SignUp,
   beforeLoad: async () => {
-    if (isLoggedIn()) {
-      throw redirect({
-        to: "/",
-      })
+    if (await isLoggedIn()) {
+      throw redirect({ to: "/" })
     }
   },
   head: () => ({
-    meta: [
-      {
-        title: "Sign Up - FastAPI Cloud",
-      },
-    ],
+    meta: [{ title: "Sign Up - Palladium" }],
   }),
 })
 
 function SignUp() {
-  const { signUpMutation } = useAuth()
+  const { signUp } = useAuth()
+  const [submitting, setSubmitting] = useState(false)
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     mode: "onBlur",
@@ -71,12 +69,14 @@ function SignUp() {
     },
   })
 
-  const onSubmit = (data: FormData) => {
-    if (signUpMutation.isPending) return
-
-    // exclude confirm_password from submission data
-    const { confirm_password: _confirm_password, ...submitData } = data
-    signUpMutation.mutate(submitData)
+  const onSubmit = async (data: FormData) => {
+    if (submitting) return
+    setSubmitting(true)
+    const { error } = await signUp(data.email, data.password, data.full_name)
+    if (error) {
+      form.setError("root", { message: error.message })
+    }
+    setSubmitting(false)
   }
 
   return (
@@ -90,6 +90,12 @@ function SignUp() {
             <h1 className="text-2xl font-bold">Create an account</h1>
           </div>
 
+          {form.formState.errors.root && (
+            <p className="text-sm text-destructive text-center">
+              {form.formState.errors.root.message}
+            </p>
+          )}
+
           <div className="grid gap-4">
             <FormField
               control={form.control}
@@ -98,12 +104,7 @@ function SignUp() {
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input
-                      data-testid="full-name-input"
-                      placeholder="User"
-                      type="text"
-                      {...field}
-                    />
+                    <Input placeholder="Your name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -118,8 +119,7 @@ function SignUp() {
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input
-                      data-testid="email-input"
-                      placeholder="user@example.com"
+                      placeholder="you@example.com"
                       type="email"
                       {...field}
                     />
@@ -136,11 +136,7 @@ function SignUp() {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
-                    <PasswordInput
-                      data-testid="password-input"
-                      placeholder="Password"
-                      {...field}
-                    />
+                    <PasswordInput placeholder="Password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -154,22 +150,14 @@ function SignUp() {
                 <FormItem>
                   <FormLabel>Confirm Password</FormLabel>
                   <FormControl>
-                    <PasswordInput
-                      data-testid="confirm-password-input"
-                      placeholder="Confirm Password"
-                      {...field}
-                    />
+                    <PasswordInput placeholder="Confirm Password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <LoadingButton
-              type="submit"
-              className="w-full"
-              loading={signUpMutation.isPending}
-            >
+            <LoadingButton type="submit" className="w-full" loading={submitting}>
               Sign Up
             </LoadingButton>
           </div>

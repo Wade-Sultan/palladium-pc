@@ -1,15 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation } from "@tanstack/react-query"
-import {
-  createFileRoute,
-  Link as RouterLink,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { LoginService } from "@/client"
 import { AuthLayout } from "@/components/Common/AuthLayout"
 import {
   Form,
@@ -21,13 +15,7 @@ import {
 } from "@/components/ui/form"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
-import { isLoggedIn } from "@/hooks/useAuth"
-import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
-
-const searchSchema = z.object({
-  token: z.string().catch(""),
-})
+import useAuth from "@/hooks/useAuth"
 
 const formSchema = z
   .object({
@@ -48,28 +36,23 @@ type FormData = z.infer<typeof formSchema>
 
 export const Route = createFileRoute("/reset-password")({
   component: ResetPassword,
-  validateSearch: searchSchema,
-  beforeLoad: async ({ search }) => {
-    if (isLoggedIn()) {
-      throw redirect({ to: "/" })
-    }
-    if (!search.token) {
-      throw redirect({ to: "/login" })
-    }
-  },
   head: () => ({
-    meta: [
-      {
-        title: "Reset Password - FastAPI Cloud",
-      },
-    ],
+    meta: [{ title: "Reset Password - Palladium" }],
   }),
 })
 
+/**
+ * When a user clicks the password reset link from their email,
+ * Supabase redirects them here with a recovery session already
+ * established. They just need to set their new password via
+ * `updateUser({ password })`.
+ *
+ * No token parsing needed — Supabase's JS client picks up the
+ * session from the URL fragment automatically.
+ */
 function ResetPassword() {
-  const { token } = Route.useSearch()
-  const { showSuccessToast, showErrorToast } = useCustomToast()
-  const navigate = useNavigate()
+  const { updatePassword } = useAuth()
+  const [submitting, setSubmitting] = useState(false)
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -81,19 +64,15 @@ function ResetPassword() {
     },
   })
 
-  const mutation = useMutation({
-    mutationFn: (data: { new_password: string; token: string }) =>
-      LoginService.resetPassword({ requestBody: data }),
-    onSuccess: () => {
-      showSuccessToast("Password updated successfully")
-      form.reset()
-      navigate({ to: "/login" })
-    },
-    onError: handleError.bind(showErrorToast),
-  })
-
-  const onSubmit = (data: FormData) => {
-    mutation.mutate({ new_password: data.new_password, token })
+  const onSubmit = async (data: FormData) => {
+    if (submitting) return
+    setSubmitting(true)
+    const { error } = await updatePassword(data.new_password)
+    if (error) {
+      form.setError("root", { message: error.message })
+    }
+    // On success, useAuth.updatePassword navigates to "/"
+    setSubmitting(false)
   }
 
   return (
@@ -105,7 +84,16 @@ function ResetPassword() {
         >
           <div className="flex flex-col items-center gap-2 text-center">
             <h1 className="text-2xl font-bold">Reset Password</h1>
+            <p className="text-sm text-muted-foreground">
+              Enter your new password below.
+            </p>
           </div>
+
+          {form.formState.errors.root && (
+            <p className="text-sm text-destructive text-center">
+              {form.formState.errors.root.message}
+            </p>
+          )}
 
           <div className="grid gap-4">
             <FormField
@@ -115,11 +103,7 @@ function ResetPassword() {
                 <FormItem>
                   <FormLabel>New Password</FormLabel>
                   <FormControl>
-                    <PasswordInput
-                      data-testid="new-password-input"
-                      placeholder="New Password"
-                      {...field}
-                    />
+                    <PasswordInput placeholder="New password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -133,31 +117,16 @@ function ResetPassword() {
                 <FormItem>
                   <FormLabel>Confirm Password</FormLabel>
                   <FormControl>
-                    <PasswordInput
-                      data-testid="confirm-password-input"
-                      placeholder="Confirm Password"
-                      {...field}
-                    />
+                    <PasswordInput placeholder="Confirm password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <LoadingButton
-              type="submit"
-              className="w-full"
-              loading={mutation.isPending}
-            >
-              Reset Password
+            <LoadingButton type="submit" loading={submitting}>
+              Update Password
             </LoadingButton>
-          </div>
-
-          <div className="text-center text-sm">
-            Remember your password?{" "}
-            <RouterLink to="/login" className="underline underline-offset-4">
-              Log in
-            </RouterLink>
           </div>
         </form>
       </Form>
