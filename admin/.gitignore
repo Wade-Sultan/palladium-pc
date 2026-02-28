@@ -35,3 +35,6 @@ admin-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Secrets
+*.secret.exs
+
