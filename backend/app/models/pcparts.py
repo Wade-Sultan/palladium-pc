@@ -88,6 +88,7 @@ class PCPart(Base):
     name = Column(String(255), nullable=False)
     manufacturer = Column(String(255), nullable=True)
     model_number = Column(String(255), nullable=True)
+    year_released = Column(Integer, nullable=True)
 
     part_type = Column(String(50), nullable=False)
 
@@ -130,7 +131,7 @@ class CPU(PCPart):
     socket = Column(String(30), nullable=False)
     tdp_watts = Column(Integer, nullable=False)
     has_igpu = Column(Boolean, nullable=False)
-    ddr_generation = Column(String(10), nullable=False) 
+    ddr_generation = Column(ARRAY(String), nullable=False) 
     supported_features = Column(ARRAY(String), nullable=True) # e.g. ["avx2", "sse4.2", "avx512"] (for certain games)
 
     # Validated in benchmarks.py
