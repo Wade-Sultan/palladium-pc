@@ -15,23 +15,14 @@ const tabsConfig = [
 export const Route = createFileRoute("/_layout/settings")({
   component: UserSettings,
   head: () => ({
-    meta: [
-      {
-        title: "Settings - FastAPI Cloud",
-      },
-    ],
+    meta: [{ title: "Settings - Palladium" }],
   }),
 })
 
 function UserSettings() {
-  const { user: currentUser } = useAuth()
-  const finalTabs = currentUser?.is_superuser
-    ? tabsConfig.slice(0, 3)
-    : tabsConfig
+  const { user } = useAuth()
 
-  if (!currentUser) {
-    return null
-  }
+  if (!user) return null
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,13 +35,13 @@ function UserSettings() {
 
       <Tabs defaultValue="my-profile">
         <TabsList>
-          {finalTabs.map((tab) => (
+          {tabsConfig.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.title}
             </TabsTrigger>
           ))}
         </TabsList>
-        {finalTabs.map((tab) => (
+        {tabsConfig.map((tab) => (
           <TabsContent key={tab.value} value={tab.value}>
             <tab.component />
           </TabsContent>

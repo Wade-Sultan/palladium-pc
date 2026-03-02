@@ -1,10 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { UsersService, type UserUpdateMe } from "@/client"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -17,30 +15,32 @@ import {
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import useAuth from "@/hooks/useAuth"
-import useCustomToast from "@/hooks/useCustomToast"
+import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
-import { handleError } from "@/utils"
 
 const formSchema = z.object({
   full_name: z.string().max(30).optional(),
-  email: z.email({ message: "Invalid email address" }),
+  email: z.string().email({ message: "Invalid email address" }),
 })
 
 type FormData = z.infer<typeof formSchema>
 
 const UserInformation = () => {
-  const queryClient = useQueryClient()
-  const { showSuccessToast, showErrorToast } = useCustomToast()
+  const { user } = useAuth()
   const [editMode, setEditMode] = useState(false)
-  const { user: currentUser } = useAuth()
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const currentFullName = (user?.user_metadata?.full_name as string) ?? ""
+  const currentEmail = user?.email ?? ""
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      full_name: currentUser?.full_name ?? undefined,
-      email: currentUser?.email,
+      full_name: currentFullName,
+      email: currentEmail,
     },
   })
 
@@ -48,35 +48,41 @@ const UserInformation = () => {
     setEditMode(!editMode)
   }
 
-  const mutation = useMutation({
-    mutationFn: (data: UserUpdateMe) =>
-      UsersService.updateUserMe({ requestBody: data }),
-    onSuccess: () => {
-      showSuccessToast("User updated successfully")
-      toggleEditMode()
-    },
-    onError: handleError.bind(showErrorToast),
-    onSettled: () => {
-      queryClient.invalidateQueries()
-    },
-  })
+  const onSubmit = async (data: FormData) => {
+    if (submitting) return
+    setSubmitting(true)
+    setError(null)
 
-  const onSubmit = (data: FormData) => {
-    const updateData: UserUpdateMe = {}
+    // Update user metadata (full_name) and email via Supabase
+    const updates: { email?: string; data?: { full_name?: string } } = {}
 
-    // only include fields that have changed
-    if (data.full_name !== currentUser?.full_name) {
-      updateData.full_name = data.full_name
+    if (data.full_name !== currentFullName) {
+      updates.data = { full_name: data.full_name }
     }
-    if (data.email !== currentUser?.email) {
-      updateData.email = data.email
+    if (data.email !== currentEmail) {
+      updates.email = data.email
     }
 
-    mutation.mutate(updateData)
+    if (Object.keys(updates).length === 0) {
+      setEditMode(false)
+      setSubmitting(false)
+      return
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser(updates)
+
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      setEditMode(false)
+    }
+
+    setSubmitting(false)
   }
 
   const onCancel = () => {
     form.reset()
+    setError(null)
     toggleEditMode()
   }
 
@@ -88,6 +94,10 @@ const UserInformation = () => {
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
         >
+          {error && (
+            <p className="text-sm text-destructive">{error}</p>
+          )}
+
           <FormField
             control={form.control}
             name="full_name"
@@ -142,7 +152,7 @@ const UserInformation = () => {
               <>
                 <LoadingButton
                   type="submit"
-                  loading={mutation.isPending}
+                  loading={submitting}
                   disabled={!form.formState.isDirty}
                 >
                   Save
@@ -151,7 +161,7 @@ const UserInformation = () => {
                   type="button"
                   variant="outline"
                   onClick={onCancel}
-                  disabled={mutation.isPending}
+                  disabled={submitting}
                 >
                   Cancel
                 </Button>

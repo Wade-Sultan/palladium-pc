@@ -1,9 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useMutation } from "@tanstack/react-query"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { type UpdatePassword, UsersService } from "@/client"
 import {
   Form,
   FormControl,
@@ -14,15 +13,10 @@ import {
 } from "@/components/ui/form"
 import { LoadingButton } from "@/components/ui/loading-button"
 import { PasswordInput } from "@/components/ui/password-input"
-import useCustomToast from "@/hooks/useCustomToast"
-import { handleError } from "@/utils"
+import useAuth from "@/hooks/useAuth"
 
 const formSchema = z
   .object({
-    current_password: z
-      .string()
-      .min(1, { message: "Password is required" })
-      .min(8, { message: "Password must be at least 8 characters" }),
     new_password: z
       .string()
       .min(1, { message: "Password is required" })
@@ -39,30 +33,29 @@ const formSchema = z
 type FormData = z.infer<typeof formSchema>
 
 const ChangePassword = () => {
-  const { showSuccessToast, showErrorToast } = useCustomToast()
+  const { updatePassword } = useAuth()
+  const [submitting, setSubmitting] = useState(false)
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     mode: "onSubmit",
     criteriaMode: "all",
     defaultValues: {
-      current_password: "",
       new_password: "",
       confirm_password: "",
     },
   })
 
-  const mutation = useMutation({
-    mutationFn: (data: UpdatePassword) =>
-      UsersService.updatePasswordMe({ requestBody: data }),
-    onSuccess: () => {
-      showSuccessToast("Password updated successfully")
-      form.reset()
-    },
-    onError: handleError.bind(showErrorToast),
-  })
-
   const onSubmit = async (data: FormData) => {
-    mutation.mutate(data)
+    if (submitting) return
+    setSubmitting(true)
+    const { error } = await updatePassword(data.new_password)
+    if (error) {
+      form.setError("root", { message: error.message })
+    } else {
+      form.reset()
+    }
+    setSubmitting(false)
   }
 
   return (
@@ -73,24 +66,11 @@ const ChangePassword = () => {
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
         >
-          <FormField
-            control={form.control}
-            name="current_password"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Current Password</FormLabel>
-                <FormControl>
-                  <PasswordInput
-                    data-testid="current-password-input"
-                    placeholder="••••••••"
-                    aria-invalid={fieldState.invalid}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {form.formState.errors.root && (
+            <p className="text-sm text-destructive">
+              {form.formState.errors.root.message}
+            </p>
+          )}
 
           <FormField
             control={form.control}
@@ -132,7 +112,7 @@ const ChangePassword = () => {
 
           <LoadingButton
             type="submit"
-            loading={mutation.isPending}
+            loading={submitting}
             className="self-start"
           >
             Update Password
