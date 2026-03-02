@@ -265,6 +265,12 @@ class Storage(PCPart):
 class GPU(PCPart):
     __tablename__ = "gpus"
 
+    id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("pc_parts.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
     # Compatability Requirements
     brand = Column(String(20), nullable=False)
     chipset = Column(String(50), nullable=False)
@@ -306,6 +312,12 @@ class GPU(PCPart):
 
 class PSU(PCPart):
     __tablename__ = "psus"
+
+    id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("pc_parts.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
 
     # Compatability Requirements
     wattage = Column(Integer, nullable=False)
