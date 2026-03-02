@@ -144,6 +144,7 @@ services:
       context: ./frontend
       args:
         - VITE_API_URL=https://api.${DOMAIN?Variable not set}
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL?Variable not set}
         - NODE_ENV=production
     labels:
       - traefik.enable=true
