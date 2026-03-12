@@ -272,8 +272,8 @@ class GPU(PCPart):
     )
 
     # Compatability Requirements
-    brand = Column(String(20), nullable=False)
     chipset = Column(String(50), nullable=False)
+    brand = Column(String(20), nullable=False)
     vram_gb = Column(Integer, nullable=False)
     tdp_watts = Column(Integer, nullable=False)
     length_mm = Column(Integer, nullable=False)
@@ -324,6 +324,7 @@ class PSU(PCPart):
     form_factor = Column(String(10), nullable=False)
     efficiency_rating = Column(String(30), nullable=False)
     pcie_8pin_connectors = Column(Integer, nullable=True) # Needed for GPU
+    pcie_12pin_connectors = Column(Integer, nullable=True) # For the latest GPUs
     pcie_16pin_connectors = Column(Integer, nullable=True)
     depth_mm = Column(Integer, nullable=True) 
 
@@ -353,6 +354,8 @@ class Case(PCPart):
     max_radiator_top_mm = Column(Integer, nullable=True)
     max_psu_length_mm = Column(Integer, nullable=True)
     included_fan_count = Column(Integer, nullable=True)
+    chamber_count= Column(Integer, nullable=True)
+    front_panel_mesh = Column(Boolean, nullable=True)
     color = Column(String(50), nullable=True) # User preference
 
     # Other
