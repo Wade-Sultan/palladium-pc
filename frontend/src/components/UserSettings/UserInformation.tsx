@@ -15,7 +15,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import useAuth from "@/hooks/useAuth"
-import { supabase } from "@/lib/supabase"
+import { updateProfile, updateEmail } from "firebase/auth"
+import { auth } from "@/lib/firebase"
 import { cn } from "@/lib/utils"
 
 const formSchema = z.object({
@@ -31,7 +32,8 @@ const UserInformation = () => {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const currentFullName = (user?.user_metadata?.full_name as string) ?? ""
+  // Firebase stores the display name directly on the User object
+  const currentFullName = user?.displayName ?? ""
   const currentEmail = user?.email ?? ""
 
   const form = useForm<FormData>({
@@ -49,35 +51,32 @@ const UserInformation = () => {
   }
 
   const onSubmit = async (data: FormData) => {
-    if (submitting) return
+    if (submitting || !auth.currentUser) return
     setSubmitting(true)
     setError(null)
 
-    // Update user metadata (full_name) and email via Supabase
-    const updates: { email?: string; data?: { full_name?: string } } = {}
+    try {
+      // Update display name if changed
+      if (data.full_name !== currentFullName) {
+        await updateProfile(auth.currentUser, {
+          displayName: data.full_name || null,
+        })
+      }
 
-    if (data.full_name !== currentFullName) {
-      updates.data = { full_name: data.full_name }
-    }
-    if (data.email !== currentEmail) {
-      updates.email = data.email
-    }
+      // Update email if changed
+      // Note: Firebase may require the user to re-authenticate before
+      // changing their email. If this throws, you may need to prompt
+      // the user for their password and call reauthenticateWithCredential first.
+      if (data.email !== currentEmail) {
+        await updateEmail(auth.currentUser, data.email)
+      }
 
-    if (Object.keys(updates).length === 0) {
       setEditMode(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update profile")
+    } finally {
       setSubmitting(false)
-      return
     }
-
-    const { error: updateError } = await supabase.auth.updateUser(updates)
-
-    if (updateError) {
-      setError(updateError.message)
-    } else {
-      setEditMode(false)
-    }
-
-    setSubmitting(false)
   }
 
   const onCancel = () => {
@@ -104,22 +103,17 @@ const UserInformation = () => {
             render={({ field }) =>
               editMode ? (
                 <FormItem>
-                  <FormLabel>Full name</FormLabel>
+                  <FormLabel>Full Name</FormLabel>
                   <FormControl>
-                    <Input type="text" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               ) : (
                 <FormItem>
-                  <FormLabel>Full name</FormLabel>
-                  <p
-                    className={cn(
-                      "py-2 truncate max-w-sm",
-                      !field.value && "text-muted-foreground",
-                    )}
-                  >
-                    {field.value || "N/A"}
+                  <FormLabel>Full Name</FormLabel>
+                  <p className={cn("text-sm", !field.value && "text-muted-foreground")}>
+                    {field.value || "Not set"}
                   </p>
                 </FormItem>
               )
@@ -141,28 +135,19 @@ const UserInformation = () => {
               ) : (
                 <FormItem>
                   <FormLabel>Email</FormLabel>
-                  <p className="py-2 truncate max-w-sm">{field.value}</p>
+                  <p className="text-sm">{field.value}</p>
                 </FormItem>
               )
             }
           />
 
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             {editMode ? (
               <>
-                <LoadingButton
-                  type="submit"
-                  loading={submitting}
-                  disabled={!form.formState.isDirty}
-                >
+                <LoadingButton type="submit" loading={submitting}>
                   Save
                 </LoadingButton>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onCancel}
-                  disabled={submitting}
-                >
+                <Button type="button" variant="outline" onClick={onCancel}>
                   Cancel
                 </Button>
               </>
