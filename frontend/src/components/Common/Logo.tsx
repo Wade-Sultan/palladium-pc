@@ -20,7 +20,7 @@ export function Logo({
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
 
-  const fullLogo = isDark ? fullLogoLight : fullLogoDark
+  const fullLogo = isDark ? fullLogoDark : fullLogoLight
   const icon = iconLogo
 
   const content =
