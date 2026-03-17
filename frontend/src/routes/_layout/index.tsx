@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_layout/")({
 function Dashboard() {
   const { user } = useAuth()
   const displayName =
-    (user?.user_metadata?.full_name as string) || user?.email || "there"
+    user?.displayName || user?.email || "there"
 
   return (
     <div>

@@ -46,8 +46,8 @@ export function User() {
 
   if (!user) return null
 
-  const fullName = user.user_metadata?.full_name as string | undefined
-  const email = user.email
+  const fullName = user.displayName ?? undefined
+  const email = user.email ?? undefined
 
   const handleMenuClick = () => {
     if (isMobile) {
