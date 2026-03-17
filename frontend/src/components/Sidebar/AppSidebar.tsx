@@ -1,4 +1,10 @@
-import { Home } from "lucide-react"
+import { 
+  Home,
+  Hammer,
+  MessagesSquare,
+  BookOpen,
+  MapPin,
+} from "lucide-react"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
@@ -13,6 +19,10 @@ import { User } from "./User"
 
 const items: Item[] = [
   { icon: Home, title: "Dashboard", path: "/" },
+  { icon: Hammer, title: "New Build", path: "/build" },
+  { icon: MessagesSquare, title: "My Builds", path: "/builds" },
+  { icon: BookOpen, title: "Guides", path: "/guides" },
+  { icon: MapPin, title: "Find a Builder", path: "/find-builder" },
 ]
 
 export function AppSidebar() {
