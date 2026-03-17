@@ -16,6 +16,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as LayoutNewbuildRouteImport } from './routes/_layout/newbuild'
+import { Route as LayoutGuidesRouteImport } from './routes/_layout/guides'
+import { Route as LayoutFindbuilderRouteImport } from './routes/_layout/findbuilder'
+import { Route as LayoutBuildhistoryRouteImport } from './routes/_layout/buildhistory'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -51,12 +55,36 @@ const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutNewbuildRoute = LayoutNewbuildRouteImport.update({
+  id: '/newbuild',
+  path: '/newbuild',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutGuidesRoute = LayoutGuidesRouteImport.update({
+  id: '/guides',
+  path: '/guides',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutFindbuilderRoute = LayoutFindbuilderRouteImport.update({
+  id: '/findbuilder',
+  path: '/findbuilder',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutBuildhistoryRoute = LayoutBuildhistoryRouteImport.update({
+  id: '/buildhistory',
+  path: '/buildhistory',
+  getParentRoute: () => LayoutRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/buildhistory': typeof LayoutBuildhistoryRoute
+  '/findbuilder': typeof LayoutFindbuilderRoute
+  '/guides': typeof LayoutGuidesRoute
+  '/newbuild': typeof LayoutNewbuildRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -65,6 +93,10 @@ export interface FileRoutesByTo {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/buildhistory': typeof LayoutBuildhistoryRoute
+  '/findbuilder': typeof LayoutFindbuilderRoute
+  '/guides': typeof LayoutGuidesRoute
+  '/newbuild': typeof LayoutNewbuildRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
 }
@@ -75,6 +107,10 @@ export interface FileRoutesById {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/_layout/buildhistory': typeof LayoutBuildhistoryRoute
+  '/_layout/findbuilder': typeof LayoutFindbuilderRoute
+  '/_layout/guides': typeof LayoutGuidesRoute
+  '/_layout/newbuild': typeof LayoutNewbuildRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
 }
@@ -85,6 +121,10 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
+    | '/buildhistory'
+    | '/findbuilder'
+    | '/guides'
+    | '/newbuild'
     | '/settings'
     | '/'
   fileRoutesByTo: FileRoutesByTo
@@ -93,6 +133,10 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
+    | '/buildhistory'
+    | '/findbuilder'
+    | '/guides'
+    | '/newbuild'
     | '/settings'
     | '/'
   id:
@@ -102,6 +146,10 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/signup'
+    | '/_layout/buildhistory'
+    | '/_layout/findbuilder'
+    | '/_layout/guides'
+    | '/_layout/newbuild'
     | '/_layout/settings'
     | '/_layout/'
   fileRoutesById: FileRoutesById
@@ -165,15 +213,51 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutSettingsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/newbuild': {
+      id: '/_layout/newbuild'
+      path: '/newbuild'
+      fullPath: '/newbuild'
+      preLoaderRoute: typeof LayoutNewbuildRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/guides': {
+      id: '/_layout/guides'
+      path: '/guides'
+      fullPath: '/guides'
+      preLoaderRoute: typeof LayoutGuidesRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/findbuilder': {
+      id: '/_layout/findbuilder'
+      path: '/findbuilder'
+      fullPath: '/findbuilder'
+      preLoaderRoute: typeof LayoutFindbuilderRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/buildhistory': {
+      id: '/_layout/buildhistory'
+      path: '/buildhistory'
+      fullPath: '/buildhistory'
+      preLoaderRoute: typeof LayoutBuildhistoryRouteImport
+      parentRoute: typeof LayoutRoute
+    }
   }
 }
 
 interface LayoutRouteChildren {
+  LayoutBuildhistoryRoute: typeof LayoutBuildhistoryRoute
+  LayoutFindbuilderRoute: typeof LayoutFindbuilderRoute
+  LayoutGuidesRoute: typeof LayoutGuidesRoute
+  LayoutNewbuildRoute: typeof LayoutNewbuildRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
+  LayoutBuildhistoryRoute: LayoutBuildhistoryRoute,
+  LayoutFindbuilderRoute: LayoutFindbuilderRoute,
+  LayoutGuidesRoute: LayoutGuidesRoute,
+  LayoutNewbuildRoute: LayoutNewbuildRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }

@@ -5,7 +5,7 @@ import useAuth from "@/hooks/useAuth"
 export const Route = createFileRoute("/_layout/")({
   component: Dashboard,
   head: () => ({
-    meta: [{ title: "Dashboard - Palladium" }],
+    meta: [{ title: "Palladium" }],
   }),
 })
 
