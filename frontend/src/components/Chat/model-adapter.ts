@@ -7,7 +7,7 @@ import type { ChatModelAdapter } from "@assistant-ui/react"
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_CHAT !== "false"
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
-// ─── Mock Adapter ───────────────────────────────────────────────────────────
+// Mock adapter
 
 const MOCK_RESPONSES = [
   `Great choice! Based on what you've told me, I'm going to recommend a build focused on **high-performance gaming at 1440p**.
@@ -40,8 +40,8 @@ function randomDelay(min: number, max: number): Promise<void> {
 
 const mockAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
-    const userMessage = messages.at(-1)?.content
-      .filter((p) => p.type === "text")
+    const userMessage = messages[messages.length - 1]?.content
+      .filter((p): p is { type: "text"; text: string } => p.type === "text")
       .map((p) => p.text)
       .join(" ")
       .toLowerCase() ?? ""
@@ -69,7 +69,7 @@ const mockAdapter: ChatModelAdapter = {
   },
 }
 
-// ─── Real Adapter (FastAPI SSE) ─────────────────────────────────────────────
+// Real adapter
 
 const realAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
@@ -80,7 +80,7 @@ const realAdapter: ChatModelAdapter = {
         messages: messages.map((m) => ({
           role: m.role,
           content: m.content
-            .filter((p) => p.type === "text")
+            .filter((p): p is { type: "text"; text: string } => p.type === "text")
             .map((p) => p.text)
             .join("\n"),
         })),
@@ -121,8 +121,7 @@ const realAdapter: ChatModelAdapter = {
               fullText += parsed.text ?? parsed.content ?? ""
               yield { content: [{ type: "text" as const, text: fullText }] }
             } else if (parsed.type === "progress") {
-              // Pipeline step progress — prepend status then continue
-              // The ChatInterface handles these via a separate mechanism
+              // Pipeline step progress — inline as blockquote
               fullText += `\n\n> **${parsed.step}**: ${parsed.message}\n\n`
               yield { content: [{ type: "text" as const, text: fullText }] }
             }
@@ -137,6 +136,6 @@ const realAdapter: ChatModelAdapter = {
   },
 }
 
-// ─── Export ──────────────────────────────────────────────────────────────────
+// Export
 
 export const modelAdapter: ChatModelAdapter = USE_MOCK ? mockAdapter : realAdapter

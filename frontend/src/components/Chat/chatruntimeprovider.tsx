@@ -4,32 +4,18 @@ import {
   useLocalRuntime,
 } from "@assistant-ui/react"
 
-import { modelAdapter } from "./model-adapter.ts"
+import { modelAdapter } from "./model-adapter"
 
-const SUGGESTED_PROMPTS = [
-  {
-    prompt: "I want to build a gaming PC for 1440p 144fps",
-    icon: "🎮",
-  },
-  {
-    prompt: "Help me build a workstation for AI model training",
-    icon: "🧠",
-  },
-  {
-    prompt: "I need a quiet, compact PC for video editing",
-    icon: "🎬",
-  },
-  {
-    prompt: "Build me a budget-friendly PC for general use and light gaming",
-    icon: "💡",
-  },
+const INITIAL_SUGGESTIONS = [
+  { prompt: "I want to build a gaming PC for 1440p 144fps" },
+  { prompt: "Help me build a workstation for AI model training" },
+  { prompt: "I need a quiet, compact PC for video editing" },
+  { prompt: "Build me a budget-friendly PC for general use and light gaming" },
 ]
 
 interface ChatRuntimeProviderProps {
   children: ReactNode
 }
-
-export { SUGGESTED_PROMPTS }
 
 export function ChatRuntimeProvider({ children }: ChatRuntimeProviderProps) {
   const runtime = useLocalRuntime(modelAdapter, {
@@ -42,3 +28,5 @@ export function ChatRuntimeProvider({ children }: ChatRuntimeProviderProps) {
     </AssistantRuntimeProvider>
   )
 }
+
+export { INITIAL_SUGGESTIONS }
