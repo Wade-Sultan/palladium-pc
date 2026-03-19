@@ -1,2 +1,2 @@
-export { ChatInterface } from "./ChatInterface"
-export { ChatRuntimeProvider } from "./ChatRuntimeProvider"
+export { ChatInterface } from "./chatinterface"
+export { ChatRuntimeProvider } from "./chatruntimeprovider"

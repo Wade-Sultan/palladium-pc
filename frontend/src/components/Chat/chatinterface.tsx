@@ -10,7 +10,7 @@ import { Cpu, ArrowLeft } from "lucide-react"
 import { useNavigate } from "@tanstack/react-router"
 
 import { Button } from "@/components/ui/button"
-import { ChatRuntimeProvider, SUGGESTED_PROMPTS } from "./ChatRuntimeProvider"
+import { ChatRuntimeProvider, SUGGESTED_PROMPTS } from "./chatruntimeprovider"
 
 // ─── Markdown renderer for assistant messages ───────────────────────────────
 

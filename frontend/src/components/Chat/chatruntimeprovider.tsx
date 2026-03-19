@@ -4,7 +4,7 @@ import {
   useLocalRuntime,
 } from "@assistant-ui/react"
 
-import { modelAdapter } from "./model-adapter"
+import { modelAdapter } from "./model-adapter.ts"
 
 const SUGGESTED_PROMPTS = [
   {

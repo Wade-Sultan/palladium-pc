@@ -5,9 +5,13 @@
     "tailwindcss": "^4.1.18"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.12.19",
+    "@assistant-ui/react-markdown": "^0.12.6",
     "@supabase/supabase-js": "^2.97.0",
     "axios": "^1.13.4",
     "firebase": "^12.10.0",
-    "react-hook-form": "^7.71.1"
+    "react-hook-form": "^7.71.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   }
 }
