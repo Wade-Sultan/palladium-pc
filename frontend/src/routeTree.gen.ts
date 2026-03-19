@@ -15,6 +15,7 @@ import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LayoutUnderconstructionRouteImport } from './routes/_layout/underconstruction'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutNewbuildRouteImport } from './routes/_layout/newbuild'
 import { Route as LayoutGuidesRouteImport } from './routes/_layout/guides'
@@ -48,6 +49,11 @@ const LayoutRoute = LayoutRouteImport.update({
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutUnderconstructionRoute = LayoutUnderconstructionRouteImport.update({
+  id: '/underconstruction',
+  path: '/underconstruction',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/guides': typeof LayoutGuidesRoute
   '/newbuild': typeof LayoutNewbuildRoute
   '/settings': typeof LayoutSettingsRoute
+  '/underconstruction': typeof LayoutUnderconstructionRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesByTo {
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/guides': typeof LayoutGuidesRoute
   '/newbuild': typeof LayoutNewbuildRoute
   '/settings': typeof LayoutSettingsRoute
+  '/underconstruction': typeof LayoutUnderconstructionRoute
   '/': typeof LayoutIndexRoute
 }
 export interface FileRoutesById {
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_layout/guides': typeof LayoutGuidesRoute
   '/_layout/newbuild': typeof LayoutNewbuildRoute
   '/_layout/settings': typeof LayoutSettingsRoute
+  '/_layout/underconstruction': typeof LayoutUnderconstructionRoute
   '/_layout/': typeof LayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/guides'
     | '/newbuild'
     | '/settings'
+    | '/underconstruction'
     | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/guides'
     | '/newbuild'
     | '/settings'
+    | '/underconstruction'
     | '/'
   id:
     | '__root__'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_layout/guides'
     | '/_layout/newbuild'
     | '/_layout/settings'
+    | '/_layout/underconstruction'
     | '/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -206,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/underconstruction': {
+      id: '/_layout/underconstruction'
+      path: '/underconstruction'
+      fullPath: '/underconstruction'
+      preLoaderRoute: typeof LayoutUnderconstructionRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/settings': {
       id: '/_layout/settings'
       path: '/settings'
@@ -250,6 +269,7 @@ interface LayoutRouteChildren {
   LayoutGuidesRoute: typeof LayoutGuidesRoute
   LayoutNewbuildRoute: typeof LayoutNewbuildRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
+  LayoutUnderconstructionRoute: typeof LayoutUnderconstructionRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
 }
 
@@ -259,6 +279,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutGuidesRoute: LayoutGuidesRoute,
   LayoutNewbuildRoute: LayoutNewbuildRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
+  LayoutUnderconstructionRoute: LayoutUnderconstructionRoute,
   LayoutIndexRoute: LayoutIndexRoute,
 }
 
