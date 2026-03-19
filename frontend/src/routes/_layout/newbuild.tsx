@@ -1,9 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute('/_layout/newbuild')({
-  component: RouteComponent,
+import { ChatInterface } from "@/components/Chat/ChatInterface"
+
+export const Route = createFileRoute("/_layout/newbuild")({
+  component: NewBuild,
+  head: () => ({
+    meta: [{ title: "New Build - Palladium" }],
+  }),
 })
 
-function RouteComponent() {
-  return <div>Hello "/_layout/newbuild"!</div>
+function NewBuild() {
+  return <ChatInterface />
 }
