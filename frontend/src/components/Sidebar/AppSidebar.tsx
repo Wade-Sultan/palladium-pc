@@ -1,4 +1,4 @@
-import { Home } from "lucide-react"
+import { Home, Hammer, MessagesSquare, BookOpen, MapPin} from "lucide-react"
 import { FaGithub } from "react-icons/fa"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
@@ -18,7 +18,12 @@ import { User } from "./User"
 
 const items: Item[] = [
   { icon: Home, title: "Dashboard", path: "/" },
+  { icon: Hammer, title: "New Build", path: "/newbuild" },
+  { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
+  { icon: BookOpen, title: "Guides", path: "/guides" },
+  { icon: MapPin, title: "Find a Builder", path: "/findbuilder" },
 ]
+
 
 function SidebarFooterLinks() {
   const currentYear = new Date().getFullYear()
