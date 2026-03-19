@@ -1,10 +1,5 @@
-import { 
-  Home,
-  Hammer,
-  MessagesSquare,
-  BookOpen,
-  MapPin,
-} from "lucide-react"
+import { Home } from "lucide-react"
+import { FaGithub } from "react-icons/fa"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
 import { Logo } from "@/components/Common/Logo"
@@ -13,17 +8,44 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { type Item, Main } from "./Main"
 import { User } from "./User"
 
 const items: Item[] = [
   { icon: Home, title: "Dashboard", path: "/" },
-  { icon: Hammer, title: "New Build", path: "/newbuild" },
-  { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
-  { icon: BookOpen, title: "Guides", path: "/guides" },
-  { icon: MapPin, title: "Find a Builder", path: "/findbuilder" },
 ]
+
+function SidebarFooterLinks() {
+  const currentYear = new Date().getFullYear()
+
+  return (
+    <>
+      <SidebarSeparator />
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton tooltip="GitHub" asChild>
+            <a
+              href="https://github.com/Wade-Sultan/palladium-pc"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <FaGithub className="size-4" />
+              <span>Source Code</span>
+            </a>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+      <p className="px-2 text-[11px] text-muted-foreground group-data-[collapsible=icon]:hidden">
+        Palladium &middot; {currentYear}
+      </p>
+    </>
+  )
+}
 
 export function AppSidebar() {
   return (
@@ -37,6 +59,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarAppearance />
         <User />
+        <SidebarFooterLinks />
       </SidebarFooter>
     </Sidebar>
   )

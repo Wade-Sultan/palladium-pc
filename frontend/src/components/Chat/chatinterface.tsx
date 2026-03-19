@@ -1,16 +1,16 @@
 import { useNavigate } from "@tanstack/react-router"
 import { Cpu, ArrowLeft } from "lucide-react"
-
+ 
 import { Button } from "@/components/ui/button"
 import { Thread } from "@/components/assistant-ui/thread"
 import { ChatRuntimeProvider } from "./chatruntimeprovider"
 
 export function ChatInterface() {
   const navigate = useNavigate()
-
+ 
   return (
     <ChatRuntimeProvider>
-      <div className="flex h-[calc(100vh-4rem)] flex-col">
+      <div className="flex h-full flex-col">
         {/* Chat header */}
         <div className="flex items-center gap-3 border-b px-4 py-3">
           <Button
@@ -35,6 +35,8 @@ export function ChatInterface() {
             </div>
           </div>
         </div>
+ 
+        {/* Thread area — the scaffolded assistant-ui Thread component */}
         <div className="flex-1 overflow-hidden">
           <Thread />
         </div>
