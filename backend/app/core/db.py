@@ -16,7 +16,7 @@ def _build_engine_kwargs() -> dict:
         "max_overflow": 10,
     }
 
-    if settings.SUPABASE_DB_URL:
+    if settings.POSTGRES_DB_URL:
         # Supabase-specific tuning
         connect_args: dict = {
             # Supabase requires SSL for remote connections
