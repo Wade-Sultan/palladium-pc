@@ -5,7 +5,7 @@ import { ChatInterface } from "@/components/Chat/chatinterface"
 export const Route = createFileRoute("/_layout/newbuild")({
   component: NewBuild,
   head: () => ({
-    meta: [{ title: "New Build - Palladium" }],
+    meta: [{ title: "New Build" }],
   }),
 })
 

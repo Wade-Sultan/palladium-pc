@@ -40,7 +40,7 @@ function SidebarFooterLinks() {
               rel="noopener noreferrer"
             >
               <FaGithub className="size-4" />
-              <span>Source Code</span>
+              <span>GitHub</span>
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
