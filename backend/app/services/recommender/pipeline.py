@@ -193,12 +193,8 @@ def _get_provider() -> LLMProvider:
 def _get_chat_model():
     """Return a raw LangChain chat model (no structured output binding)."""
     provider = _get_provider()
-    if provider == "openai":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model="gpt-4o", temperature=0.3)
-    else:
-        from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0.3, max_tokens=4096)
+    from langchain_anthropic import ChatAnthropic
+    return ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0.3, max_tokens=4096)
 
 
 def _call_llm_structured(system: str, user: str, schema: type[BaseModel]) -> BaseModel:

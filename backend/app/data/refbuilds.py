@@ -16,7 +16,7 @@ BUILDS: dict[str, Build] = {
     "entry_gaming_1080p": {
         "label": "Entry Gaming — 1080p",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
-        "total_approx": 700,
+        "total_approx": 1000,
         "parts": [
             {"component": "CPU", "brand": "AMD", "model": "Ryzen 5 5600", "approx_price": 160},
             {"component": "GPU", "brand": "AMD", "model": "Radeon RX 7600", "approx_price": 300},
