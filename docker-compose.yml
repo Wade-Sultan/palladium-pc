@@ -51,6 +51,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changethis}
       - POSTGRES_DB=${POSTGRES_DB:-palladium}
       - POSTGRES_DB_URL=postgresql://${POSTGRES_USER:-palladium_app}:${POSTGRES_PASSWORD:-changethis}@db:5432/${POSTGRES_DB:-palladium}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
     - ${HOME}/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro
  
@@ -80,6 +81,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changethis}
       - POSTGRES_DB=${POSTGRES_DB:-palladium}
       - POSTGRES_DB_URL=postgresql://${POSTGRES_USER:-palladium_app}:${POSTGRES_PASSWORD:-changethis}@db:5432/${POSTGRES_DB:-palladium}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
     - ${HOME}/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro
     healthcheck:
