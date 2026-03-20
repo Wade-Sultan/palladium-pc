@@ -4,7 +4,6 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
-    ForeignKey,
     String,
     Text,
 )
@@ -12,7 +11,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.db.base import AUTH_SCHEMA, Base
+from app.db.base import Base
 
 
 class User(Base):
@@ -25,16 +24,12 @@ class User(Base):
         index=True,
     )
 
-    auth_user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey(
-            f"{AUTH_SCHEMA}.users.id",
-            ondelete="CASCADE",
-        ),
+    firebase_uid = Column(
+        String(128),
         unique=True,
         nullable=True,   # nullable during migration; tighten to False later
         index=True,
-        comment="FK to Supabase auth.users(id)",
+        comment="Firebase Auth UID",
     )
 
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -59,11 +54,6 @@ class User(Base):
     conversations = relationship(
         "Conversation",
         back_populates="user",
-        cascade="all, delete-orphan",
-    )
-    items = relationship(
-        "Item",
-        back_populates="owner",
         cascade="all, delete-orphan",
     )
 
