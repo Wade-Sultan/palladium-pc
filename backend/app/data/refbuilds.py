@@ -19,12 +19,14 @@ BUILDS: dict[str, Build] = {
         "total_approx": 1000,
         "parts": [
             {"component": "CPU", "brand": "AMD", "model": "Ryzen 5 5600", "approx_price": 160},
+            {"component": "CPU Cooler", "brand": "", "model": "Ryzen 5 5600", "approx_price": 160},
             {"component": "GPU", "brand": "AMD", "model": "Radeon RX 7600", "approx_price": 300},
             {"component": "Motherboard", "brand": "MSI", "model": "B550M PRO-VDH WiFi", "approx_price": 100},
             {"component": "RAM", "brand": "G.Skill", "model": "Ripjaws V 16GB DDR4-3600", "approx_price": 160},
             {"component": "Storage", "brand": "Samsung", "model": "870 EVO 1TB SATA SSD", "approx_price": 180},
             {"component": "PSU", "brand": "Thermaltake", "model": "550 G6 80+ Gold", "approx_price": 70},
             {"component": "Case", "brand": "Fractal Design", "model": "Pop Air", "approx_price": 80},
+            {"component": "Fans", "brand": "AMD", "model": "Ryzen 5 5600", "approx_price": 160},
         ],
     },
     "1080_mid": {
@@ -56,7 +58,7 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "1440_mid": {
-        "label": "Entry Gaming — 1080p",
+        "label": "Mid level 1440p",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
         "total_approx": 1000,
         "parts": [
@@ -70,7 +72,7 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "1440_uppermid": {
-        "label": "Entry Gaming — 1080p",
+        "label": "Upper mid level 1440p",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
         "total_approx": 1000,
         "parts": [
@@ -84,7 +86,7 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "1440_creator": {
-        "label": "Entry Gaming — 1080p",
+        "label": "Creator 1440p",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
         "total_approx": 1000,
         "parts": [
@@ -98,7 +100,21 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "1440_competitive": {
-        "label": "Entry Gaming — 1080p",
+        "label": "Competitive 1440p",
+        "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
+        "total_approx": 1000,
+        "parts": [
+            {"component": "CPU", "brand": "AMD", "model": "Ryzen 5 5600", "approx_price": 160},
+            {"component": "GPU", "brand": "AMD", "model": "Radeon RX 7600", "approx_price": 300},
+            {"component": "Motherboard", "brand": "MSI", "model": "B550M PRO-VDH WiFi", "approx_price": 100},
+            {"component": "RAM", "brand": "G.Skill", "model": "Ripjaws V 16GB DDR4-3600", "approx_price": 160},
+            {"component": "Storage", "brand": "Samsung", "model": "870 EVO 1TB SATA SSD", "approx_price": 180},
+            {"component": "PSU", "brand": "Thermaltake", "model": "550 G6 80+ Gold", "approx_price": 70},
+            {"component": "Case", "brand": "Fractal Design", "model": "Pop Air", "approx_price": 80},
+        ],
+    },
+    "1440_localllm": {
+        "label": "Local LLM 1440p",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
         "total_approx": 1000,
         "parts": [
@@ -112,7 +128,7 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "2160_cinematic": {
-        "label": "Entry Gaming — 1080p",
+        "label": "Cinematic 4k",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
         "total_approx": 1000,
         "parts": [
@@ -126,7 +142,7 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "2160_creator": {
-        "label": "Entry Gaming — 1080p",
+        "label": "Creator 4k",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
         "total_approx": 1000,
         "parts": [
@@ -140,9 +156,9 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "2160_localllm": {
-        "label": "Entry Gaming — 1080p",
+        "label": "Local LLM 4k",
         "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
-        "total_approx": 1000,
+        "total_approx": 7000,
         "parts": [
             {"component": "CPU", "brand": "AMD", "model": "Ryzen 5 5600", "approx_price": 160},
             {"component": "GPU", "brand": "AMD", "model": "Radeon RX 7600", "approx_price": 300},
@@ -154,17 +170,18 @@ BUILDS: dict[str, Build] = {
         ],
     },
     "2160_localllmpro": {
-        "label": "Entry Gaming — 1080p",
-        "description": "Solid 1080p performance for popular titles at high settings without breaking the bank.",
-        "total_approx": 1000,
+        "label": "Local LLM Pro 4k",
+        "description": "Local LLM machine for models of around 70B parameters.",
+        "total_approx": 12000,
         "parts": [
             {"component": "CPU", "brand": "AMD", "model": "Ryzen 5 5600", "approx_price": 160},
-            {"component": "GPU", "brand": "AMD", "model": "Radeon RX 7600", "approx_price": 300},
+            {"component": "CPU Cooler", "brand": "Fractal Design", "model": "Pop Air", "approx_price": 80},
+            {"component": "GPU", "brand": "AMD", "model": "Radeon RX 7600", "approx_price": 9000},
             {"component": "Motherboard", "brand": "MSI", "model": "B550M PRO-VDH WiFi", "approx_price": 100},
             {"component": "RAM", "brand": "G.Skill", "model": "Ripjaws V 16GB DDR4-3600", "approx_price": 160},
             {"component": "Storage", "brand": "Samsung", "model": "870 EVO 1TB SATA SSD", "approx_price": 180},
             {"component": "PSU", "brand": "Thermaltake", "model": "550 G6 80+ Gold", "approx_price": 70},
-            {"component": "Case", "brand": "Fractal Design", "model": "Pop Air", "approx_price": 80},
+            {"component": "Case", "brand": "NZXT", "model": "H9", "approx_price": 250},
         ],
     },
 }
