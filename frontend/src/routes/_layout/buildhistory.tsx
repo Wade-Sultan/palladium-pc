@@ -1,9 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/_layout/buildhistory')({
-  component: RouteComponent,
+import { createFileRoute } from "@tanstack/react-router"
+ 
+import { UnderConstruction } from "@/components/Common/UnderConstruction"
+ 
+export const Route = createFileRoute("/_layout/buildhistory")({
+  component: BuildHistory,
+  head: () => ({
+    meta: [{ title: "My Builds" }],
+  }),
 })
-
-function RouteComponent() {
-  return <div>Hello "/_layout/buildhistory"!</div>
+ 
+function BuildHistory() {
+  return <UnderConstruction pageName="My Builds" />
 }
