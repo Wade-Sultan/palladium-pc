@@ -1,4 +1,4 @@
-import { Home, Hammer, MessagesSquare, BookOpen, MapPin} from "lucide-react"
+import { Hammer, MessagesSquare, BookOpen, MapPin} from "lucide-react"
 import { FaGithub } from "react-icons/fa"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
@@ -17,7 +17,6 @@ import { type Item, Main } from "./Main"
 import { User } from "./User"
 
 const items: Item[] = [
-  { icon: Home, title: "Dashboard", path: "/" },
   { icon: Hammer, title: "New Build", path: "/newbuild" },
   { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
   { icon: BookOpen, title: "Guides", path: "/guides" },
