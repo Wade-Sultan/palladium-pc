@@ -1,32 +1,68 @@
 from app.data.refbuilds import BUILDS, Build
 from app.schemas.chat import BuildProfile
 
+RESOLUTION_FLOOR = {
+    "1080p": 1080,
+    "1440p": 1440,
+    "4k":    2160,
+}
 
 def resolve_build(profile: BuildProfile) -> tuple[str, Build]:
     """Map a BuildProfile to the best matching pre-defined build key."""
 
     use = profile.primary_use
-    resolution = profile.gaming_resolution
-    budget = profile.budget_tier  # entry | mid | high | elite
+    resolution = profile.gaming_resolution or "1080p"
+    budget = profile.budget_tier
+    floor = RESOLUTION_FLOOR.get(resolution, 1080)
+
+    # Filter candidates by resolution floor
+    candidates = {
+        key: build
+        for key, build in BUILDS.items()
+        if key[:4].isdigit() and int(key[:4]) >= floor
+    }
 
     # Local LLM / AI workloads
     if use == "local_llm":
-        return "local_llm", BUILDS["local_llm"]
+        if budget == "elite" and floor >= 2160:
+            if any("localllmpro" in k for k in candidates):
+                return _pick(candidates, "2160_localllmpro")
+            return _pick(candidates, "2160_localllm")
+        if floor >= 2160:
+            return _pick(candidates, "2160_localllm")
+        return _pick(candidates, "1440_localllm")
 
     # Video editing / content creation
     if use == "video_editing":
-        return "creator_1080p_editing", BUILDS["creator_1080p_editing"]
+        if floor >= 2160:
+            return _pick(candidates, "2160_creator")
+        return _pick(candidates, "1440_creator")
 
-    # Gaming resolution + budget ladder
+    # Gaming
     if use == "gaming":
-        if budget == "entry":
-            return "entry_gaming_1080p", BUILDS["entry_gaming_1080p"]
-        if resolution == "1440p":
-            if budget == "high" or budget == "elite":
-                return "high_gaming_1440p", BUILDS["high_gaming_1440p"]
-            return "mid_gaming_1440p", BUILDS["mid_gaming_1440p"]
-        # Default 1080p mid
-        return "mid_gaming_1080p", BUILDS["mid_gaming_1080p"]
+        if floor >= 2160:
+            return _pick(candidates, "2160_cinematic")
+        if floor >= 1440:
+            if budget == "entry" or budget == "mid":
+                return _pick(candidates, "1440_mid")
+            if budget == "high":
+                return _pick(candidates, "1440_uppermid")
+            if budget == "elite":
+                return _pick(candidates, "1440_competitive")
+        # 1080p
+        if budget == "elite" or budget == "high":
+            return _pick(candidates, "1080_competitive")
+        return _pick(candidates, "1080_entry")
 
-    # Fallback
-    return "budget_allrounder", BUILDS["budget_allrounder"]
+    # General / fallback
+    return _pick(candidates, "1080_entry")
+
+
+def _pick(candidates: dict, key: str) -> tuple[str, Build]:
+    """Return the requested key if it passed the resolution filter, 
+    otherwise fall back to the highest resolution candidate available."""
+    if key in candidates:
+        return key, candidates[key]
+    # Fallback: highest resolution build available
+    fallback_key = max(candidates.keys())
+    return fallback_key, candidates[fallback_key]
