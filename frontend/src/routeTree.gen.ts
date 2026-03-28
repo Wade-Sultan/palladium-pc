@@ -20,6 +20,7 @@ import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutNewbuildRouteImport } from './routes/_layout/newbuild'
 import { Route as LayoutGuidesRouteImport } from './routes/_layout/guides'
 import { Route as LayoutFindbuilderRouteImport } from './routes/_layout/findbuilder'
+import { Route as LayoutChangelogRouteImport } from './routes/_layout/changelog'
 import { Route as LayoutBuildhistoryRouteImport } from './routes/_layout/buildhistory'
 
 const SignupRoute = SignupRouteImport.update({
@@ -76,6 +77,11 @@ const LayoutFindbuilderRoute = LayoutFindbuilderRouteImport.update({
   path: '/findbuilder',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutChangelogRoute = LayoutChangelogRouteImport.update({
+  id: '/changelog',
+  path: '/changelog',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutBuildhistoryRoute = LayoutBuildhistoryRouteImport.update({
   id: '/buildhistory',
   path: '/buildhistory',
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/buildhistory': typeof LayoutBuildhistoryRoute
+  '/changelog': typeof LayoutChangelogRoute
   '/findbuilder': typeof LayoutFindbuilderRoute
   '/guides': typeof LayoutGuidesRoute
   '/newbuild': typeof LayoutNewbuildRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/buildhistory': typeof LayoutBuildhistoryRoute
+  '/changelog': typeof LayoutChangelogRoute
   '/findbuilder': typeof LayoutFindbuilderRoute
   '/guides': typeof LayoutGuidesRoute
   '/newbuild': typeof LayoutNewbuildRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/_layout/buildhistory': typeof LayoutBuildhistoryRoute
+  '/_layout/changelog': typeof LayoutChangelogRoute
   '/_layout/findbuilder': typeof LayoutFindbuilderRoute
   '/_layout/guides': typeof LayoutGuidesRoute
   '/_layout/newbuild': typeof LayoutNewbuildRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/buildhistory'
+    | '/changelog'
     | '/findbuilder'
     | '/guides'
     | '/newbuild'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/buildhistory'
+    | '/changelog'
     | '/findbuilder'
     | '/guides'
     | '/newbuild'
@@ -158,6 +169,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/signup'
     | '/_layout/buildhistory'
+    | '/_layout/changelog'
     | '/_layout/findbuilder'
     | '/_layout/guides'
     | '/_layout/newbuild'
@@ -253,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutFindbuilderRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/changelog': {
+      id: '/_layout/changelog'
+      path: '/changelog'
+      fullPath: '/changelog'
+      preLoaderRoute: typeof LayoutChangelogRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/buildhistory': {
       id: '/_layout/buildhistory'
       path: '/buildhistory'
@@ -265,6 +284,7 @@ declare module '@tanstack/react-router' {
 
 interface LayoutRouteChildren {
   LayoutBuildhistoryRoute: typeof LayoutBuildhistoryRoute
+  LayoutChangelogRoute: typeof LayoutChangelogRoute
   LayoutFindbuilderRoute: typeof LayoutFindbuilderRoute
   LayoutGuidesRoute: typeof LayoutGuidesRoute
   LayoutNewbuildRoute: typeof LayoutNewbuildRoute
@@ -275,6 +295,7 @@ interface LayoutRouteChildren {
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutBuildhistoryRoute: LayoutBuildhistoryRoute,
+  LayoutChangelogRoute: LayoutChangelogRoute,
   LayoutFindbuilderRoute: LayoutFindbuilderRoute,
   LayoutGuidesRoute: LayoutGuidesRoute,
   LayoutNewbuildRoute: LayoutNewbuildRoute,

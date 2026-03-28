@@ -1,4 +1,4 @@
-import { Hammer, MessagesSquare, BookOpen, MapPin} from "lucide-react"
+import { Hammer, MessagesSquare, BookOpen, MapPin, ScrollText} from "lucide-react"
 import { FaGithub } from "react-icons/fa"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
@@ -40,6 +40,14 @@ function SidebarFooterLinks() {
             >
               <FaGithub className="size-4" />
               <span>GitHub</span>
+            </a>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton tooltip="Changelog" asChild>
+            <a href="/changelog">
+              <ScrollText className="size-4" />
+              <span>Changelog</span>
             </a>
           </SidebarMenuButton>
         </SidebarMenuItem>
