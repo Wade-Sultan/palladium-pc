@@ -1,4 +1,4 @@
-from app.db.session import SessionLocal
+from app.core.db import SessionLocal
 from app.data.refbuilds import BUILDS
 from app.models.pcparts import PCPart
 from app.models.reference_build import ReferenceBuild, ReferenceBuildPart
