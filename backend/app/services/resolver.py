@@ -1,4 +1,6 @@
-from app.data.refbuilds import BUILDS, Build
+from sqlalchemy.orm import Session
+from app.crud.reference_builds import get_all_active
+from app.data.refbuilds import Build
 from app.schemas.chat import BuildProfile
 
 RESOLUTION_FLOOR = {
@@ -7,7 +9,7 @@ RESOLUTION_FLOOR = {
     "4k":    2160,
 }
 
-def resolve_build(profile: BuildProfile) -> tuple[str, Build]:
+def resolve_build(profile: BuildProfile, db: Session) -> tuple[str, Build]:
     """Map a BuildProfile to the best matching pre-defined build key."""
 
     use = profile.primary_use
@@ -16,9 +18,10 @@ def resolve_build(profile: BuildProfile) -> tuple[str, Build]:
     floor = RESOLUTION_FLOOR.get(resolution, 1080)
 
     # Filter candidates by resolution floor
+    builds = get_all_active(db)
     candidates = {
         key: build
-        for key, build in BUILDS.items()
+        for key, build in builds.items()
         if key[:4].isdigit() and int(key[:4]) >= floor
     }
 
