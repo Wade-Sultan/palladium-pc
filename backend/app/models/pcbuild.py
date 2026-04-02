@@ -69,7 +69,7 @@ class PCBuild(Base):
         Enum(BuildStatus, name="build_status"),
         nullable=False,
         default=BuildStatus.DRAFT,
-        server_default="draft",
+        server_default="DRAFT",
     )
 
     total_price_cents = Column(
