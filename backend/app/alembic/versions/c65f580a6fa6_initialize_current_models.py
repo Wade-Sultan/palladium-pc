@@ -16,12 +16,6 @@ depends_on = None
 
 
 def upgrade():
-    # Enums
-    sa.Enum('draft', 'recommended', 'priced', 'finalized', 'ordered',
-            name='build_status').create(op.get_bind())
-    sa.Enum('cpu', 'cpucooler', 'motherboard', 'ram', 'storage', 'gpu', 'psu', 'case', 'fan',
-            name='build_component_role').create(op.get_bind())
-
     # users
     op.create_table('users',
         sa.Column('id', UUID(), nullable=False),
@@ -553,5 +547,3 @@ def downgrade():
     op.drop_table('conversations')
     op.drop_table('pc_parts')
     op.drop_table('users')
-    sa.Enum(name='build_component_role').drop(op.get_bind())
-    sa.Enum(name='build_status').drop(op.get_bind())
