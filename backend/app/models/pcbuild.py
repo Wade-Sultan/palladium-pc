@@ -163,10 +163,10 @@ class BuildPart(Base):
         server_default="false",
     )
 
-    price_at_build_cents = Column(
+    price_at_build = Column(
         Integer,
         nullable=True,
-        doc="Part price in USD cents at the time this build was finalized",
+        doc="Part price in local cents at the time this build was finalized",
     )
 
     selection_reason = Column(
