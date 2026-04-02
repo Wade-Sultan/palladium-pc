@@ -60,7 +60,7 @@ class PCBuild(Base):
         index=True,
     )
 
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False, server_default="Untitled Build")
     description = Column(Text, nullable=True)
 
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

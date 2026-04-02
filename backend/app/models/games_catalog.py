@@ -113,6 +113,8 @@ class GameMinimumPart(Base):
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
     )
+    updated_at = Column(DateTime(timezone=True), nullable=False,
+    server_default=func.now(), onupdate=func.now())
 
     game = relationship("Game", back_populates="minimum_parts")
     part = relationship("PCPart")

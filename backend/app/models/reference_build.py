@@ -34,6 +34,8 @@ class ReferenceBuildPart(Base):
     component = Column(String(50), nullable=False)
     sort_order = Column(Integer, nullable=False, default=0)
     approx_price = Column(Integer, nullable=False)
+    approx_price_updated_at = Column(DateTime(timezone=True), nullable=True,
+    comment="When approx_price was last manually reviewed or updated")
 
     build = relationship("ReferenceBuild", back_populates="parts")
     part  = relationship("PCPart")

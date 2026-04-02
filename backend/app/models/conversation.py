@@ -30,6 +30,13 @@ class Conversation(Base):
         nullable=False,
         index=True,
     )
+    
+    build_id = Column(
+        UUID, 
+        ForeignKey("pc_builds.id", ondelete="SET NULL"), 
+        nullable=True, 
+        index=True
+    )
 
     title = Column(String(255), nullable=True)
 
@@ -58,3 +65,4 @@ class Conversation(Base):
         cascade="all, delete-orphan",
         order_by="Message.created_at",
     )
+    

@@ -141,6 +141,8 @@ class SoftwareTier(Base):
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
     )
+    updated_at = Column(DateTime(timezone=True), nullable=False,
+    server_default=func.now(), onupdate=func.now())
 
     software = relationship("Software", back_populates="tiers")
     minimum_parts = relationship(
@@ -189,6 +191,8 @@ class SoftwareMinimumPart(Base):
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
     )
+    updated_at = Column(DateTime(timezone=True), nullable=False,
+    server_default=func.now(), onupdate=func.now())
 
     tier = relationship("SoftwareTier", back_populates="minimum_parts")
     part = relationship("PCPart")
