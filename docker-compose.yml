@@ -53,7 +53,8 @@ services:
       - POSTGRES_DB_URL=postgresql://${POSTGRES_USER:-palladium_app}:${POSTGRES_PASSWORD:-changethis}@db:5432/${POSTGRES_DB:-palladium}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
-    - ${HOME}/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro
+      - ./backend:/app
+      - ${HOME}/.config/gcloud/application_default_credentials.json:/root/.config/gcloud/application_default_credentials.json:ro
  
   backend:
     build:
