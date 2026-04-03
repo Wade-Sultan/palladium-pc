@@ -1,11 +1,11 @@
 import type { ChatModelAdapter } from "@assistant-ui/react"
 
 // ─── Configuration ──────────────────────────────────────────────────────────
-// Set VITE_USE_MOCK_CHAT=true in .env to use the mock adapter.
+// Set NEXT_PUBLIC_USE_MOCK_CHAT=true in .env to use the mock adapter.
 // Default: mock enabled (so the UI works without a running backend).
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK_CHAT !== "false"
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
+const USE_MOCK = import.meta.env.NEXT_PUBLIC_USE_MOCK_CHAT !== "true"
+const API_BASE = import.meta.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
 // Mock adapter
 
