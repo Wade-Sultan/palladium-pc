@@ -33,7 +33,7 @@ const DeleteConfirmation = () => {
       }
  
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/v1/users/me`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/me`,
         {
           method: "DELETE",
           headers: {
