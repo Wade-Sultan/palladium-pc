@@ -27,7 +27,7 @@ steps:
       - '-r'
       - '-d'
       - 'frontend/dist/'
-      - 'gs://palladiumpc.dev/'
+      - 'gs://palladiumtech.ai/'
  
   # ---- Invalidate CDN cache ----
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
