@@ -14,13 +14,11 @@ export const metadata: Metadata = {
     return (
         <html lang="en">
             <head>
-                <link rel="icon" type="image/svg+xml" href="/vite.svg" />
                 <title>Palladium</title>
                 <link rel="icon" type="image/x-icon" href="/assets/images/palladium-logo-main.png" />
             </head>
             <body>
                 <div id="root">{children}</div>
-                <script type="module" src="./src/main.tsx"></script>
             </body>
         </html>
     )
