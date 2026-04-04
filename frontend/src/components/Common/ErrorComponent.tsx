@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
 const ErrorComponent = () => {
@@ -19,7 +19,7 @@ const ErrorComponent = () => {
       <p className="text-lg text-muted-foreground mb-4 text-center z-10">
         Something went wrong. Please try again.
       </p>
-      <Link to="/">
+      <Link href="/">
         <Button>Go Home</Button>
       </Link>
     </div>

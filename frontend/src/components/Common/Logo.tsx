@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router"
+import Link from "next/link"
 
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
@@ -55,5 +55,5 @@ export function Logo({
     return content
   }
 
-  return <Link to="/new">{content}</Link>
+  return <Link href="/new">{content}</Link>
 }
