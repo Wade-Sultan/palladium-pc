@@ -1,23 +1,31 @@
-# Stage 0, "build-stage", based on Node.js, to build and compile the frontend
-FROM node:24 AS build-stage
+# Stage 0: install deps and build
+FROM node:24-alpine AS build-stage
 
 WORKDIR /app
 
-COPY package*.json /app/
+COPY package*.json ./
+RUN npm ci
 
-RUN npm install
+COPY ./ ./
 
-COPY ./ /app/
-
-ARG NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build
 
+# Stage 1: run
+FROM node:24-alpine
 
-# Stage 1, based on Nginx, to have only the compiled app, ready for production with Nginx
-FROM nginx:1
+WORKDIR /app
 
-COPY --from=build-stage /app/dist/ /usr/share/nginx/html
+ENV NODE_ENV=production
 
-COPY ./nginx.conf /etc/nginx/conf.d/default.conf
-COPY ./nginx-backend-not-found.conf /etc/nginx/extra-conf.d/backend-not-found.conf
+COPY --from=build-stage /app/package*.json ./
+COPY --from=build-stage /app/dist ./dist
+COPY --from=build-stage /app/public ./public
+COPY --from=build-stage /app/node_modules ./node_modules
+COPY --from=build-stage /app/next.config.mjs ./
+
+EXPOSE 3000
+CMD ["node_modules/.bin/next", "start"]
+
