@@ -1,4 +1,5 @@
 "use client"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -21,7 +22,11 @@ export function Logo({
   asLink = true,
 }: LogoProps) {
   const { resolvedTheme } = useTheme()
-  const isDark = resolvedTheme === "dark"
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
+
+  const isDark = mounted && resolvedTheme === "dark"
 
   const fullLogo = isDark ? fullLogoDark : fullLogoLight
 
