@@ -1,4 +1,5 @@
 "use client"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
 
@@ -44,8 +45,11 @@ function UserInfo({ fullName, email }: UserInfoProps) {
 export function User() {
   const { user, signOut } = useAuth()
   const { isMobile, setOpenMobile } = useSidebar()
+  const [mounted, setMounted] = useState(false)
 
-  if (!user) return null
+  useEffect(() => setMounted(true), [])
+
+  if (!mounted || !user) return null
 
   const fullName = user.displayName ?? undefined
   const email = user.email ?? undefined
