@@ -1,4 +1,5 @@
 import React from "react"
+import "@/index.css"
 
 import AppSidebar from "@/components/Sidebar/AppSidebar"
 import {
