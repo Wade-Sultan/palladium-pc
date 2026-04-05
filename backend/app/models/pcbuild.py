@@ -63,7 +63,7 @@ class PCBuild(Base):
     name = Column(String(255), nullable=False, server_default="Untitled Build")
     description = Column(Text, nullable=True)
 
-    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)
 
     status = Column(
         Enum(BuildStatus, name="build_status"),
@@ -142,12 +142,14 @@ class BuildPart(Base):
         UUID(as_uuid=True),
         ForeignKey("pc_builds.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
     part_id = Column(
         UUID(as_uuid=True),
         ForeignKey("pc_parts.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     role = Column(

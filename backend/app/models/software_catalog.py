@@ -184,6 +184,7 @@ class SoftwareMinimumPart(Base):
         UUID(as_uuid=True),
         ForeignKey("pc_parts.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     published_name = Column(String(255), nullable=True)

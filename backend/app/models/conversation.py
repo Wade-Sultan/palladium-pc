@@ -32,7 +32,7 @@ class Conversation(Base):
     )
     
     build_id = Column(
-        UUID, 
+        UUID(as_uuid=True), 
         ForeignKey("pc_builds.id", ondelete="SET NULL"), 
         nullable=True, 
         index=True

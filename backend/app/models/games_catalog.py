@@ -103,6 +103,7 @@ class GameMinimumPart(Base):
         UUID(as_uuid=True),
         ForeignKey("pc_parts.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
     )
 
     # The marketed name for the part
