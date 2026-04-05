@@ -1,8 +1,8 @@
 // Note: the `PrivateService` is only available when generating the client
 // for local environments
-import { OpenAPI, PrivateService } from "../../src/client"
+import axios from "axios"
 
-OpenAPI.BASE = `${process.env.NEXT_PUBLIC_API_URL}`
+const api = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL })
 
 export const createUser = async ({
   email,
@@ -11,12 +11,10 @@ export const createUser = async ({
   email: string
   password: string
 }) => {
-  return await PrivateService.createUser({
-    requestBody: {
-      email,
-      password,
-      is_verified: true,
-      full_name: "Test User",
-    },
+  return await api.post("/api/v1/private/users/", {
+    email,
+    password,
+    is_verified: true,
+    full_name: "Test User",
   })
 }
