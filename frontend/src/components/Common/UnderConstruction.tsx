@@ -1,4 +1,4 @@
-import iconLogo from "/assets/images/palladium-logo.svg"
+import Image from "next/image"
 
 interface UnderConstructionProps {
   /** Optional page name shown below the main message */
@@ -9,10 +9,12 @@ export function UnderConstruction({ pageName }: UnderConstructionProps) {
   return (
     <div className="flex h-full items-center justify-center p-8">
       <div className="flex flex-col items-center gap-6 text-center max-w-sm">
-        <img
-          src={iconLogo}
+        <Image
+          src="/assets/images/palladium-logo.svg"
           alt="Palladium"
-          className="size-16 animate-[spin_12s_linear_infinite] opacity-60"
+          width={64}
+          height={64}
+          className="animate-[spin_12s_linear_infinite] opacity-60"
         />
         <div className="space-y-2">
           <h1 className="text-lg font-medium tracking-tight text-foreground">

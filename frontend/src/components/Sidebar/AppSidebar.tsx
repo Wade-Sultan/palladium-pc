@@ -1,4 +1,4 @@
-import { Hammer, MessagesSquare, BookOpen, MapPin, ScrollText} from "lucide-react"
+import { ScrollText } from "lucide-react"
 import { FaGithub } from "react-icons/fa"
 
 import { SidebarAppearance } from "@/components/Common/Appearance"
@@ -13,15 +13,8 @@ import {
   SidebarMenuButton,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { type Item, Main } from "./Main"
+import { Main } from "./Main"
 import { User } from "./User"
-
-const items: Item[] = [
-  { icon: Hammer, title: "New Build", path: "/newbuild" },
-  { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
-  { icon: BookOpen, title: "Guides", path: "/guides" },
-  { icon: MapPin, title: "Find a Builder", path: "/findbuilder" },
-]
 
 
 function SidebarFooterLinks() {
@@ -59,14 +52,14 @@ function SidebarFooterLinks() {
   )
 }
 
-export function AppSidebar() {
+export async function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-4 py-6 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center">
         <Logo variant="responsive" />
       </SidebarHeader>
       <SidebarContent>
-        <Main items={items} />
+        <Main />
       </SidebarContent>
       <SidebarFooter>
         <SidebarAppearance />

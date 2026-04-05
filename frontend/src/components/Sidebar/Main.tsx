@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { Hammer, MessagesSquare, BookOpen, MapPin } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import {
@@ -13,17 +14,20 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-export type Item = {
+type Item = {
   icon: LucideIcon
   title: string
   path: string
 }
 
-interface MainProps {
-  items: Item[]
-}
+const items: Item[] = [
+  { icon: Hammer, title: "New Build", path: "/newbuild" },
+  { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
+  { icon: BookOpen, title: "Guides", path: "/guides" },
+  { icon: MapPin, title: "Find a Builder", path: "/findbuilder" },
+]
 
-export function Main({ items }: MainProps) {
+export function Main() {
   const { isMobile, setOpenMobile } = useSidebar()
   const currentPath = usePathname()
 
