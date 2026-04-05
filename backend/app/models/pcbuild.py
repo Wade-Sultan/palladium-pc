@@ -147,7 +147,7 @@ class BuildPart(Base):
 
     part_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("pc_parts.id", ondelete="SET NULL"),
+        ForeignKey("pc_parts.id", ondelete="RESTRICT"),
         nullable=True,
         index=True,
     )
