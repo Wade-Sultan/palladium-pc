@@ -55,5 +55,5 @@ export function Logo({
     return content
   }
 
-  return <Link href="/new">{content}</Link>
+  return <Link href="/newbuild">{content}</Link>
 }

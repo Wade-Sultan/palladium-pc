@@ -1,4 +1,4 @@
-import { Link as RouterLink } from "@tanstack/react-router"
+import Link from "next/link"
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -79,12 +79,12 @@ export function User() {
               <UserInfo fullName={fullName} email={email} />
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <RouterLink to="/settings" onClick={handleMenuClick}>
+            <Link href="/settings" onClick={handleMenuClick}>
               <DropdownMenuItem>
                 <Settings />
                 User Settings
               </DropdownMenuItem>
-            </RouterLink>
+            </Link>
             <DropdownMenuItem onClick={signOut}>
               <LogOut />
               Log Out

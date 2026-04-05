@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react"
-import { useNavigate } from "@tanstack/react-router"
+import { useRouter } from "next/navigation"
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -46,10 +46,10 @@ export async function getAccessToken(): Promise<string | null> {
 }
  
 export default function useAuth(): UseAuthReturn {
-  const navigate = useNavigate()
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
- 
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user)
@@ -57,17 +57,17 @@ export default function useAuth(): UseAuthReturn {
     })
     return () => unsubscribe()
   }, [])
- 
+
   const signIn = useCallback(async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password)
-      navigate({ to: "/" })
+      router.push("/")
       return { error: null }
     } catch (err) {
       return { error: err as Error }
     }
-  }, [navigate])
- 
+  }, [router])
+
   const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, password)
@@ -76,18 +76,18 @@ export default function useAuth(): UseAuthReturn {
       }
       // Navigate to login. Firebase may require email verification
       // depending on your project settings.
-      navigate({ to: "/login" })
+      router.push("/login")
       return { error: null }
     } catch (err) {
       return { error: err as Error }
     }
-  }, [navigate])
- 
+  }, [router])
+
   const signOut = useCallback(async () => {
     await firebaseSignOut(auth)
-    navigate({ to: "/login" })
-  }, [navigate])
- 
+    router.push("/login")
+  }, [router])
+
   const resetPassword = useCallback(async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email, {
@@ -98,17 +98,17 @@ export default function useAuth(): UseAuthReturn {
       return { error: err as Error }
     }
   }, [])
- 
+
   const updatePassword = useCallback(async (newPassword: string) => {
     try {
       if (!auth.currentUser) throw new Error("No authenticated user")
       await firebaseUpdatePassword(auth.currentUser, newPassword)
-      navigate({ to: "/" })
+      router.push("/")
       return { error: null }
     } catch (err) {
       return { error: err as Error }
     }
-  }, [navigate])
+  }, [router])
  
   return { user, loading, signIn, signUp, signOut, resetPassword, updatePassword }
 }
