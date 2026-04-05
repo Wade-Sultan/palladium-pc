@@ -1,5 +1,7 @@
 import React from "react";
 import type { Metadata } from 'next'
+import { ThemeProvider } from "@/components/theme-provider"
+import "@/index.css"
 
 export const metadata: Metadata = {
     title: 'Palladium Tech',
@@ -15,9 +17,11 @@ export default function RootLayout({
     children: React.ReactNode
 }) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
             <body>
-                <div id="root">{children}</div>
+                <ThemeProvider>
+                    <div id="root">{children}</div>
+                </ThemeProvider>
             </body>
         </html>
     )

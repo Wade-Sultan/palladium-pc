@@ -36,11 +36,12 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
+    () => (typeof window !== "undefined" ? (localStorage.getItem(storageKey) as Theme) : null) || defaultTheme,
   )
 
   const getResolvedTheme = useCallback((theme: Theme): "dark" | "light" => {
     if (theme === "system") {
+      if (typeof window === "undefined") return "light"
       return window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light"
