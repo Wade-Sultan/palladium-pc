@@ -73,7 +73,7 @@ export default function ChangelogPage() {
 
         <div className="space-y-10">
             {releases.map((release, i) => (
-            <div key={release.version}>
+            <div key={release.date ?? release.label ?? i}>
                 <div className="mb-4 flex items-baseline gap-3">
                 <span className="font-mono text-sm font-semibold text-foreground">
                     v{release.version}
