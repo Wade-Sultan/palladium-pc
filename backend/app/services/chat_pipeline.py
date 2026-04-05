@@ -10,6 +10,8 @@ import anthropic
 from app.data.refbuilds import BUILDS, Build
 from app.schemas.chat import BuildProfile, ChatMessage
 from app.services.resolver import resolve_build
+from app.core.db import SessionLocal
+
  
 logger = logging.getLogger(__name__)
  
@@ -308,9 +310,11 @@ async def run_chat_turn(
  
     profile = await extract_profile(messages)
  
-    yield {"type": "progress", "step": "resolving", "message": "Selecting the best build…"}
+    yield {"type": "progress", "step": "resolving", "message": "Selecting your parts…"}
+    with SessionLocal() as db:
+        build_key, build = resolve_build(profile, db)
  
-    build_key, build = resolve_build(profile)
+    build_key, build = resolve_build(profile, db)
  
     yield {
         "type": "build",
