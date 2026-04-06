@@ -5,31 +5,89 @@ defmodule AdminWeb.Layouts do
   """
   use AdminWeb, :html
 
-  # Embed all files in layouts/* within this module.
-  # The default root.html.heex file contains the HTML
-  # skeleton of your application, namely HTML headers
-  # and other static content.
   embed_templates "layouts/*"
 
   @doc """
-  Renders your app layout.
-
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
-
-  ## Examples
-
-      <Layouts.app flash={@flash}>
-        <h1>Content</h1>
-      </Layouts.app>
-
+  Renders the admin layout with a dark sidebar.
+  Used by all Backpex resource pages and admin LiveViews.
   """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :flash, :map, required: true
+  attr :current_scope, :map, default: nil
 
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
+  slot :inner_block, required: true
+
+  def admin(assigns) do
+    ~H"""
+    <div class="flex min-h-screen bg-base-100">
+      <aside class="w-64 shrink-0 bg-base-200 border-r border-base-300 flex flex-col min-h-screen sticky top-0">
+        <div class="px-5 py-4 border-b border-base-300">
+          <a href={~p"/admin/reference-builds"}>
+            <img
+              src={~p"/images/palladium-combined-dark-mode.svg"}
+              alt="Palladium"
+              class="h-8 w-auto"
+            />
+          </a>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto p-3 space-y-0.5">
+          <.nav_item href={~p"/admin/reference-builds"} label="Reference Builds" icon="hero-bookmark-square-mini" />
+
+          <p class="text-xs font-semibold text-base-content/40 uppercase tracking-widest px-3 pt-5 pb-2">
+            PC Parts
+          </p>
+          <.nav_item href={~p"/admin/cpus"} label="CPUs" icon="hero-cpu-chip-mini" />
+          <.nav_item href={~p"/admin/cpu-coolers"} label="CPU Coolers" icon="hero-cpu-chip-mini" />
+          <.nav_item href={~p"/admin/motherboards"} label="Motherboards" icon="hero-squares-2x2-mini" />
+          <.nav_item href={~p"/admin/ram"} label="RAM Kits" icon="hero-rectangle-stack-mini" />
+          <.nav_item href={~p"/admin/storage"} label="SSDs" icon="hero-circle-stack-mini" />
+          <.nav_item href={~p"/admin/gpus"} label="GPUs" icon="hero-tv-mini" />
+          <.nav_item href={~p"/admin/cases"} label="Cases" icon="hero-server-mini" />
+          <.nav_item href={~p"/admin/psus"} label="PSUs" icon="hero-bolt-mini" />
+          <.nav_item href={~p"/admin/fans"} label="Fans" icon="hero-arrow-path-mini" />
+
+          <p class="text-xs font-semibold text-base-content/40 uppercase tracking-widest px-3 pt-5 pb-2">
+            Platform
+          </p>
+          <.nav_item href={~p"/admin/users"} label="Users" icon="hero-users-mini" />
+          <.nav_item
+            href={~p"/admin/llm-analytics"}
+            label="LLM Analytics"
+            icon="hero-chart-bar-mini"
+          />
+        </nav>
+      </aside>
+
+      <div class="flex-1 min-w-0">
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+
+    <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :href, :string, required: true
+  attr :label, :string, required: true
+  attr :icon, :string, default: nil
+
+  defp nav_item(assigns) do
+    ~H"""
+    <a
+      href={@href}
+      class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-base-content/70 hover:bg-base-300 hover:text-base-content transition-colors"
+    >
+      <.icon :if={@icon} name={@icon} class="size-4 shrink-0" />
+      {@label}
+    </a>
+    """
+  end
+
+  @doc """
+  Renders the default app layout (used for non-admin pages).
+  """
+  attr :flash, :map, required: true
+  attr :current_scope, :map, default: nil
 
   slot :inner_block, required: true
 
@@ -45,18 +103,7 @@ defmodule AdminWeb.Layouts do
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
           <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
+            <a href={~p"/admin/reference-builds"} class="btn btn-primary">Admin</a>
           </li>
         </ul>
       </div>
@@ -74,12 +121,8 @@ defmodule AdminWeb.Layouts do
 
   @doc """
   Shows the flash group with standard titles and content.
-
-  ## Examples
-
-      <.flash_group flash={@flash} />
   """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :flash, :map, required: true
   attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
 
   def flash_group(assigns) do
@@ -117,8 +160,6 @@ defmodule AdminWeb.Layouts do
 
   @doc """
   Provides dark vs light theme toggle based on themes defined in app.css.
-
-  See <head> in root.html.heex which applies the theme before page load.
   """
   def theme_toggle(assigns) do
     ~H"""

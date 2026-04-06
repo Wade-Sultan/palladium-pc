@@ -1,6 +1,8 @@
 defmodule AdminWeb.Router do
   use AdminWeb, :router
 
+  import Backpex.Router
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
@@ -20,18 +22,31 @@ defmodule AdminWeb.Router do
     live "/", HomeLive, :index
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", AdminWeb do
-  #   pipe_through :api
-  # end
+  scope "/admin", AdminWeb do
+    pipe_through :browser
+
+    backpex_routes()
+
+    live_session :admin,
+      layout: {AdminWeb.Layouts, :admin} do
+      live_resources "/reference-builds", Live.ReferenceBuildLive
+      live_resources "/cpus", Live.CPULive
+      live_resources "/cpu-coolers", Live.CPUCoolerLive
+      live_resources "/motherboards", Live.MotherboardLive
+      live_resources "/ram", Live.RAMLive
+      live_resources "/storage", Live.StorageLive
+      live_resources "/gpus", Live.GPULive
+      live_resources "/cases", Live.CaseLive
+      live_resources "/psus", Live.PSULive
+      live_resources "/fans", Live.FanLive
+      live_resources "/users", Live.UserLive
+
+      live "/llm-analytics", Live.LLMAnalyticsLive, :index
+    end
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:admin, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do
