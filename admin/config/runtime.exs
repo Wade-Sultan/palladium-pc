@@ -23,22 +23,46 @@ end
 config :admin, AdminWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
-  database_url =
-    System.get_env("DATABASE_URL") ||
-      raise """
-      environment variable DATABASE_URL is missing.
-      For example: ecto://USER:PASS@HOST/DATABASE
-      """
+  admin_password =
+    System.get_env("ADMIN_PASSWORD") ||
+      raise "environment variable ADMIN_PASSWORD is missing."
 
-  maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
+  config :admin, :admin_username, System.get_env("ADMIN_USERNAME", "admin")
+  config :admin, :admin_password, admin_password
+
+  # On GCE the Cloud SQL Auth Proxy runs as a systemd service and exposes
+  # the instance via a Unix socket at /cloudsql/<INSTANCE_CONNECTION_NAME>.
+  # Set CLOUD_SQL_INSTANCE to e.g. "myproject:us-west1:palladium-db".
+  # Alternatively, set DATABASE_URL for a standard TCP connection (e.g. local proxy on localhost:5432).
+  repo_config =
+    case System.get_env("CLOUD_SQL_INSTANCE") do
+      nil ->
+        database_url =
+          System.get_env("DATABASE_URL") ||
+            raise """
+            environment variable DATABASE_URL or CLOUD_SQL_INSTANCE is missing.
+            For Cloud SQL on GCE set CLOUD_SQL_INSTANCE=project:region:instance
+            For TCP (proxy on localhost) set DATABASE_URL=ecto://USER:PASS@localhost/DATABASE
+            """
+
+        [url: database_url]
+
+      instance ->
+        [
+          username: System.get_env("DB_USER") || "palladium_app",
+          password:
+            System.get_env("DB_PASSWORD") ||
+              raise("environment variable DB_PASSWORD is missing."),
+          database: System.get_env("DB_NAME") || "palladium",
+          socket_dir: "/cloudsql/#{instance}"
+        ]
+    end
 
   config :admin, Admin.Repo,
-    # ssl: true,
-    url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-    # For machines with several cores, consider starting multiple pools of `pool_size`
-    # pool_count: 4,
-    socket_options: maybe_ipv6
+    socket_options: []
+
+  config :admin, Admin.Repo, repo_config
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
   # A default value is used in config/dev.exs and config/test.exs but you

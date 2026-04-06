@@ -16,6 +16,16 @@ defmodule AdminWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :admin_auth do
+    plug :admin_basic_auth
+  end
+
+  defp admin_basic_auth(conn, _opts) do
+    username = Application.get_env(:admin, :admin_username, "admin")
+    password = Application.fetch_env!(:admin, :admin_password)
+    Plug.BasicAuth.basic_auth(conn, username: username, password: password)
+  end
+
   scope "/", AdminWeb do
     pipe_through :browser
 
@@ -23,7 +33,7 @@ defmodule AdminWeb.Router do
   end
 
   scope "/admin", AdminWeb do
-    pipe_through :browser
+    pipe_through [:browser, :admin_auth]
 
     backpex_routes()
 

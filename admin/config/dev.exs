@@ -91,4 +91,8 @@ config :phoenix_live_view,
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
 
+# Admin basic auth — override in dev.secret.exs if you want a real password locally
+config :admin, :admin_username, "admin"
+config :admin, :admin_password, "admin"
+
 import_config "dev.secret.exs"
