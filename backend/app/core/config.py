@@ -63,14 +63,10 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        if self.CLOUD_SQL_INSTANCE:
-            # Unix socket for Cloud Run / Compute Engine
-            return (
-                f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-                f"@/{self.POSTGRES_DB}?host=/cloudsql/{self.CLOUD_SQL_INSTANCE}"
-            )
         if not self.POSTGRES_DB_URL:
-            raise ValueError("Either CLOUD_SQL_INSTANCE or POSTGRES_DB_URL must be set")
+            # Production uses CLOUD_SQL_INSTANCE via the connector library,
+            # so SQLALCHEMY_DATABASE_URI is only needed for local dev
+            return ""
         return str(self.POSTGRES_DB_URL).replace(
             "postgresql://", "postgresql+psycopg://"
         )
