@@ -30,6 +30,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "alembic-postgresql-enum>=1.0.0",
     "langgraph-checkpoint-postgres>=3.0.4",
+    "cloud-sql-python-connector[psycopg]>=1.20.1",
 ]
 
 [dependency-groups]
