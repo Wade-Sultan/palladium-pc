@@ -1,7 +1,3 @@
-"""
-See DESIGN_performance_and_compatibility.md for full context.
-"""
-
 import enum
 import uuid
 
