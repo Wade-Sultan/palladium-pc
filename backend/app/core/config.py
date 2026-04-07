@@ -56,11 +56,21 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
 
-    POSTGRES_DB_URL: PostgresDsn
+    CLOUD_SQL_INSTANCE: str | None = None
+
+    POSTGRES_DB_URL: PostgresDsn | None = None
 
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
+        if self.CLOUD_SQL_INSTANCE:
+            # Unix socket for Cloud Run / Compute Engine
+            return (
+                f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+                f"@/{self.POSTGRES_DB}?host=/cloudsql/{self.CLOUD_SQL_INSTANCE}"
+            )
+        if not self.POSTGRES_DB_URL:
+            raise ValueError("Either CLOUD_SQL_INSTANCE or POSTGRES_DB_URL must be set")
         return str(self.POSTGRES_DB_URL).replace(
             "postgresql://", "postgresql+psycopg://"
         )

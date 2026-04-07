@@ -1,12 +1,54 @@
 steps:
+  # ---- Build ----
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
       - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/palladium/backend:$COMMIT_SHA'
+      - '-t'
       - 'us-central1-docker.pkg.dev/$PROJECT_ID/palladium/backend:latest'
       - '.'
+    dir: 'backend'
     env:
       - 'DOCKER_BUILDKIT=1'
 
+  # ---- Push ----
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/palladium/backend'
+
+  # ---- Deploy to Cloud Run ----
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'palladium-backend'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/palladium/backend:$COMMIT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--port=8000'
+      - '--allow-unauthenticated'
+      - '--add-cloudsql-instances=$PROJECT_ID:us-central1:palladium-db'
+      - '--vpc-connector=palladium-connector'
+      - '--vpc-egress=private-ranges-only'
+      - '--service-account=palladium-backend@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,SECRET_KEY=palladium-secret-key:latest,POSTGRES_PASSWORD=palladium-db-password-prod:latest'
+      - '--set-env-vars=ENVIRONMENT=production,PROJECT_NAME=Palladium,FRONTEND_HOST=https://palladiumtech.ai,BACKEND_CORS_ORIGINS=https://palladiumtech.ai,POSTGRES_USER=palladium_app,POSTGRES_DB=palladium,CLOUD_SQL_INSTANCE=$PROJECT_ID:us-central1:palladium-db,POSTGRES_SERVER=/cloudsql/$PROJECT_ID:us-central1:palladium-db,POSTGRES_PORT=5432,FIRST_SUPERUSER=admin@palladiumtech.ai,FIRST_SUPERUSER_PASSWORD=CHANGE_AFTER_FIRST_DEPLOY'
+      - '--min-instances=0'
+      - '--max-instances=4'
+      - '--memory=512Mi'
+      - '--cpu=1'
+      - '--timeout=300'
+      - '--concurrency=80'
+      - '--cpu-throttling'
+      - '--session-affinity'
+
 images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/palladium/backend:$COMMIT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/palladium/backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
