@@ -12,7 +12,7 @@ steps:
             cd ~/palladium/admin && \
             git pull origin main && \
             export MIX_ENV=prod && \
-            export DATABASE_URL="ecto://palladium_app:$(gcloud secrets versions access latest --secret=palladium-db-password)@localhost:5432/palladium" && \
+            export DATABASE_URL="ecto://palladium_app:$(gcloud secrets versions access latest --secret=palladium-db-password-prod)@localhost:5432/palladium" && \
             export SECRET_KEY_BASE=$(gcloud secrets versions access latest --secret=palladium-admin-secret-key) && \
             mix deps.get --only prod && \
             mix compile && \
