@@ -8,12 +8,41 @@ from app.core.config import settings
 from app.models import User
 from app.schemas import UserCreate
 
-engine = create_engine(
-    str(settings.SQLALCHEMY_DATABASE_URI),
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-)
+
+def _create_engine():
+    if settings.CLOUD_SQL_INSTANCE:
+        from google.cloud.sql.connector import Connector, IPTypes
+
+        connector = Connector()
+
+        def getconn():
+            return connector.connect(
+                settings.CLOUD_SQL_INSTANCE,
+                "psycopg",
+                user=settings.POSTGRES_USER,
+                password=settings.POSTGRES_PASSWORD,
+                db=settings.POSTGRES_DB,
+                ip_type=IPTypes.PUBLIC,
+            )
+
+        return create_engine(
+            "postgresql+psycopg://",
+            creator=getconn,
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
+        )
+
+    # Local dev path
+    return create_engine(
+        str(settings.SQLALCHEMY_DATABASE_URI),
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+    )
+
+
+engine = _create_engine()
 
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
