@@ -15,4 +15,6 @@ Building a PC is fun, but can also be quite daunting for people unfamiliar with 
 
 - User authentication and chat history
 - PC building guides
+- Find a builder map to locate PC builder businesses near you to help put the parts together
 - Upgraded part recommendation pipeline
+- Real Amazon and Ebay links to buy parts, along with the ability to subscribe to e-mail updates regarding price/availability
