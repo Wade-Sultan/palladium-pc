@@ -41,7 +41,7 @@ const releases: Release[] = [
         ],
     },
     {
-        date: "March 2026",
+        date: "4/7/2026",
         label: "Beta Release",
         changes: [
         { type: "new", text: "Launched Palladium, an AI-powered PC parts recommendation platform to make choosing parts easier than ever before." },
