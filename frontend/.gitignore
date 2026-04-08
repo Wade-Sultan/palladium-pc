@@ -33,3 +33,4 @@ openapi.json
 .env
 .env.*
 *.env
+.vercel
