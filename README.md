@@ -1,6 +1,10 @@
 # Palladium
 
-Building a PC is fun, but can also be quite daunting for people unfamiliar with it. Palladium aims to make the process more intuitive and enjoyable by giving you the exact information you need to accurately describe your use cases. It then takes this information and chooses parts via a database-enforced pipeline that then presents a complete, compatible parts list for the new PC! Please note that this product is in beta, but it's available to test right now at palladiumtech.ai!
+Building a PC is one of the most satisfying things you can do as a gamer, but the barrier to entry is high. Strict compatibility requirements, questions about how much you really need, and the sheer volume of options make it easy to overspend, underspec, or just give up.
+
+Most AI PC builders take in a use case and budget and call it done, making guesses without enough information ("gaming" can mean anything from being able to run Valorant to playing it at 360+ fps) or confidently recommending parts that are flat-out wrong for the job (like an AMD GPU for someone who wants to train AI models locally). Palladium runs a structured selection pipeline with hard compatibility enforcement, choosing components in the order that actually matters. Along the way, it explains the reasoning: target frame rates, resolution tradeoffs, performance expectations for your specific use case. The result is a build that fits exactly what you'll use it for, without spending more than necessary.
+
+Tell Palladium what you want to do with your PC. It'll handle the rest. Available now in beta at [palladiumtech.ai](https://palladiumtech.ai).
 
 ## Technology Stack
 
