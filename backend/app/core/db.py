@@ -18,7 +18,7 @@ def _create_engine():
         def getconn():
             return connector.connect(
                 settings.CLOUD_SQL_INSTANCE,
-                "psycopg",
+                "pg8000",
                 user=settings.POSTGRES_USER,
                 password=settings.POSTGRES_PASSWORD,
                 db=settings.POSTGRES_DB,
@@ -26,14 +26,13 @@ def _create_engine():
             )
 
         return create_engine(
-            "postgresql+psycopg://",
+            "postgresql+pg8000://", 
             creator=getconn,
             pool_pre_ping=True,
             pool_size=5,
             max_overflow=10,
         )
 
-    # Local dev path
     return create_engine(
         str(settings.SQLALCHEMY_DATABASE_URI),
         pool_pre_ping=True,
