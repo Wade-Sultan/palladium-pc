@@ -9,7 +9,7 @@ defmodule AdminWeb.Live.CPUCoolerLive do
     ]
 
   @impl Backpex.LiveResource
-  def layout, do: {AdminWeb.Layouts, :admin}
+  def layout(_assigns), do: {AdminWeb.Layouts, :admin}
 
   @impl Backpex.LiveResource
   def singular_name, do: "CPU Cooler"
