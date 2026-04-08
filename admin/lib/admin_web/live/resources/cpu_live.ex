@@ -5,7 +5,11 @@ defmodule AdminWeb.Live.CPULive do
       repo: Admin.Repo,
       schema: Admin.Schema.PCPart,
       update_changeset: &Admin.Schema.PCPart.changeset/3,
-      create_changeset: &Admin.Schema.PCPart.changeset/3
+      create_changeset: &Admin.Schema.PCPart.changeset/3,
+      item_query: fn query, _live_action, _assigns ->
+        import Ecto.Query
+        from p in query, where: p.part_type == "cpu"
+      end
     ]
 
   @impl Backpex.LiveResource
@@ -16,12 +20,6 @@ defmodule AdminWeb.Live.CPULive do
 
   @impl Backpex.LiveResource
   def plural_name, do: "CPUs"
-
-  @impl Backpex.LiveResource
-  def list_query(query, _live_resource, _assigns) do
-    import Ecto.Query
-    from p in query, where: p.part_type == "cpu"
-  end
 
   @impl Backpex.LiveResource
   def fields do

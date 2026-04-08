@@ -5,7 +5,11 @@ defmodule AdminWeb.Live.StorageLive do
       repo: Admin.Repo,
       schema: Admin.Schema.PCPart,
       update_changeset: &Admin.Schema.PCPart.changeset/3,
-      create_changeset: &Admin.Schema.PCPart.changeset/3
+      create_changeset: &Admin.Schema.PCPart.changeset/3,
+      item_query: fn query, _live_action, _assigns ->
+        import Ecto.Query
+        from p in query, where: p.part_type == "storage"
+      end
     ]
 
   @impl Backpex.LiveResource
@@ -16,12 +20,6 @@ defmodule AdminWeb.Live.StorageLive do
 
   @impl Backpex.LiveResource
   def plural_name, do: "SSDs"
-
-  @impl Backpex.LiveResource
-  def list_query(query, _live_resource, _assigns) do
-    import Ecto.Query
-    from p in query, where: p.part_type == "storage"
-  end
 
   @impl Backpex.LiveResource
   def fields do
