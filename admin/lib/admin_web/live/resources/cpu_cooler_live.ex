@@ -6,10 +6,7 @@ defmodule AdminWeb.Live.CPUCoolerLive do
       schema: Admin.Schema.PCPart,
       update_changeset: &Admin.Schema.PCPart.changeset/3,
       create_changeset: &Admin.Schema.PCPart.changeset/3,
-      item_query: fn query, _live_action, _assigns ->
-        import Ecto.Query
-        from p in query, where: p.part_type == "cpucooler"
-      end
+      item_query: &AdminWeb.Live.PartQueries.cpu_cooler/3
     ]
 
   @impl Backpex.LiveResource

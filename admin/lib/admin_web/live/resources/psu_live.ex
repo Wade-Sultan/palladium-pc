@@ -6,10 +6,7 @@ defmodule AdminWeb.Live.PSULive do
       schema: Admin.Schema.PCPart,
       update_changeset: &Admin.Schema.PCPart.changeset/3,
       create_changeset: &Admin.Schema.PCPart.changeset/3,
-      item_query: fn query, _live_action, _assigns ->
-        import Ecto.Query
-        from p in query, where: p.part_type == "psu"
-      end
+      item_query: &AdminWeb.Live.PartQueries.psu/3
     ]
 
   @impl Backpex.LiveResource
