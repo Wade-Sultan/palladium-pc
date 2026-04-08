@@ -29,8 +29,8 @@
       {"name": "next"}
     ],
   },
-  "include": ["src", "tests", "playwright.config.ts", "./dist/types/**/*.ts", "./next-env.d.ts"],
-  "exclude": ["./node_modules"],
+  "include": ["src", "next-env.d.ts", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "tests", "playwright.config.ts"],
   "references": [],
   
 }
