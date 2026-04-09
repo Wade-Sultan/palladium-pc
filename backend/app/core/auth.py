@@ -1,13 +1,17 @@
+import os
+
 import firebase_admin
 from firebase_admin import auth, credentials
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 # Initialize Firebase Admin once at module load.
-# On Cloud Run, Application Default Credentials work automatically
-# via the attached service account.
+# On Cloud Run, Application Default Credentials work automatically via the
+# attached service account. Locally, set FIREBASE_PROJECT_ID in your .env
+# (and optionally GOOGLE_APPLICATION_CREDENTIALS for a service account key).
 if not firebase_admin._apps:
-    firebase_admin.initialize_app()
+    project_id = os.environ.get("FIREBASE_PROJECT_ID")
+    firebase_admin.initialize_app(options={"projectId": project_id} if project_id else None)
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
