@@ -22,7 +22,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import useAuth from "@/hooks/useAuth"
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email" }),
+  email: z.email({ message: "Please enter a valid email" }),
   password: z
     .string()
     .min(1, { message: "Password is required" })
@@ -38,7 +38,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/")
+      router.push("/newbuild")
     }
   }, [user, loading, router])
 

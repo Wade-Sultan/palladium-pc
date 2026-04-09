@@ -23,7 +23,7 @@ import useAuth from "@/hooks/useAuth"
 
 const formSchema = z
   .object({
-    email: z.string().email({ message: "Please enter a valid email" }),
+    email: z.email({ message: "Please enter a valid email" }),
     full_name: z.string().min(1, { message: "Full name is required" }),
     password: z
       .string()
@@ -47,7 +47,7 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/")
+      router.push("/newbuild")
     }
   }, [user, loading, router])
 

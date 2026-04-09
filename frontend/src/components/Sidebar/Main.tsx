@@ -1,7 +1,7 @@
 "use client"
 
 import type { LucideIcon } from "lucide-react"
-import { BookOpen, Hammer, MapPin, MessagesSquare } from "lucide-react"
+import { BookOpen, Hammer, MapPin, MessagesSquare, Settings } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -25,6 +25,7 @@ const items: Item[] = [
   { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
   { icon: BookOpen, title: "Guides", path: "/guides" },
   { icon: MapPin, title: "Find a Builder", path: "/findbuilder" },
+  { icon: Settings, title: "Settings", path: "/settings" },
 ]
 
 export function Main() {

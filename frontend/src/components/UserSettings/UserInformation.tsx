@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils"
 
 const formSchema = z.object({
   full_name: z.string().max(30).optional(),
-  email: z.string().email({ message: "Invalid email address" }),
+  email: z.email({ message: "Invalid email address" }),
 })
 
 type FormData = z.infer<typeof formSchema>

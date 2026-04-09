@@ -1,12 +1,17 @@
 import type { ChatModelAdapter } from "@assistant-ui/react"
+import { getAccessToken } from "@/hooks/useAuth"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
 export const modelAdapter: ChatModelAdapter = {
   async *run({ messages, abortSignal }) {
+    const token = await getAccessToken()
+    const headers: Record<string, string> = { "Content-Type": "application/json" }
+    if (token) headers["Authorization"] = `Bearer ${token}`
+
     const response = await fetch(`${API_BASE}/api/v1/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         messages: messages.map((m) => ({
           role: m.role,

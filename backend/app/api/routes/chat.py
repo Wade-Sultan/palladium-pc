@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 import logging
  
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
  
 from app.schemas.chat import ChatMessage, ChatRequest
 from app.services.chat_pipeline import run_chat_turn
+from app.core.auth import verify_firebase_token
  
 logger = logging.getLogger(__name__)
  
@@ -32,7 +33,7 @@ async def _event_stream(messages: list[ChatMessage]):
  
  
 @router.post("/chat")
-async def chat(req: ChatRequest) -> StreamingResponse:
+async def chat(req: ChatRequest, user: dict = Depends(verify_firebase_token)) -> StreamingResponse:
     """
     Stream a recommendation response for the given conversation.
  

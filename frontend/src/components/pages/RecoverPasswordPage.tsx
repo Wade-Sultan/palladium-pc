@@ -21,7 +21,7 @@ import { LoadingButton } from "@/components/ui/loading-button"
 import useAuth from "@/hooks/useAuth"
 
 const formSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email" }),
+  email: z.email({ message: "Please enter a valid email" }),
 })
 
 type FormData = z.infer<typeof formSchema>
@@ -34,7 +34,7 @@ export default function RecoverPasswordPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/")
+      router.push("/newbuild")
     }
   }, [user, loading, router])
 

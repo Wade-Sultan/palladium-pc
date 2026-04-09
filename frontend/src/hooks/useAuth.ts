@@ -67,7 +67,7 @@ export default function useAuth(): UseAuthReturn {
     async (email: string, password: string) => {
       try {
         await signInWithEmailAndPassword(auth, email, password)
-        router.push("/")
+        router.push("/newbuild")
         return { error: null }
       } catch (err) {
         return { error: err as Error }
@@ -87,8 +87,8 @@ export default function useAuth(): UseAuthReturn {
         if (fullName) {
           await updateProfile(user, { displayName: fullName })
         }
-        // Navigate to login. Firebase may require email verification
-        // depending on your project settings.
+        // Navigate to login after signup. Firebase may require email
+        // verification depending on your project settings.
         router.push("/login")
         return { error: null }
       } catch (err) {
@@ -119,7 +119,7 @@ export default function useAuth(): UseAuthReturn {
       try {
         if (!auth.currentUser) throw new Error("No authenticated user")
         await firebaseUpdatePassword(auth.currentUser, newPassword)
-        router.push("/")
+        router.push("/newbuild")
         return { error: null }
       } catch (err) {
         return { error: err as Error }
