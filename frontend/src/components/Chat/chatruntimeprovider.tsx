@@ -1,8 +1,5 @@
+import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 import type { ReactNode } from "react"
-import {
-  AssistantRuntimeProvider,
-  useLocalRuntime,
-} from "@assistant-ui/react"
 
 import { modelAdapter } from "./model-adapter"
 

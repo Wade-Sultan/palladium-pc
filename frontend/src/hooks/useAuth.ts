@@ -1,28 +1,32 @@
 "use client"
-import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  sendPasswordResetEmail,
   updatePassword as firebaseUpdatePassword,
-  updateProfile,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
   type User,
+  updateProfile,
 } from "firebase/auth"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
 import { auth } from "@/lib/firebase"
- 
+
 interface UseAuthReturn {
   user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>
+  signUp: (
+    email: string,
+    password: string,
+    fullName?: string,
+  ) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<{ error: Error | null }>
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>
 }
- 
+
 /**
  * Check if there's an active session without subscribing to changes.
  * Useful for route guards (beforeLoad) where hooks can't be used.
@@ -35,7 +39,7 @@ export async function isLoggedIn(): Promise<boolean> {
     })
   })
 }
- 
+
 /**
  * Get the current ID token for passing to your FastAPI backend.
  * Returns null if no active session.
@@ -45,7 +49,7 @@ export async function getAccessToken(): Promise<string | null> {
   if (!user) return null
   return user.getIdToken()
 }
- 
+
 export default function useAuth(): UseAuthReturn {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
@@ -59,30 +63,40 @@ export default function useAuth(): UseAuthReturn {
     return () => unsubscribe()
   }, [])
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password)
-      router.push("/")
-      return { error: null }
-    } catch (err) {
-      return { error: err as Error }
-    }
-  }, [router])
-
-  const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
-    try {
-      const { user } = await createUserWithEmailAndPassword(auth, email, password)
-      if (fullName) {
-        await updateProfile(user, { displayName: fullName })
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      try {
+        await signInWithEmailAndPassword(auth, email, password)
+        router.push("/")
+        return { error: null }
+      } catch (err) {
+        return { error: err as Error }
       }
-      // Navigate to login. Firebase may require email verification
-      // depending on your project settings.
-      router.push("/login")
-      return { error: null }
-    } catch (err) {
-      return { error: err as Error }
-    }
-  }, [router])
+    },
+    [router],
+  )
+
+  const signUp = useCallback(
+    async (email: string, password: string, fullName?: string) => {
+      try {
+        const { user } = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password,
+        )
+        if (fullName) {
+          await updateProfile(user, { displayName: fullName })
+        }
+        // Navigate to login. Firebase may require email verification
+        // depending on your project settings.
+        router.push("/login")
+        return { error: null }
+      } catch (err) {
+        return { error: err as Error }
+      }
+    },
+    [router],
+  )
 
   const signOut = useCallback(async () => {
     await firebaseSignOut(auth)
@@ -100,16 +114,27 @@ export default function useAuth(): UseAuthReturn {
     }
   }, [])
 
-  const updatePassword = useCallback(async (newPassword: string) => {
-    try {
-      if (!auth.currentUser) throw new Error("No authenticated user")
-      await firebaseUpdatePassword(auth.currentUser, newPassword)
-      router.push("/")
-      return { error: null }
-    } catch (err) {
-      return { error: err as Error }
-    }
-  }, [router])
- 
-  return { user, loading, signIn, signUp, signOut, resetPassword, updatePassword }
+  const updatePassword = useCallback(
+    async (newPassword: string) => {
+      try {
+        if (!auth.currentUser) throw new Error("No authenticated user")
+        await firebaseUpdatePassword(auth.currentUser, newPassword)
+        router.push("/")
+        return { error: null }
+      } catch (err) {
+        return { error: err as Error }
+      }
+    },
+    [router],
+  )
+
+  return {
+    user,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    resetPassword,
+    updatePassword,
+  }
 }

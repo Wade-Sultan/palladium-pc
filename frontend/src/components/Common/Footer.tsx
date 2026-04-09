@@ -1,7 +1,11 @@
 import { FaGithub } from "react-icons/fa"
 
 const socialLinks = [
-  { icon: FaGithub, href: "https://github.com/Wade-Sultan/palladium-pc", label: "GitHub" },
+  {
+    icon: FaGithub,
+    href: "https://github.com/Wade-Sultan/palladium-pc",
+    label: "GitHub",
+  },
 ]
 
 export function Footer() {

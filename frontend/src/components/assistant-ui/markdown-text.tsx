@@ -1,19 +1,19 @@
-"use client";
+"use client"
 
-import "@assistant-ui/react-markdown/styles/dot.css";
+import "@assistant-ui/react-markdown/styles/dot.css"
 
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
-} from "@assistant-ui/react-markdown";
-import remarkGfm from "remark-gfm";
-import { type FC, memo, useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
+} from "@assistant-ui/react-markdown"
+import { CheckIcon, CopyIcon } from "lucide-react"
+import { type FC, memo, useState } from "react"
+import remarkGfm from "remark-gfm"
 
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { cn } from "@/lib/utils";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button"
+import { cn } from "@/lib/utils"
 
 const MarkdownTextImpl = () => {
   return (
@@ -22,17 +22,17 @@ const MarkdownTextImpl = () => {
       className="aui-md"
       components={defaultComponents}
     />
-  );
-};
+  )
+}
 
-export const MarkdownText = memo(MarkdownTextImpl);
+export const MarkdownText = memo(MarkdownTextImpl)
 
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
-  const { isCopied, copyToClipboard } = useCopyToClipboard();
+  const { isCopied, copyToClipboard } = useCopyToClipboard()
   const onCopy = () => {
-    if (!code || isCopied) return;
-    copyToClipboard(code);
-  };
+    if (!code || isCopied) return
+    copyToClipboard(code)
+  }
 
   return (
     <div className="aui-code-header-root mt-2.5 flex items-center justify-between rounded-t-lg border border-border/50 border-b-0 bg-muted/50 px-3 py-1.5 text-xs">
@@ -44,27 +44,27 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
         {isCopied && <CheckIcon />}
       </TooltipIconButton>
     </div>
-  );
-};
+  )
+}
 
 const useCopyToClipboard = ({
   copiedDuration = 3000,
 }: {
-  copiedDuration?: number;
+  copiedDuration?: number
 } = {}) => {
-  const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [isCopied, setIsCopied] = useState<boolean>(false)
 
   const copyToClipboard = (value: string) => {
-    if (!value) return;
+    if (!value) return
 
     navigator.clipboard.writeText(value).then(() => {
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), copiedDuration);
-    });
-  };
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), copiedDuration)
+    })
+  }
 
-  return { isCopied, copyToClipboard };
-};
+  return { isCopied, copyToClipboard }
+}
 
 const defaultComponents = memoizeMarkdownComponents({
   h1: ({ className, ...props }) => (
@@ -227,7 +227,7 @@ const defaultComponents = memoizeMarkdownComponents({
     />
   ),
   code: function Code({ className, ...props }) {
-    const isCodeBlock = useIsMarkdownCodeBlock();
+    const isCodeBlock = useIsMarkdownCodeBlock()
     return (
       <code
         className={cn(
@@ -237,7 +237,7 @@ const defaultComponents = memoizeMarkdownComponents({
         )}
         {...props}
       />
-    );
+    )
   },
   CodeHeader,
-});
+})

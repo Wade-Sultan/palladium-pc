@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { ChatInterface } from "@/components/Chat/chatinterface"
 

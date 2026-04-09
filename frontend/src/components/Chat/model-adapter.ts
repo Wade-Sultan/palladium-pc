@@ -11,7 +11,9 @@ export const modelAdapter: ChatModelAdapter = {
         messages: messages.map((m) => ({
           role: m.role,
           content: m.content
-            .filter((p): p is { type: "text"; text: string } => p.type === "text")
+            .filter(
+              (p): p is { type: "text"; text: string } => p.type === "text",
+            )
             .map((p) => p.text)
             .join("\n"),
         })),
@@ -20,7 +22,9 @@ export const modelAdapter: ChatModelAdapter = {
     })
 
     if (!response.ok) {
-      throw new Error(`Chat API returned ${response.status}: ${response.statusText}`)
+      throw new Error(
+        `Chat API returned ${response.status}: ${response.statusText}`,
+      )
     }
 
     const reader = response.body?.getReader()

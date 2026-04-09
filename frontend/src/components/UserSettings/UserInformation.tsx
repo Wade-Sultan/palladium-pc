@@ -1,9 +1,9 @@
 "use client"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { updateEmail, updateProfile } from "firebase/auth"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -16,7 +16,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { LoadingButton } from "@/components/ui/loading-button"
 import useAuth from "@/hooks/useAuth"
-import { updateProfile, updateEmail } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import { cn } from "@/lib/utils"
 
@@ -94,9 +93,7 @@ const UserInformation = () => {
           onSubmit={form.handleSubmit(onSubmit)}
           className="flex flex-col gap-4"
         >
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
           <FormField
             control={form.control}
@@ -113,7 +110,12 @@ const UserInformation = () => {
               ) : (
                 <FormItem>
                   <FormLabel>Full Name</FormLabel>
-                  <p className={cn("text-sm", !field.value && "text-muted-foreground")}>
+                  <p
+                    className={cn(
+                      "text-sm",
+                      !field.value && "text-muted-foreground",
+                    )}
+                  >
                     {field.value || "Not set"}
                   </p>
                 </FormItem>

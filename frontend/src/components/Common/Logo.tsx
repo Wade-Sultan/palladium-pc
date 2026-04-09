@@ -1,7 +1,7 @@
 "use client"
-import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
+import { useEffect, useState } from "react"
 
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
@@ -46,7 +46,10 @@ export function Logo({
           alt="Palladium"
           width={20}
           height={20}
-          className={cn("hidden group-data-[collapsible=icon]:block", className)}
+          className={cn(
+            "hidden group-data-[collapsible=icon]:block",
+            className,
+          )}
         />
       </>
     ) : (
