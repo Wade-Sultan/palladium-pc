@@ -1,35 +1,35 @@
-"use client";
+"use client"
 
-import { memo, useCallback, useRef, useState } from "react";
+import {
+  type ToolCallMessagePartComponent,
+  type ToolCallMessagePartStatus,
+  useScrollLock,
+} from "@assistant-ui/react"
 import {
   AlertCircleIcon,
   CheckIcon,
   ChevronDownIcon,
   LoaderIcon,
   XCircleIcon,
-} from "lucide-react";
-import {
-  useScrollLock,
-  type ToolCallMessagePartStatus,
-  type ToolCallMessagePartComponent,
-} from "@assistant-ui/react";
+} from "lucide-react"
+import { memo, useCallback, useRef, useState } from "react"
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "@/components/ui/collapsible"
+import { cn } from "@/lib/utils"
 
-const ANIMATION_DURATION = 200;
+const ANIMATION_DURATION = 200
 
 export type ToolFallbackRootProps = Omit<
   React.ComponentProps<typeof Collapsible>,
   "open" | "onOpenChange"
 > & {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  defaultOpen?: boolean;
-};
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  defaultOpen?: boolean
+}
 
 function ToolFallbackRoot({
   className,
@@ -39,25 +39,25 @@ function ToolFallbackRoot({
   children,
   ...props
 }: ToolFallbackRootProps) {
-  const collapsibleRef = useRef<HTMLDivElement>(null);
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
-  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION);
+  const collapsibleRef = useRef<HTMLDivElement>(null)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen)
+  const lockScroll = useScrollLock(collapsibleRef, ANIMATION_DURATION)
 
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : uncontrolledOpen;
+  const isControlled = controlledOpen !== undefined
+  const isOpen = isControlled ? controlledOpen : uncontrolledOpen
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (!open) {
-        lockScroll();
+        lockScroll()
       }
       if (!isControlled) {
-        setUncontrolledOpen(open);
+        setUncontrolledOpen(open)
       }
-      controlledOnOpenChange?.(open);
+      controlledOnOpenChange?.(open)
     },
     [lockScroll, isControlled, controlledOnOpenChange],
-  );
+  )
 
   return (
     <Collapsible
@@ -78,17 +78,17 @@ function ToolFallbackRoot({
     >
       {children}
     </Collapsible>
-  );
+  )
 }
 
-type ToolStatus = ToolCallMessagePartStatus["type"];
+type ToolStatus = ToolCallMessagePartStatus["type"]
 
 const statusIconMap: Record<ToolStatus, React.ElementType> = {
   running: LoaderIcon,
   complete: CheckIcon,
   incomplete: XCircleIcon,
   "requires-action": AlertCircleIcon,
-};
+}
 
 function ToolFallbackTrigger({
   toolName,
@@ -96,16 +96,16 @@ function ToolFallbackTrigger({
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
-  toolName: string;
-  status?: ToolCallMessagePartStatus;
+  toolName: string
+  status?: ToolCallMessagePartStatus
 }) {
-  const statusType = status?.type ?? "complete";
-  const isRunning = statusType === "running";
+  const statusType = status?.type ?? "complete"
+  const isRunning = statusType === "running"
   const isCancelled =
-    status?.type === "incomplete" && status.reason === "cancelled";
+    status?.type === "incomplete" && status.reason === "cancelled"
 
-  const Icon = statusIconMap[statusType];
-  const label = isCancelled ? "Cancelled tool" : "Used tool";
+  const Icon = statusIconMap[statusType]
+  const label = isCancelled ? "Cancelled tool" : "Used tool"
 
   return (
     <CollapsibleTrigger
@@ -154,7 +154,7 @@ function ToolFallbackTrigger({
         )}
       />
     </CollapsibleTrigger>
-  );
+  )
 }
 
 function ToolFallbackContent({
@@ -180,7 +180,7 @@ function ToolFallbackContent({
     >
       <div className="mt-3 flex flex-col gap-2 border-t pt-2">{children}</div>
     </CollapsibleContent>
-  );
+  )
 }
 
 function ToolFallbackArgs({
@@ -188,9 +188,9 @@ function ToolFallbackArgs({
   className,
   ...props
 }: React.ComponentProps<"div"> & {
-  argsText?: string;
+  argsText?: string
 }) {
-  if (!argsText) return null;
+  if (!argsText) return null
 
   return (
     <div
@@ -202,7 +202,7 @@ function ToolFallbackArgs({
         {argsText}
       </pre>
     </div>
-  );
+  )
 }
 
 function ToolFallbackResult({
@@ -210,9 +210,9 @@ function ToolFallbackResult({
   className,
   ...props
 }: React.ComponentProps<"div"> & {
-  result?: unknown;
+  result?: unknown
 }) {
-  if (result === undefined) return null;
+  if (result === undefined) return null
 
   return (
     <div
@@ -228,7 +228,7 @@ function ToolFallbackResult({
         {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
       </pre>
     </div>
-  );
+  )
 }
 
 function ToolFallbackError({
@@ -236,21 +236,21 @@ function ToolFallbackError({
   className,
   ...props
 }: React.ComponentProps<"div"> & {
-  status?: ToolCallMessagePartStatus;
+  status?: ToolCallMessagePartStatus
 }) {
-  if (status?.type !== "incomplete") return null;
+  if (status?.type !== "incomplete") return null
 
-  const error = status.error;
+  const error = status.error
   const errorText = error
     ? typeof error === "string"
       ? error
       : JSON.stringify(error)
-    : null;
+    : null
 
-  if (!errorText) return null;
+  if (!errorText) return null
 
-  const isCancelled = status.reason === "cancelled";
-  const headerText = isCancelled ? "Cancelled reason:" : "Error:";
+  const isCancelled = status.reason === "cancelled"
+  const headerText = isCancelled ? "Cancelled reason:" : "Error:"
 
   return (
     <div
@@ -265,7 +265,7 @@ function ToolFallbackError({
         {errorText}
       </p>
     </div>
-  );
+  )
 }
 
 const ToolFallbackImpl: ToolCallMessagePartComponent = ({
@@ -275,7 +275,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   status,
 }) => {
   const isCancelled =
-    status?.type === "incomplete" && status.reason === "cancelled";
+    status?.type === "incomplete" && status.reason === "cancelled"
 
   return (
     <ToolFallbackRoot
@@ -291,27 +291,27 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
         {!isCancelled && <ToolFallbackResult result={result} />}
       </ToolFallbackContent>
     </ToolFallbackRoot>
-  );
-};
+  )
+}
 
 const ToolFallback = memo(
   ToolFallbackImpl,
 ) as unknown as ToolCallMessagePartComponent & {
-  Root: typeof ToolFallbackRoot;
-  Trigger: typeof ToolFallbackTrigger;
-  Content: typeof ToolFallbackContent;
-  Args: typeof ToolFallbackArgs;
-  Result: typeof ToolFallbackResult;
-  Error: typeof ToolFallbackError;
-};
+  Root: typeof ToolFallbackRoot
+  Trigger: typeof ToolFallbackTrigger
+  Content: typeof ToolFallbackContent
+  Args: typeof ToolFallbackArgs
+  Result: typeof ToolFallbackResult
+  Error: typeof ToolFallbackError
+}
 
-ToolFallback.displayName = "ToolFallback";
-ToolFallback.Root = ToolFallbackRoot;
-ToolFallback.Trigger = ToolFallbackTrigger;
-ToolFallback.Content = ToolFallbackContent;
-ToolFallback.Args = ToolFallbackArgs;
-ToolFallback.Result = ToolFallbackResult;
-ToolFallback.Error = ToolFallbackError;
+ToolFallback.displayName = "ToolFallback"
+ToolFallback.Root = ToolFallbackRoot
+ToolFallback.Trigger = ToolFallbackTrigger
+ToolFallback.Content = ToolFallbackContent
+ToolFallback.Args = ToolFallbackArgs
+ToolFallback.Result = ToolFallbackResult
+ToolFallback.Error = ToolFallbackError
 
 export {
   ToolFallback,
@@ -321,4 +321,4 @@ export {
   ToolFallbackArgs,
   ToolFallbackResult,
   ToolFallbackError,
-};
+}

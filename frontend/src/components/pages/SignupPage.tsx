@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import Link from "next/link"
@@ -153,7 +153,11 @@ export default function SignupPage() {
               )}
             />
 
-            <LoadingButton type="submit" className="w-full" loading={submitting}>
+            <LoadingButton
+              type="submit"
+              className="w-full"
+              loading={submitting}
+            >
               Sign Up
             </LoadingButton>
           </div>

@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import ChangePassword from "@/components/UserSettings/ChangePassword"
 import DeleteAccount from "@/components/UserSettings/DeleteAccount"

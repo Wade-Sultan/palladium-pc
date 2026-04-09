@@ -1,7 +1,7 @@
 "use client"
-import { useEffect, useState } from "react"
-import Link from "next/link"
 import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
+import Link from "next/link"
+import { useEffect, useState } from "react"
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {

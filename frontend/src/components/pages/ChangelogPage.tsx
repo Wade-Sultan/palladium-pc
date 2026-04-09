@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { Separator } from "@/components/ui/separator"
 
@@ -31,23 +31,29 @@ interface Release {
 }
 
 const releases: Release[] = [
-    {
-        date: "April 2026 and Beyond",
-        label: "Upcoming Features",
-        changes: [
-            { type: "new", text: "User Login/Signup" },
-            { type: "new", text: "Chat History" },
-            { type: "improved", text: "Upgraded recommendation pipeline" },
-        ],
-    },
-    {
-        date: "4/7/2026",
-        label: "Beta Release",
-        changes: [
-        { type: "new", text: "Launched Palladium, an AI-powered PC parts recommendation platform to make choosing parts easier than ever before." },
-        { type: "new", text: "Translates user intent into a list of components with database-enforced compatability checks along the way." },
-        ],
-    },
+  {
+    date: "April 2026 and Beyond",
+    label: "Upcoming Features",
+    changes: [
+      { type: "new", text: "User Login/Signup" },
+      { type: "new", text: "Chat History" },
+      { type: "improved", text: "Upgraded recommendation pipeline" },
+    ],
+  },
+  {
+    date: "4/7/2026",
+    label: "Beta Release",
+    changes: [
+      {
+        type: "new",
+        text: "Launched Palladium, an AI-powered PC parts recommendation platform to make choosing parts easier than ever before.",
+      },
+      {
+        type: "new",
+        text: "Translates user intent into a list of components with database-enforced compatability checks along the way.",
+      },
+    ],
+  },
 ]
 
 function ChangeBadge({ type }: { type: ChangeType }) {
@@ -63,45 +69,48 @@ function ChangeBadge({ type }: { type: ChangeType }) {
 export default function ChangelogPage() {
   return (
     <div className="h-full overflow-y-auto">
-        <div className="mx-auto max-w-2xl px-6 py-10">
+      <div className="mx-auto max-w-2xl px-6 py-10">
         <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight">Changelog</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight">Changelog</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
             A history of Palladium
-            </p>
+          </p>
         </div>
 
         <div className="space-y-10">
-            {releases.map((release, i) => (
+          {releases.map((release, i) => (
             <div key={release.date ?? release.label ?? i}>
-                <div className="mb-4 flex items-baseline gap-3">
+              <div className="mb-4 flex items-baseline gap-3">
                 <span className="font-mono text-sm font-semibold text-foreground">
-                    v{release.version}
+                  v{release.version}
                 </span>
                 {release.label && (
-                    <span className="text-sm font-medium text-foreground">
+                  <span className="text-sm font-medium text-foreground">
                     {release.label}
-                    </span>
+                  </span>
                 )}
                 <span className="ml-auto text-xs text-muted-foreground">
-                    {release.date}
+                  {release.date}
                 </span>
-                </div>
+              </div>
 
-                <ul className="space-y-2.5">
+              <ul className="space-y-2.5">
                 {release.changes.map((change, j) => (
-                    <li key={j} className="flex items-start gap-3 text-sm text-muted-foreground">
+                  <li
+                    key={j}
+                    className="flex items-start gap-3 text-sm text-muted-foreground"
+                  >
                     <ChangeBadge type={change.type} />
                     <span className="leading-relaxed">{change.text}</span>
-                    </li>
+                  </li>
                 ))}
-                </ul>
+              </ul>
 
-                {i < releases.length - 1 && <Separator className="mt-10" />}
+              {i < releases.length - 1 && <Separator className="mt-10" />}
             </div>
-            ))}
+          ))}
         </div>
-        </div>
+      </div>
     </div>
   )
 }

@@ -9,13 +9,12 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { Main } from "./Main"
 import { User } from "./User"
-
 
 function SidebarFooterLinks() {
   const currentYear = new Date().getFullYear()

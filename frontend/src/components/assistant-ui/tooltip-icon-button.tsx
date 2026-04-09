@@ -1,20 +1,19 @@
-"use client";
+"use client"
 
-import { ComponentPropsWithRef, forwardRef } from "react";
-import { Slot } from "radix-ui";
-
+import { Slot } from "radix-ui"
+import { type ComponentPropsWithRef, forwardRef } from "react"
+import { Button } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
-  tooltip: string;
-  side?: "top" | "bottom" | "left" | "right";
-};
+  tooltip: string
+  side?: "top" | "bottom" | "left" | "right"
+}
 
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
@@ -36,7 +35,7 @@ export const TooltipIconButton = forwardRef<
       </TooltipTrigger>
       <TooltipContent side={side}>{tooltip}</TooltipContent>
     </Tooltip>
-  );
-});
+  )
+})
 
-TooltipIconButton.displayName = "TooltipIconButton";
+TooltipIconButton.displayName = "TooltipIconButton"

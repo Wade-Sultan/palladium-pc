@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
- 
+
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,24 +15,24 @@ import {
 } from "@/components/ui/dialog"
 import { LoadingButton } from "@/components/ui/loading-button"
 import useAuth, { getAccessToken } from "@/hooks/useAuth"
- 
+
 const DeleteConfirmation = () => {
   const { handleSubmit } = useForm()
   const { signOut } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
- 
+
   const onSubmit = async () => {
     setLoading(true)
     setError(null)
- 
+
     try {
       const token = await getAccessToken()
       if (!token) {
         await signOut()
         return
       }
- 
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/me`,
         {
@@ -42,12 +42,12 @@ const DeleteConfirmation = () => {
           },
         },
       )
- 
+
       if (!res.ok) {
         const body = await res.json().catch(() => null)
         throw new Error(body?.detail || "Failed to delete account")
       }
- 
+
       await signOut()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
@@ -55,7 +55,7 @@ const DeleteConfirmation = () => {
       setLoading(false)
     }
   }
- 
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -70,13 +70,11 @@ const DeleteConfirmation = () => {
             <DialogDescription>
               All your account data will be{" "}
               <strong>permanently deleted.</strong> If you are sure, please
-              click <strong>&quot;Confirm&quot;</strong> to proceed. This action cannot be
-              undone.
+              click <strong>&quot;Confirm&quot;</strong> to proceed. This action
+              cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          {error && (
-            <p className="text-sm text-destructive mt-2">{error}</p>
-          )}
+          {error && <p className="text-sm text-destructive mt-2">{error}</p>}
           <DialogFooter className="mt-4 gap-2">
             <DialogClose asChild>
               <Button variant="outline" type="button">
@@ -96,5 +94,5 @@ const DeleteConfirmation = () => {
     </Dialog>
   )
 }
- 
+
 export default DeleteConfirmation
