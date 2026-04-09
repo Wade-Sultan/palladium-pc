@@ -5,8 +5,7 @@ set -euo pipefail
 # ---- Config ----
 INSTANCE="palladium-admin"
 ZONE="us-central1-a"
-PROJECT="${GCP_PROJECT:-palladium}"  # override with: GCP_PROJECT=foo ./deploy.sh
-REMOTE_DIR="~/palladium/admin"
+PROJECT="${GCP_PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
 SERVICE="palladium-admin"
 BRANCH="${BRANCH:-main}"
 
@@ -18,9 +17,9 @@ die()  { echo -e "${R}xx ${N} $*" >&2; exit 1; }
 
 # ---- Preflight ----
 command -v gcloud >/dev/null || die "gcloud not installed"
+[[ -n "$PROJECT" ]] || die "GCP_PROJECT not set and no default project configured"
 gcloud config set project "$PROJECT" >/dev/null
 
-# Make sure local main is clean and pushed — otherwise the VM pulls stale code
 if [[ -n "$(git status --porcelain)" ]]; then
   warn "You have uncommitted changes. They will NOT be deployed."
   read -rp "Continue anyway? [y/N] " ans
@@ -36,26 +35,25 @@ fi
 log "Deploying $BRANCH @ ${LOCAL_SHA:0:8} to $INSTANCE"
 
 # ---- Remote build & restart ----
-# Heredoc with 'EOF' (quoted) so $vars expand on the *remote* side, not locally.
 gcloud compute ssh "$INSTANCE" \
   --zone="$ZONE" \
   --tunnel-through-iap \
   --command="bash -s" <<'REMOTE'
 set -euo pipefail
 
-cd ~/palladium/admin
+cd ~/palladium
 
 echo "==> Fetching latest code"
 git fetch origin
 git reset --hard origin/main
 
+cd admin
+
 echo "==> Loading secrets"
 export MIX_ENV=prod
-export PHX_SERVER=true
-DB_PASS=$(gcloud secrets versions access latest --secret=palladium-db-password)
+DB_PASS=$(gcloud secrets versions access latest --secret=palladium-db-password-prod)
 export DATABASE_URL="ecto://palladium_app:${DB_PASS}@localhost:5432/palladium"
 export SECRET_KEY_BASE=$(gcloud secrets versions access latest --secret=palladium-admin-secret-key)
-export ADMIN_PASSWORD=$(gcloud secrets versions access latest --secret=palladium-admin-password)
 
 echo "==> Building release"
 mix deps.get --only prod
