@@ -41,7 +41,7 @@ const releases: Release[] = [
     ],
   },
   {
-    date: "4/7/2026",
+    date: "4/8/2026",
     label: "Beta Release",
     changes: [
       {
