@@ -36,7 +36,10 @@ export function ThemeProvider({
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(
-    () => (typeof window !== "undefined" ? (localStorage.getItem(storageKey) as Theme) : null) || defaultTheme,
+    () =>
+      (typeof window !== "undefined"
+        ? (localStorage.getItem(storageKey) as Theme)
+        : null) || defaultTheme,
   )
 
   const getResolvedTheme = useCallback((theme: Theme): "dark" | "light" => {

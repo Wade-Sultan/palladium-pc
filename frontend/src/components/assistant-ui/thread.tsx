@@ -1,14 +1,4 @@
 import {
-  ComposerAddAttachment,
-  ComposerAttachments,
-  UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
   AuiIf,
@@ -19,7 +9,7 @@ import {
   SuggestionPrimitive,
   ThreadPrimitive,
   useAuiState,
-} from "@assistant-ui/react";
+} from "@assistant-ui/react"
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -32,8 +22,18 @@ import {
   PencilIcon,
   RefreshCwIcon,
   SquareIcon,
-} from "lucide-react";
-import type { FC } from "react";
+} from "lucide-react"
+import type { FC } from "react"
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/attachment"
+import { MarkdownText } from "@/components/assistant-ui/markdown-text"
+import { ToolFallback } from "@/components/assistant-ui/tool-fallback"
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 export const Thread: FC = () => {
   return (
@@ -63,16 +63,16 @@ export const Thread: FC = () => {
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
-  );
-};
+  )
+}
 
 const ThreadMessage: FC = () => {
-  const role = useAuiState((s) => s.message.role);
-  const isEditing = useAuiState((s) => s.message.composer.isEditing);
-  if (isEditing) return <EditComposer />;
-  if (role === "user") return <UserMessage />;
-  return <AssistantMessage />;
-};
+  const role = useAuiState((s) => s.message.role)
+  const isEditing = useAuiState((s) => s.message.composer.isEditing)
+  if (isEditing) return <EditComposer />
+  if (role === "user") return <UserMessage />
+  return <AssistantMessage />
+}
 
 const ThreadScrollToBottom: FC = () => {
   return (
@@ -85,8 +85,8 @@ const ThreadScrollToBottom: FC = () => {
         <ArrowDownIcon />
       </TooltipIconButton>
     </ThreadPrimitive.ScrollToBottom>
-  );
-};
+  )
+}
 
 const ThreadWelcome: FC = () => {
   return (
@@ -103,8 +103,8 @@ const ThreadWelcome: FC = () => {
       </div>
       <ThreadSuggestions />
     </div>
-  );
-};
+  )
+}
 
 const ThreadSuggestions: FC = () => {
   return (
@@ -113,8 +113,8 @@ const ThreadSuggestions: FC = () => {
         {() => <ThreadSuggestionItem />}
       </ThreadPrimitive.Suggestions>
     </div>
-  );
-};
+  )
+}
 
 const ThreadSuggestionItem: FC = () => {
   return (
@@ -129,8 +129,8 @@ const ThreadSuggestionItem: FC = () => {
         </Button>
       </SuggestionPrimitive.Trigger>
     </div>
-  );
-};
+  )
+}
 
 const Composer: FC = () => {
   return (
@@ -152,8 +152,8 @@ const Composer: FC = () => {
         </div>
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
-  );
-};
+  )
+}
 
 const ComposerAction: FC = () => {
   return (
@@ -188,8 +188,8 @@ const ComposerAction: FC = () => {
         </ComposerPrimitive.Cancel>
       </AuiIf>
     </div>
-  );
-};
+  )
+}
 
 const MessageError: FC = () => {
   return (
@@ -198,8 +198,8 @@ const MessageError: FC = () => {
         <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
-  );
-};
+  )
+}
 
 const AssistantMessage: FC = () => {
   return (
@@ -210,10 +210,10 @@ const AssistantMessage: FC = () => {
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
         <MessagePrimitive.Parts>
           {({ part }) => {
-            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "text") return <MarkdownText />
             if (part.type === "tool-call")
-              return part.toolUI ?? <ToolFallback {...part} />;
-            return null;
+              return part.toolUI ?? <ToolFallback {...part} />
+            return null
           }}
         </MessagePrimitive.Parts>
         <MessageError />
@@ -224,8 +224,8 @@ const AssistantMessage: FC = () => {
         <AssistantActionBar />
       </div>
     </MessagePrimitive.Root>
-  );
-};
+  )
+}
 
 const AssistantActionBar: FC = () => {
   return (
@@ -272,8 +272,8 @@ const AssistantActionBar: FC = () => {
         </ActionBarMorePrimitive.Content>
       </ActionBarMorePrimitive.Root>
     </ActionBarPrimitive.Root>
-  );
-};
+  )
+}
 
 const UserMessage: FC = () => {
   return (
@@ -294,8 +294,8 @@ const UserMessage: FC = () => {
 
       <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 row-start-3 -mr-1 justify-end" />
     </MessagePrimitive.Root>
-  );
-};
+  )
+}
 
 const UserActionBar: FC = () => {
   return (
@@ -310,8 +310,8 @@ const UserActionBar: FC = () => {
         </TooltipIconButton>
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
-  );
-};
+  )
+}
 
 const EditComposer: FC = () => {
   return (
@@ -333,8 +333,8 @@ const EditComposer: FC = () => {
         </div>
       </ComposerPrimitive.Root>
     </MessagePrimitive.Root>
-  );
-};
+  )
+}
 
 const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
   className,
@@ -363,5 +363,5 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
         </TooltipIconButton>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
-  );
-};
+  )
+}

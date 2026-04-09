@@ -12,7 +12,7 @@ const firebaseConfig = {
 
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   throw new Error(
-    "Missing Firebase configuration. Add NEXT_PUBLIC_FIREBASE_* variables to your .env file."
+    "Missing Firebase configuration. Add NEXT_PUBLIC_FIREBASE_* variables to your .env file.",
   )
 }
 

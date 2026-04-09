@@ -25,12 +25,9 @@
       "@/*": ["./src/*"],
       "@app/*": ["./src/app/*"]
     },
-    "plugins": [
-      {"name": "next"}
-    ],
+    "plugins": [{ "name": "next" }]
   },
   "include": ["src", "next-env.d.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules", "tests", "playwright.config.ts"],
-  "references": [],
-  
+  "references": []
 }
