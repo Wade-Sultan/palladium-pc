@@ -11,7 +11,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 # (and optionally GOOGLE_APPLICATION_CREDENTIALS for a service account key).
 if not firebase_admin._apps:
     project_id = os.environ.get("FIREBASE_PROJECT_ID")
-    print("Firebase init")
+    print("Firebase initial")
     firebase_admin.initialize_app(options={"projectId": project_id} if project_id else None)
 
 bearer_scheme = HTTPBearer(auto_error=True)
