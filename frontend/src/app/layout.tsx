@@ -1,8 +1,19 @@
 import { Analytics } from "@vercel/analytics/next"
 import type { Metadata } from "next"
+import { DM_Sans, Raleway } from "next/font/google"
 import type React from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import "@/index.css"
+
+const raleway = Raleway({
+  subsets: ["latin"],
+  variable: "--font-raleway",
+})
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+})
 
 export const metadata: Metadata = {
   title: "Palladium Tech",
@@ -19,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${raleway.variable} ${dmSans.variable}`}>
       <head>
         <script
           dangerouslySetInnerHTML={{
