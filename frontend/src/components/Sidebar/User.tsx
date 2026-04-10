@@ -76,7 +76,7 @@ export function User() {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
+            side="top"
             align="end"
             sideOffset={4}
           >
@@ -87,7 +87,7 @@ export function User() {
             <Link href="/settings" onClick={handleMenuClick}>
               <DropdownMenuItem>
                 <Settings />
-                User Settings
+                Settings
               </DropdownMenuItem>
             </Link>
             <DropdownMenuItem onClick={signOut}>

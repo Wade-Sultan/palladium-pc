@@ -16,7 +16,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "Palladium Tech",
+  title: "Palladium",
   description:
     "Palladium is an AI-powered PC building platform with strict database-enforced compatability and other tools to enhance the whole experience.",
   icons: {

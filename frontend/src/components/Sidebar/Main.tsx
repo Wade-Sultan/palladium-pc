@@ -1,16 +1,34 @@
 "use client"
 
 import type { LucideIcon } from "lucide-react"
-import { BookOpen, Hammer, MapPin, MessagesSquare, Settings } from "lucide-react"
+import {
+  BookOpen,
+  ChevronRight,
+  Hammer,
+  MapPin,
+  MessagesSquare,
+  ScrollText,
+  Sparkles,
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import React, { useState } from "react"
+import { FaGithub } from "react-icons/fa"
 
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 
@@ -25,12 +43,12 @@ const items: Item[] = [
   { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
   { icon: BookOpen, title: "Guides", path: "/guides" },
   { icon: MapPin, title: "Find a Builder", path: "/findbuilder" },
-  { icon: Settings, title: "Settings", path: "/settings" },
 ]
 
 export function Main() {
   const { isMobile, setOpenMobile } = useSidebar()
   const currentPath = usePathname()
+  const [moreOpen, setMoreOpen] = useState(false)
 
   const handleMenuClick = () => {
     if (isMobile) {
@@ -38,26 +56,75 @@ export function Main() {
     }
   }
 
+  const findBuilderIndex = items.findIndex((i) => i.path === "/findbuilder")
+
   return (
     <SidebarGroup>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map((item) => {
+          {items.map((item, index) => {
             const isActive = currentPath === item.path
 
             return (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={isActive}
-                  asChild
-                >
-                  <Link href={item.path} onClick={handleMenuClick}>
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              <React.Fragment key={item.title}>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={isActive}
+                    asChild
+                  >
+                    <Link href={item.path} onClick={handleMenuClick}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {index === findBuilderIndex && (
+                  <Collapsible
+                    open={moreOpen}
+                    onOpenChange={setMoreOpen}
+                    asChild
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip="More">
+                          <Sparkles />
+                          <span>More</span>
+                          <ChevronRight
+                            className="ml-auto size-4 transition-transform duration-200 data-[state=open]:rotate-90"
+                            data-state={moreOpen ? "open" : "closed"}
+                          />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild>
+                              <a
+                                href="https://github.com/Wade-Sultan/palladium-pc"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={handleMenuClick}
+                              >
+                                <FaGithub className="size-3.5" />
+                                <span>GitHub</span>
+                              </a>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild>
+                              <Link href="/changelog" onClick={handleMenuClick}>
+                                <ScrollText className="size-3.5" />
+                                <span>Changelog</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
+              </React.Fragment>
             )
           })}
         </SidebarMenu>
