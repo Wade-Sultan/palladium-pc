@@ -18,7 +18,7 @@ interface ConversationSummary {
 export default function BuildHistoryPage() {
   const { user, loading } = useAuth()
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
-  const [fetching, setFetching] = useState(false)
+  const [fetching, setFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {

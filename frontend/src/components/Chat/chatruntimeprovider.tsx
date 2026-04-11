@@ -1,3 +1,5 @@
+"use client"
+
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 import { useMemo, useRef } from "react"
 import type { ReactNode } from "react"
