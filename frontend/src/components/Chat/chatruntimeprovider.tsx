@@ -1,7 +1,8 @@
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
+import { useMemo, useRef } from "react"
 import type { ReactNode } from "react"
 
-import { modelAdapter } from "./model-adapter"
+import { createModelAdapter } from "./model-adapter"
 
 const INITIAL_SUGGESTIONS = [
   { prompt: "I want to build a gaming PC for 1440p 144fps" },
@@ -15,7 +16,10 @@ interface ChatRuntimeProviderProps {
 }
 
 export function ChatRuntimeProvider({ children }: ChatRuntimeProviderProps) {
-  const runtime = useLocalRuntime(modelAdapter, {
+  const conversationIdRef = useRef<string>(crypto.randomUUID())
+  const adapter = useMemo(() => createModelAdapter(conversationIdRef.current), [])
+
+  const runtime = useLocalRuntime(adapter, {
     initialMessages: [],
   })
 

@@ -15,6 +15,23 @@ if not firebase_admin._apps:
     firebase_admin.initialize_app(options={"projectId": project_id} if project_id else None)
 
 bearer_scheme = HTTPBearer(auto_error=True)
+bearer_scheme_optional = HTTPBearer(auto_error=False)
+
+
+async def optional_firebase_token(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme_optional),
+) -> dict | None:
+    """
+    Returns decoded token claims for authenticated users, or None for guests.
+    Invalid/expired tokens are treated as guest (None) rather than raising 401.
+    """
+    if credentials is None:
+        return None
+    token = credentials.credentials
+    try:
+        return auth.verify_id_token(token)
+    except Exception:
+        return None
 
 
 async def verify_firebase_token(

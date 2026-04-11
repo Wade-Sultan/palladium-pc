@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+import uuid
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict
 from typing import Any
 
 class ChatMessage(BaseModel):
@@ -7,6 +9,16 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
+    conversation_id: str | None = None
+
+class ConversationSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str | None
+    created_at: datetime
+    updated_at: datetime
+    message_count: int
 
 class BuildProfile(BaseModel):
     primary_use: str        # "gaming" | "video_editing" | "local_llm" | "general"

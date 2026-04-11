@@ -3,75 +3,78 @@ import { getAccessToken } from "@/hooks/useAuth"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
-export const modelAdapter: ChatModelAdapter = {
-  async *run({ messages, abortSignal }) {
-    const token = await getAccessToken()
-    const headers: Record<string, string> = { "Content-Type": "application/json" }
-    if (token) headers["Authorization"] = `Bearer ${token}`
+export function createModelAdapter(conversationId: string): ChatModelAdapter {
+  return {
+    async *run({ messages, abortSignal }) {
+      const token = await getAccessToken()
+      const headers: Record<string, string> = { "Content-Type": "application/json" }
+      if (token) headers["Authorization"] = `Bearer ${token}`
 
-    const response = await fetch(`${API_BASE}/api/v1/chat`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content
-            .filter(
-              (p): p is { type: "text"; text: string } => p.type === "text",
-            )
-            .map((p) => p.text)
-            .join("\n"),
-        })),
-      }),
-      signal: abortSignal,
-    })
+      const response = await fetch(`${API_BASE}/api/v1/chat`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          conversation_id: token ? conversationId : null,
+          messages: messages.map((m) => ({
+            role: m.role,
+            content: m.content
+              .filter(
+                (p): p is { type: "text"; text: string } => p.type === "text",
+              )
+              .map((p) => p.text)
+              .join("\n"),
+          })),
+        }),
+        signal: abortSignal,
+      })
 
-    if (!response.ok) {
-      throw new Error(
-        `Chat API returned ${response.status}: ${response.statusText}`,
-      )
-    }
+      if (!response.ok) {
+        throw new Error(
+          `Chat API returned ${response.status}: ${response.statusText}`,
+        )
+      }
 
-    const reader = response.body?.getReader()
-    if (!reader) throw new Error("No response body")
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error("No response body")
 
-    const decoder = new TextDecoder()
-    let fullText = ""
+      const decoder = new TextDecoder()
+      let fullText = ""
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        // Parse SSE lines: "data: {...}\n\n"
-        const lines = chunk.split("\n")
+          const chunk = decoder.decode(value, { stream: true })
+          // Parse SSE lines: "data: {...}\n\n"
+          const lines = chunk.split("\n")
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue
-          const data = line.slice(6).trim()
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue
+            const data = line.slice(6).trim()
 
-          if (data === "[DONE]") break
+            if (data === "[DONE]") break
 
-          try {
-            const parsed = JSON.parse(data)
+            try {
+              const parsed = JSON.parse(data)
 
-            // Handle different event types from the pipeline
-            if (parsed.type === "token" || parsed.type === "content") {
-              fullText += parsed.text ?? parsed.content ?? ""
-              yield { content: [{ type: "text" as const, text: fullText }] }
-            } else if (parsed.type === "progress") {
-              // Pipeline step progress — inline as blockquote
-              fullText += `\n\n> **${parsed.step}**: ${parsed.message}\n\n`
-              yield { content: [{ type: "text" as const, text: fullText }] }
+              // Handle different event types from the pipeline
+              if (parsed.type === "token" || parsed.type === "content") {
+                fullText += parsed.text ?? parsed.content ?? ""
+                yield { content: [{ type: "text" as const, text: fullText }] }
+              } else if (parsed.type === "progress") {
+                // Pipeline step progress — inline as blockquote
+                fullText += `\n\n> **${parsed.step}**: ${parsed.message}\n\n`
+                yield { content: [{ type: "text" as const, text: fullText }] }
+              }
+            } catch {
+              // Non-JSON line, skip
             }
-          } catch {
-            // Non-JSON line, skip
           }
         }
+      } finally {
+        reader.releaseLock()
       }
-    } finally {
-      reader.releaseLock()
-    }
-  },
+    },
+  }
 }

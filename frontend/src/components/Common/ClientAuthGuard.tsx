@@ -1,20 +1,26 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useEffect } from "react"
 import type { ReactNode } from "react"
 import useAuth from "@/hooks/useAuth"
 
+// Routes that render their own auth-aware UI instead of redirecting guests
+const GUEST_ALLOWED_PATHS = ["/newbuild", "/buildhistory"]
+
 export default function ClientAuthGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
+  const guestAllowed = GUEST_ALLOWED_PATHS.includes(pathname)
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !guestAllowed) {
       router.replace("/signup")
     }
-  }, [user, loading, router])
+  }, [user, loading, router, guestAllowed])
 
-  if (loading || !user) return null
+  if (loading) return null
+  if (!user && !guestAllowed) return null
   return <>{children}</>
 }
