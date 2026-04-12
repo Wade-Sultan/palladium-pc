@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { MessageSquare, Lock } from "lucide-react"
+import { ArrowRight, MessageSquare, Lock } from "lucide-react"
 import useAuth, { getAccessToken } from "@/hooks/useAuth"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
@@ -128,6 +128,13 @@ export default function BuildHistoryPage() {
                     {conv.message_count} {conv.message_count === 1 ? "message" : "messages"}
                   </p>
                 </div>
+                <button
+                  className="shrink-0 rounded-full p-1.5 transition-opacity hover:opacity-80"
+                  style={{ color: "oklch(0.738 0.0943 260.62)" }}
+                  aria-label="View build"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
             </li>
           ))}
