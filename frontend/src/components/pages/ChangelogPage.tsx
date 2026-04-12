@@ -35,9 +35,28 @@ const releases: Release[] = [
     date: "April 2026 and Beyond",
     label: "Upcoming Features",
     changes: [
-      { type: "new", text: "User Login/Signup" },
-      { type: "new", text: "Chat History" },
+      { type: "new", text: "Live Amazon and Ebay links to buy parts" },
+      { type: "new", text: "PC Building Guides page" },
+      { type: "new", text: "Find a local PC builder page" },
       { type: "improved", text: "Upgraded recommendation pipeline" },
+    ],
+  },
+  {
+    date: "4/11/2026",
+    label: "User Login and Chat History",
+    changes: [
+      {
+        type: "new",
+        text: "User Login/Signup",
+      },
+      {
+        type: "new",
+        text: "Chat history and ability to view old conversations",
+      },
+      {
+        type: "new",
+        text: "Guest user mode",
+      },
     ],
   },
   {
