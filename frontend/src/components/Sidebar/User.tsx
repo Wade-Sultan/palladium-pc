@@ -1,5 +1,5 @@
 "use client"
-import { ChevronsUpDown, LogOut, Settings } from "lucide-react"
+import { ChevronsUpDown, LogIn, LogOut, Settings, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
@@ -21,23 +21,15 @@ import {
 import useAuth from "@/hooks/useAuth"
 import { getInitials } from "@/utils"
 
-interface UserInfoProps {
-  fullName?: string
-  email?: string
-}
-
-function UserInfo({ fullName, email }: UserInfoProps) {
+function UserInfo({ name }: { name: string }) {
   return (
     <div className="flex items-center gap-2.5 w-full min-w-0">
       <Avatar className="size-8">
         <AvatarFallback className="bg-zinc-600 text-white">
-          {getInitials(fullName || "User")}
+          {getInitials(name)}
         </AvatarFallback>
       </Avatar>
-      <div className="flex flex-col items-start min-w-0">
-        <p className="text-sm font-medium truncate w-full">{fullName}</p>
-        <p className="text-xs text-muted-foreground truncate w-full">{email}</p>
-      </div>
+      <p className="text-sm font-medium truncate">{name}</p>
     </div>
   )
 }
@@ -49,15 +41,13 @@ export function User() {
 
   useEffect(() => setMounted(true), [])
 
-  if (!mounted || !user) return null
+  if (!mounted) return null
 
-  const fullName = user.displayName ?? undefined
-  const email = user.email ?? undefined
+  const isGuest = !user
+  const displayName = user?.displayName ?? user?.email?.split("@")[0] ?? "User"
 
   const handleMenuClick = () => {
-    if (isMobile) {
-      setOpenMobile(false)
-    }
+    if (isMobile) setOpenMobile(false)
   }
 
   return (
@@ -70,7 +60,7 @@ export function User() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               data-testid="user-menu"
             >
-              <UserInfo fullName={fullName} email={email} />
+              <UserInfo name={isGuest ? "Guest" : displayName} />
               <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -81,19 +71,38 @@ export function User() {
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">
-              <UserInfo fullName={fullName} email={email} />
+              <UserInfo name={isGuest ? "Guest" : displayName} />
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <Link href="/settings" onClick={handleMenuClick}>
-              <DropdownMenuItem>
-                <Settings />
-                Settings
-              </DropdownMenuItem>
-            </Link>
-            <DropdownMenuItem onClick={signOut}>
-              <LogOut />
-              Log Out
-            </DropdownMenuItem>
+            {isGuest ? (
+              <>
+                <Link href="/signup" onClick={handleMenuClick}>
+                  <DropdownMenuItem>
+                    <UserPlus />
+                    Create account
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/login" onClick={handleMenuClick}>
+                  <DropdownMenuItem>
+                    <LogIn />
+                    Sign in
+                  </DropdownMenuItem>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/settings" onClick={handleMenuClick}>
+                  <DropdownMenuItem>
+                    <Settings />
+                    Settings
+                  </DropdownMenuItem>
+                </Link>
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut />
+                  Log Out
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
