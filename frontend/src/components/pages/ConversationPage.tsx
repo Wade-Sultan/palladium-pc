@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Bot, User } from "lucide-react"
+import { ArrowLeft, User } from "lucide-react"
 import useAuth, { getAccessToken } from "@/hooks/useAuth"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
@@ -108,7 +109,7 @@ export default function ConversationPage({ id }: { id: string }) {
               <div className="shrink-0 rounded-full bg-muted p-1.5 h-7 w-7 flex items-center justify-center">
                 {isUser
                   ? <User className="h-3.5 w-3.5 text-muted-foreground" />
-                  : <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                  : <Image src="/assets/images/palladium-logo.svg" alt="Palladium" width={14} height={14} />
                 }
               </div>
               <div
