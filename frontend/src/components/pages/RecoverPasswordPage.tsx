@@ -34,7 +34,7 @@ export default function RecoverPasswordPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/newbuild")
+      router.push("/build/new")
     }
   }, [user, loading, router])
 

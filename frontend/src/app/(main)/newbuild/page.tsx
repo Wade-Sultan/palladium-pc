@@ -1,5 +1,5 @@
-import NewBuildPage from "@/components/pages/NewBuildPage"
+import { redirect } from "next/navigation"
 
 export default function Page() {
-  return <NewBuildPage />
+  redirect("/build/new")
 }

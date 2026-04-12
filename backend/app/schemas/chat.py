@@ -20,6 +20,22 @@ class ConversationSummary(BaseModel):
     updated_at: datetime
     message_count: int
 
+class MessageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    role: str
+    content: str | None
+    created_at: datetime
+
+class ConversationDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str | None
+    created_at: datetime
+    messages: list[MessageOut]
+
 class BuildProfile(BaseModel):
     primary_use: str        # "gaming" | "video_editing" | "local_llm" | "general"
     gaming_resolution: str | None = None  # "1080p" | "1440p" | "4k"

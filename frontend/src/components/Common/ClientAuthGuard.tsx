@@ -6,7 +6,7 @@ import type { ReactNode } from "react"
 import useAuth from "@/hooks/useAuth"
 
 // Routes that render their own auth-aware UI instead of redirecting guests
-const GUEST_ALLOWED_PATHS = ["/newbuild", "/buildhistory"]
+const GUEST_ALLOWED_PATHS = ["/build/new", "/buildhistory"]
 
 export default function ClientAuthGuard({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth()

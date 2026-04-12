@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,7 +11,7 @@ from app.core.db import get_db
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
-from app.schemas.chat import ConversationSummary
+from app.schemas.chat import ConversationDetail, ConversationSummary, MessageOut
 
 router = APIRouter(tags=["conversations"])
 
@@ -57,3 +59,39 @@ def get_conversations(
         )
         for row in rows
     ]
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
+def get_conversation(
+    conversation_id: uuid.UUID,
+    user: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> ConversationDetail:
+    """Return a single conversation with its messages."""
+    firebase_uid = user.get("uid")
+
+    db_user = db.execute(
+        select(User).where(User.firebase_uid == firebase_uid)
+    ).scalar_one_or_none()
+
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation or conversation.user_id != db_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    return ConversationDetail(
+        id=conversation.id,
+        title=conversation.title,
+        created_at=conversation.created_at,
+        messages=[
+            MessageOut(
+                id=m.id,
+                role=m.role,
+                content=m.content,
+                created_at=m.created_at,
+            )
+            for m in conversation.messages
+        ],
+    )

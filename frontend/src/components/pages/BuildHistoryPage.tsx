@@ -101,7 +101,7 @@ export default function BuildHistoryPage() {
             </p>
           </div>
           <Link
-            href="/newbuild"
+            href="/build/new"
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             Start a build
@@ -128,13 +128,14 @@ export default function BuildHistoryPage() {
                     {conv.message_count} {conv.message_count === 1 ? "message" : "messages"}
                   </p>
                 </div>
-                <button
+                <Link
+                  href={`/build/${conv.id}`}
                   className="shrink-0 rounded-full p-1.5 transition-opacity hover:opacity-80"
                   style={{ color: "oklch(0.738 0.0943 260.62)" }}
                   aria-label="View build"
                 >
                   <ArrowRight className="h-4 w-4" />
-                </button>
+                </Link>
               </div>
             </li>
           ))}

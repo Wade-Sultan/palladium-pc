@@ -47,7 +47,7 @@ export default function SignupPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      router.push("/newbuild")
+      router.push("/build/new")
     }
   }, [user, loading, router])
 
@@ -179,7 +179,7 @@ export default function SignupPage() {
           </div>
 
           <Link
-            href="/newbuild"
+            href="/build/new"
             className="text-center text-sm underline underline-offset-4"
           >
             Continue as guest

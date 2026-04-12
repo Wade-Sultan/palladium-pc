@@ -67,7 +67,7 @@ export default function useAuth(): UseAuthReturn {
     async (email: string, password: string) => {
       try {
         await signInWithEmailAndPassword(auth, email, password)
-        router.push("/newbuild")
+        router.push("/build/new")
         return { error: null }
       } catch (err) {
         return { error: err as Error }
@@ -119,7 +119,7 @@ export default function useAuth(): UseAuthReturn {
       try {
         if (!auth.currentUser) throw new Error("No authenticated user")
         await firebaseUpdatePassword(auth.currentUser, newPassword)
-        router.push("/newbuild")
+        router.push("/build/new")
         return { error: null }
       } catch (err) {
         return { error: err as Error }

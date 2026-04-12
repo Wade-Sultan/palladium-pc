@@ -39,7 +39,7 @@ type Item = {
 }
 
 const items: Item[] = [
-  { icon: Hammer, title: "New Build", path: "/newbuild" },
+  { icon: Hammer, title: "New Build", path: "/build/new" },
   { icon: MessagesSquare, title: "My Builds", path: "/buildhistory" },
   { icon: BookOpen, title: "Guides", path: "/guides" },
   { icon: MapPin, title: "Find a Builder", path: "/findbuilder" },
@@ -63,7 +63,12 @@ export function Main() {
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item, index) => {
-            const isActive = currentPath === item.path
+            const isActive =
+              currentPath === item.path ||
+              // Highlight "My Builds" when viewing a past conversation
+              (item.path === "/buildhistory" &&
+                currentPath.startsWith("/build/") &&
+                currentPath !== "/build/new")
 
             return (
               <React.Fragment key={item.title}>
