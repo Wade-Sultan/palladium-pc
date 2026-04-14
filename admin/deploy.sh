@@ -41,8 +41,10 @@ gcloud compute ssh "$INSTANCE" \
   --command="bash -s" <<'REMOTE'
 set -euo pipefail
 
-cd ~/palladium
+export PATH="/usr/local/bin:/usr/bin:$HOME/.mix:$PATH"
+source /etc/profile 2>/dev/null || true
 
+cd ~/palladium
 echo "==> Fetching latest code"
 git fetch origin
 git reset --hard origin/main
