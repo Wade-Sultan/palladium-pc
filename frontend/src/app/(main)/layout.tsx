@@ -1,7 +1,6 @@
 import type React from "react"
 import "@/index.css"
 
-import { Appearance } from "@/components/Common/Appearance"
 import ClientAuthGuard from "@/components/Common/ClientAuthGuard"
 import AppSidebar from "@/components/Sidebar/AppSidebar"
 import { ChatRuntimeProvider } from "@/components/Chat/chatruntimeprovider"
@@ -28,9 +27,6 @@ export default function MainLayout({
             <ClientAuthGuard>{children}</ClientAuthGuard>
           </main>
         </SidebarInset>
-        <div className="fixed bottom-6 right-6 z-50">
-          <Appearance />
-        </div>
       </SidebarProvider>
     </ChatRuntimeProvider>
   )

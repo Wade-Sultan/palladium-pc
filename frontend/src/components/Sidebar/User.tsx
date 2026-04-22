@@ -1,8 +1,9 @@
 "use client"
-import { ChevronsUpDown, LogIn, LogOut, Settings, UserPlus } from "lucide-react"
+import { ChevronsUpDown, LogIn, LogOut, Monitor, Moon, Settings, Sun, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
+import { type Theme, useTheme } from "@/components/theme-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -10,6 +11,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -20,6 +24,12 @@ import {
 } from "@/components/ui/sidebar"
 import useAuth from "@/hooks/useAuth"
 import { getInitials } from "@/utils"
+
+const THEME_ICON_MAP: Record<Theme, React.FC<React.SVGProps<SVGSVGElement>>> = {
+  system: Monitor,
+  light: Sun,
+  dark: Moon,
+}
 
 function UserInfo({ name }: { name: string }) {
   return (
@@ -37,6 +47,7 @@ function UserInfo({ name }: { name: string }) {
 export function User() {
   const { user, signOut } = useAuth()
   const { isMobile, setOpenMobile } = useSidebar()
+  const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => setMounted(true), [])
@@ -45,6 +56,7 @@ export function User() {
 
   const isGuest = !user
   const displayName = user?.displayName ?? user?.email?.split("@")[0] ?? "User"
+  const ThemeIcon = THEME_ICON_MAP[theme]
 
   const handleMenuClick = () => {
     if (isMobile) setOpenMobile(false)
@@ -97,6 +109,27 @@ export function User() {
                     Settings
                   </DropdownMenuItem>
                 </Link>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2">
+                    <ThemeIcon className="size-4 text-muted-foreground" />
+                    Appearance
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => setTheme("light")}>
+                      <Sun className="size-4" />
+                      Light
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("dark")}>
+                      <Moon className="size-4" />
+                      Dark
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme("system")}>
+                      <Monitor className="size-4" />
+                      System
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={signOut}>
                   <LogOut />
                   Log Out
