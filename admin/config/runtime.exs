@@ -80,16 +80,14 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "example.com"
-
   config :admin, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   config :admin, AdminWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
+    url: [host: "localhost"],
     http: [
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
-    check_origin: ["//localhost", "//localhost:4000"],
+    check_origin: false,
     secret_key_base: secret_key_base
 
   # ## SSL Support
