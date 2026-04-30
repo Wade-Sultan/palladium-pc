@@ -10,9 +10,6 @@ defmodule AdminWeb.Live.MotherboardLive do
     ]
 
   @impl Backpex.LiveResource
-  def layout(_assigns), do: {AdminWeb.Layouts, :admin}
-
-  @impl Backpex.LiveResource
   def singular_name, do: "Motherboard"
 
   @impl Backpex.LiveResource

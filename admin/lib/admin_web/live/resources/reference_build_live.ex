@@ -9,9 +9,6 @@ defmodule AdminWeb.Live.ReferenceBuildLive do
     ]
 
   @impl Backpex.LiveResource
-  def layout(_assigns), do: {AdminWeb.Layouts, :admin}
-
-  @impl Backpex.LiveResource
   def singular_name, do: "Reference Build"
 
   @impl Backpex.LiveResource

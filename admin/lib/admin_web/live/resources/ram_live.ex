@@ -10,9 +10,6 @@ defmodule AdminWeb.Live.RAMLive do
     ]
 
   @impl Backpex.LiveResource
-  def layout(_assigns), do: {AdminWeb.Layouts, :admin}
-
-  @impl Backpex.LiveResource
   def singular_name, do: "RAM Kit"
 
   @impl Backpex.LiveResource

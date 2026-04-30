@@ -10,9 +10,6 @@ defmodule AdminWeb.Live.PSULive do
     ]
 
   @impl Backpex.LiveResource
-  def layout(_assigns), do: {AdminWeb.Layouts, :admin}
-
-  @impl Backpex.LiveResource
   def singular_name, do: "PSU"
 
   @impl Backpex.LiveResource
