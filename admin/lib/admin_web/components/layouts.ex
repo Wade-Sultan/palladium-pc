@@ -13,8 +13,7 @@ defmodule AdminWeb.Layouts do
   """
   attr :flash, :map, required: true
   attr :current_scope, :map, default: nil
-
-  slot :inner_block, required: true
+  attr :inner_content, :any, required: true
 
   def admin(assigns) do
     ~H"""
@@ -59,7 +58,7 @@ defmodule AdminWeb.Layouts do
       </aside>
 
       <div class="flex-1 min-w-0">
-        {render_slot(@inner_block)}
+        {@inner_content}
       </div>
     </div>
 
