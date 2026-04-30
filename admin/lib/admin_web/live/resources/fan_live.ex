@@ -10,6 +10,9 @@ defmodule AdminWeb.Live.FanLive do
     ]
 
   @impl Backpex.LiveResource
+  def layout(_assigns), do: {AdminWeb.Layouts, :backpex_passthrough}
+
+  @impl Backpex.LiveResource
   def singular_name, do: "Fan"
 
   @impl Backpex.LiveResource

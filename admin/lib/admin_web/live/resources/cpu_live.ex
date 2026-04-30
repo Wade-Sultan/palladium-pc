@@ -10,6 +10,9 @@ defmodule AdminWeb.Live.CPULive do
     ]
 
   @impl Backpex.LiveResource
+  def layout(_assigns), do: {AdminWeb.Layouts, :backpex_passthrough}
+
+  @impl Backpex.LiveResource
   def singular_name, do: "CPU"
 
   @impl Backpex.LiveResource

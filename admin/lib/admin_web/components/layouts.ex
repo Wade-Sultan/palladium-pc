@@ -82,6 +82,12 @@ defmodule AdminWeb.Layouts do
     """
   end
 
+  slot :inner_block, required: true
+
+  def backpex_passthrough(assigns) do
+    ~H"{render_slot(@inner_block)}"
+  end
+
   @doc """
   Renders the default app layout (used for non-admin pages).
   """
