@@ -38,6 +38,7 @@ defmodule AdminWeb.Router do
     backpex_routes()
 
     live_session :admin,
+      on_mount: [{Backpex.InitAssigns, :default}],
       layout: {AdminWeb.Layouts, :admin} do
       live_resources "/reference-builds", Live.ReferenceBuildLive
       live_resources "/cpus", Live.CPULive
