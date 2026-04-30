@@ -29,7 +29,7 @@ defmodule AdminWeb.Router do
   scope "/", AdminWeb do
     pipe_through :browser
 
-    live "/", HomeLive, :index
+    get "/", PageController, :to_admin
   end
 
   scope "/admin", AdminWeb do
