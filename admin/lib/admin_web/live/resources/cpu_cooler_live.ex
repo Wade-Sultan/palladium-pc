@@ -3,9 +3,9 @@ defmodule AdminWeb.Live.CPUCoolerLive do
     adapter: Backpex.Adapters.Ecto,
     adapter_config: [
       repo: Admin.Repo,
-      schema: Admin.Schema.PCPart,
-      update_changeset: &Admin.Schema.PCPart.changeset/3,
-      create_changeset: &Admin.Schema.PCPart.changeset/3,
+      schema: Admin.Schema.CPUCooler,
+      update_changeset: &Admin.Schema.CPUCooler.changeset/3,
+      create_changeset: &Admin.Schema.CPUCooler.changeset/3,
       item_query: &AdminWeb.Live.PartQueries.cpu_cooler/3
     ]
 
@@ -25,7 +25,16 @@ defmodule AdminWeb.Live.CPUCoolerLive do
       manufacturer: %{module: Backpex.Fields.Text, label: "Manufacturer"},
       model_number: %{module: Backpex.Fields.Text, label: "Model Number"},
       year_released: %{module: Backpex.Fields.Number, label: "Year"},
-      is_active: %{module: Backpex.Fields.Boolean, label: "Active"}
+      is_active: %{module: Backpex.Fields.Boolean, label: "Active"},
+      cooler_type: %{module: Backpex.Fields.Text, label: "Type (e.g. air, aio_240)"},
+      supported_sockets_input: %{module: Backpex.Fields.Text, label: "Supported Sockets (comma-separated, e.g. lga1700, am5)"},
+      max_tdp_watts: %{module: Backpex.Fields.Number, label: "Max TDP (Watts)"},
+      height_mm: %{module: Backpex.Fields.Number, label: "Height (mm)"},
+      radiator_size_mm: %{module: Backpex.Fields.Number, label: "Radiator Size (mm)"},
+      fan_count: %{module: Backpex.Fields.Number, label: "Fan Count"},
+      fan_size_mm: %{module: Backpex.Fields.Number, label: "Fan Size (mm)"},
+      noise_dba: %{module: Backpex.Fields.Number, label: "Noise (dBA)"},
+      has_rgb: %{module: Backpex.Fields.Boolean, label: "RGB"}
     ]
   end
 end

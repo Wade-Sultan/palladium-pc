@@ -3,9 +3,9 @@ defmodule AdminWeb.Live.FanLive do
     adapter: Backpex.Adapters.Ecto,
     adapter_config: [
       repo: Admin.Repo,
-      schema: Admin.Schema.PCPart,
-      update_changeset: &Admin.Schema.PCPart.changeset/3,
-      create_changeset: &Admin.Schema.PCPart.changeset/3,
+      schema: Admin.Schema.Fan,
+      update_changeset: &Admin.Schema.Fan.changeset/3,
+      create_changeset: &Admin.Schema.Fan.changeset/3,
       item_query: &AdminWeb.Live.PartQueries.fan/3
     ]
 
@@ -25,7 +25,16 @@ defmodule AdminWeb.Live.FanLive do
       manufacturer: %{module: Backpex.Fields.Text, label: "Manufacturer"},
       model_number: %{module: Backpex.Fields.Text, label: "Model Number"},
       year_released: %{module: Backpex.Fields.Number, label: "Year"},
-      is_active: %{module: Backpex.Fields.Boolean, label: "Active"}
+      is_active: %{module: Backpex.Fields.Boolean, label: "Active"},
+      size_mm: %{module: Backpex.Fields.Number, label: "Size (mm)"},
+      max_rpm: %{module: Backpex.Fields.Number, label: "Max RPM"},
+      airflow_cfm: %{module: Backpex.Fields.Number, label: "Airflow (CFM)"},
+      noise_dba: %{module: Backpex.Fields.Number, label: "Noise (dBA)"},
+      is_pwm: %{module: Backpex.Fields.Boolean, label: "PWM"},
+      has_rgb: %{module: Backpex.Fields.Boolean, label: "RGB"},
+      bearing_type: %{module: Backpex.Fields.Text, label: "Bearing Type"},
+      is_static_pressure: %{module: Backpex.Fields.Boolean, label: "Static Pressure Optimized"},
+      pack_count: %{module: Backpex.Fields.Number, label: "Pack Count"}
     ]
   end
 end
