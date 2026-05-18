@@ -92,6 +92,11 @@ class PCPart(Base):
 
     part_type = Column(String(50), nullable=False)
 
+    msrp_cents = Column(Integer, nullable=True)
+    street_price_cents = Column(Integer, nullable=True)
+    price_source = Column(String(20), nullable=True)
+    used_market_viable = Column(Boolean, nullable=True, server_default="false")
+
     is_active = Column(Boolean, nullable=False, default=True, server_default="true")
 
     created_at = Column(
