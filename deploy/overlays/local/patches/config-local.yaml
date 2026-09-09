@@ -94,6 +94,28 @@ data:
   CHAT_ELICIT_MAX_TOKENS: "1792"
   RECOMMEND_MAX_TOKENS: "4096"
 
+  # --- The build timeout, raised for a local GPU --------------------------
+  # Production's 180s default (chat_pipeline._DSPY_CHAT_TIMEOUT_S) is sized for
+  # OpenRouter, where each Decide* module answers in a second or two. The same
+  # eleven-module ladder against one 27B reasoning model on one consumer GPU
+  # does not come close: measured here, a full build blew through 180s and the
+  # pipeline fell back to a reference build.
+  #
+  # THAT FALLBACK IS THE REASON THIS MATTERS, and why it is not merely a
+  # performance difference. Exceeding the timeout does not make the build slow,
+  # it makes it a DIFFERENT BUILD — the DSPy result is discarded and a canned
+  # reference build is served with status=error. So at 180s the local cluster
+  # cannot exercise the custom-build path at all, which is most of what the
+  # recommender is.
+  #
+  # 900s is generous rather than tuned; it is a backstop against a wedged run,
+  # not a target. Automated tests do not wait for it — they drive the stub LMs
+  # (see LOAD_TEST_SECRET), which answer instantly.
+  #
+  # PRODUCTION MUST KEEP 180s. A user is watching, and past roughly three
+  # minutes the right answer really is the reference build.
+  DSPY_CHAT_TIMEOUT_S: "900"
+
   # The DSPy Decide* steps. Same model; the `openrouter/` prefix the default
   # carries is litellm routing rather than part of the name, and
   # dspy_pipeline.litellm_model rewrites it to `openai/` when the endpoint is
@@ -110,6 +132,59 @@ data:
   # admin panel or by the CronJob, never by a chat turn, so ordinary local
   # development still spends nothing.
   DISCOVERY_LLM_BASE_URL: "https://openrouter.ai/api/v1"
+
+  # --- Valkey and Pub/Sub: the dispatched turn path -------------------------
+  # Both halves are in-cluster stand-ins (valkey.yaml, pubsub-emulator.yaml).
+  # Their presence is what selects the DISPATCHED path in api/routes/chat.py
+  # rather than the inline fallback: `_dispatch` requires Valkey to be reachable
+  # AND Pub/Sub to be configured, and with either missing the turn runs in the
+  # API process and dies with the client connection.
+  #
+  # That fallback still needs to keep working — it is what the pytest suite
+  # runs — but it is no longer the ONLY path exercised locally, which it was for
+  # as long as this overlay had neither service.
+  #
+  # VALKEY_HOST IS IN THE CONFIGMAP HERE AND IN THE SECRET IN PROD, which is a
+  # real difference rather than an oversight. Prod's value is a private VPC
+  # address handed out by Memorystore, and a private address does not belong in
+  # git on the same reasoning as POSTGRES_SERVER. This one is a Kubernetes
+  # Service name that is already written in valkey.yaml.
+  # FULLY QUALIFIED, and it has to be. A bare `valkey` resolves fine from the
+  # pods in this namespace, but KEDA's operator runs in the `keda` namespace and
+  # reads this same value through hostFromEnv (keda-worker.yaml) — a bare name
+  # there resolves against the wrong namespace and the ScaledObject never
+  # becomes Ready ("connection to redis failed: lookup valkey ... server
+  # misbehaving"). Production never meets this because its VALKEY_HOST is a bare
+  # Memorystore IP, which needs no DNS at all.
+  VALKEY_HOST: "valkey.default.svc.cluster.local"
+  VALKEY_PORT: "6379"
+  # False in both environments, and they have to agree with how the server was
+  # created: prod's `custom-pico` node is sold only as cluster-mode-disabled,
+  # and the container in valkey.yaml is standalone. See app/core/valkey.py for
+  # the two opposite failures a mismatch produces.
+  VALKEY_CLUSTER: "false"
+  # Memorystore's in-transit encryption is chosen at instance creation and is
+  # off there; nothing terminates TLS in front of the local container either.
+  VALKEY_TLS: "false"
+
+  # Same names the provisioning runbook creates in GCP, so the only thing that
+  # differs between environments is which server answers.
+  PUBSUB_TOPIC: "chat-turns"
+  PUBSUB_SUBSCRIPTION: "chat-turns-workers"
+  PUBSUB_MAX_CONCURRENCY: "8"
+  PUBSUB_ACK_EXTENSION_S: "600"
+
+  # THE VARIABLE THAT KEEPS THIS OFF REAL GCP. google-cloud-pubsub reads it at
+  # client construction and switches to an insecure channel with anonymous
+  # credentials. Unset it and these same clients would authenticate with the
+  # mounted ADC and publish to whatever project they resolve — which is why
+  # bootstrap_pubsub.py refuses to run without it. It appears in no other
+  # overlay, and must not.
+  PUBSUB_EMULATOR_HOST: "pubsub-emulator:8085"
+  # On GKE the metadata server answers this, so prod sets nothing. There is no
+  # metadata server here, and core/pubsub.py's _project_id() would raise. It
+  # must match the emulator's --project or the topics are invisible.
+  GOOGLE_CLOUD_PROJECT: "palladium-local"
 ---
 apiVersion: v1
 kind: ConfigMap

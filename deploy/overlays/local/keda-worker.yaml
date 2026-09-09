@@ -1,0 +1,56 @@
+# Worker autoscaling locally, on the ONE trigger that needs no GCP.
+#
+# Prod's ScaledObject (overlays/prod/keda-worker.yaml) carries two triggers: a
+# prometheus one reading the Pub/Sub backlog from Cloud Monitoring, and a redis
+# one reading the wake queue. The first cannot work here — there is no Cloud
+# Monitoring, and the emulator publishes no metrics — but the second is pure
+# Valkey, so it works locally unchanged. That makes the wake queue the only half
+# of the autoscaling story that local can honestly test, and it is also the half
+# with application code behind it: turn_stream.push_wake on dispatch,
+# clear_wake at pickup. A leak in either shows up here as a pool that never
+# scales down.
+#
+# NEEDS KEDA INSTALLED, or every `kubectl apply` of this overlay fails with "no
+# matches for kind ScaledObject". scripts/minikube-cilium-up.sh installs it, at
+# the same chart version prod runs.
+#
+# minReplicaCount must equal the worker's replicas in patches/replicas.yaml —
+# see the note there for what disagreeing costs.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: worker
+spec:
+  scaleTargetRef:
+    name: worker
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  pollingInterval: 10
+  # 60s rather than prod's 300s. Scale-down delay is a stability tradeoff, not a
+  # correctness one: prod waits out bursty traffic so it is not thrashing pods,
+  # while locally the only thing a long cooldown buys is a five-minute wait
+  # before a test can observe that the pool came back down.
+  cooldownPeriod: 60
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 30
+  triggers:
+    - type: redis
+      metadata:
+        # Resolved from the worker container's own environment, which reaches it
+        # through envFrom on builder-config. Same mechanism as prod, so a change
+        # to how the address is supplied breaks in both places at once rather
+        # than only in production.
+        hostFromEnv: VALKEY_HOST
+        portFromEnv: VALKEY_PORT
+        listName: chat:wake
+        listLength: "8"
+        # Anything above zero in the list means a turn is waiting for a worker
+        # that may not exist yet, so the pool is "active" at the first entry.
+        activationListLength: "0"
+        enableTLS: "false"
+      # No passwordFromEnv, unlike prod: the local container runs without AUTH,
+      # and pointing this at an unset variable makes KEDA fail to resolve the
+      # trigger rather than treating it as empty.

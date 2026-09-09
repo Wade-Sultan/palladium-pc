@@ -1,0 +1,123 @@
+# The Pub/Sub emulator, standing in for the real topic and subscription.
+#
+# WHY THIS EXISTS AT ALL. /chat picks between two very different paths, and the
+# check is reachability, not configuration (api/routes/chat.py `_dispatch`):
+# Valkey AND Pub/Sub both have to answer before a turn is handed to a worker.
+# With Valkey alone the API takes a middle path — an in-process background task
+# writing to the stream — so the worker, the turn claim, ack/nack, redelivery
+# and ordering keys are never exercised. Everything the worker Deployment exists
+# to do would be untested locally, which is how a bug reaches production through
+# a green local run.
+#
+# NOT A FAITHFUL PUB/SUB, and the gaps are worth knowing before trusting a
+# result here. The emulator implements the API surface, not the service: there
+# are no real ack deadlines under load, no genuine at-least-once redelivery
+# pressure, and its dead-letter support is partial (bootstrap_pubsub.py prints
+# loudly if it had to drop that half). What it does cover is the part the app
+# actually depends on — publish with an ordering key, streaming pull, ack, nack,
+# and the message shape crossing the process boundary.
+#
+# PERSISTS NOTHING. Every restart of this pod comes back empty, so the bootstrap
+# Job below has to run again — it is idempotent for exactly that reason. If the
+# worker starts logging NotFound on the subscription, that is what happened;
+# re-trigger `pubsub-setup` in Tilt.
+apiVersion: v1
+kind: Service
+metadata:
+  name: pubsub-emulator
+spec:
+  selector:
+    app: pubsub-emulator
+  ports:
+    - name: pubsub
+      port: 8085
+      targetPort: pubsub
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pubsub-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pubsub-emulator
+  template:
+    metadata:
+      labels:
+        app: pubsub-emulator
+    spec:
+      containers:
+        - name: emulator
+          # Google's own CLI image, which is where the emulator ships. It is
+          # large (a full SDK plus a JRE) but it is the only build Google
+          # publishes; the small third-party images are re-packagings of this
+          # same jar with no support behind them.
+          image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+          command:
+            - gcloud
+            - beta
+            - emulators
+            - pubsub
+            - start
+            # 0.0.0.0, not localhost: the default binds the loopback interface
+            # inside the container, which nothing in the cluster can reach.
+            - --host-port=0.0.0.0:8085
+            # The emulator scopes everything under a project id, and it must be
+            # the same one the clients use (GOOGLE_CLOUD_PROJECT in
+            # builder-config) or topics created here are invisible to them.
+            - --project=palladium-local
+          ports:
+            - containerPort: 8085
+              name: pubsub
+          readinessProbe:
+            # TCP rather than an API call: the emulator speaks gRPC, which a
+            # probe cannot express. bootstrap_pubsub.py closes the small gap
+            # between "port open" and "service answering" with its own retry.
+            tcpSocket:
+              port: pubsub
+            periodSeconds: 5
+            failureThreshold: 24
+          resources:
+            # It is a JVM, so the floor is higher than its workload deserves.
+            requests:
+              cpu: "100m"
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+---
+# Declares the topics and subscriptions into the empty emulator. See
+# bootstrap_pubsub.py for why this runs the app's own client library rather than
+# gcloud, and what it refuses to degrade.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pubsub-setup
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bootstrap
+          # The backend image, purely because it already carries
+          # google-cloud-pubsub. Nothing from app/ is imported.
+          image: palladium/builder
+          command: ["python", "/bootstrap/bootstrap_pubsub.py"]
+          envFrom:
+            - configMapRef:
+                name: builder-config
+          volumeMounts:
+            - name: bootstrap
+              mountPath: /bootstrap
+          resources:
+            requests:
+              cpu: "100m"
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      volumes:
+        - name: bootstrap
+          configMap:
+            name: pubsub-bootstrap

@@ -4,13 +4,23 @@ kind: Kustomization
 resources:
   - ../../base
   - postgres-statefulset.yaml
+  # The two stand-ins for managed GCP services. Together they are what makes the
+  # DISPATCHED turn path — publish, worker, claim, event stream, resume — run
+  # locally at all; with either missing, /chat falls back to running the turn
+  # inline in the API process.
+  - valkey.yaml
+  - pubsub-emulator.yaml
+  # Requires KEDA on the cluster, installed by scripts/minikube-cilium-up.sh.
+  - keda-worker.yaml
   - gateway.yaml
   - lb-ippool.yaml
 
 patches:
   - path: patches/replicas.yaml
   - path: patches/builder-dev.yaml
+  - path: patches/worker-dev.yaml
   - path: patches/config-local.yaml
+  - path: patches/jobs-local.yaml
   - path: patches/gcp-adc.yaml
   - path: patches/httproute-timeout.yaml
     target:
@@ -26,6 +36,14 @@ secretGenerator:
   - name: palladium-secrets
     envs:
       - .env.local
+
+# The emulator starts empty and persists nothing, so the topics and
+# subscriptions have to be declared on every boot. Kept as a file rather than
+# inline YAML so it stays a Python file the linters and an editor can see.
+configMapGenerator:
+  - name: pubsub-bootstrap
+    files:
+      - bootstrap_pubsub.py
 
 generatorOptions:
   # Deployments reference this Secret by a fixed name via envFrom, so the

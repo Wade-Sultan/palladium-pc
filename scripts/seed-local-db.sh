@@ -1,8 +1,16 @@
 #! /usr/bin/env bash
 
 # Restore the Cloud SQL snapshot into the cluster's Postgres, then strip the
-# production PII. Run by Tilt after the migrate Job, so a fresh
-# `minikube delete && tilt up` comes back with a populated catalog.
+# production PII, so a fresh `minikube delete && tilt up` comes back with a
+# populated catalog.
+#
+# RUNS BEFORE THE MIGRATE JOB, NOT AFTER, and the ordering is load-bearing.
+# `pg_restore --clean` below drops and recreates every object in the dump —
+# including the alembic_version row — so running this after a migration silently
+# reverts it and leaves the database on whatever revision production was on when
+# the dump was taken. Nothing reports that; it shows up later as the ORM writing
+# a column Postgres does not have. Tilt therefore orders postgres -> seed-db ->
+# migrate, which is also the sequence production follows on every deploy.
 #
 # Idempotent: skips when the catalog already has rows, so it costs nothing on
 # every subsequent `tilt up`. Pass --force to restore over existing data.

@@ -1,0 +1,78 @@
+# Valkey for local development, standing in for Memorystore.
+#
+# THE REAL ENGINE, NOT A FAKE, and that distinction is the point of this file.
+# The unit tests already have hand-written fakes (backend/tests/test_turn_stream.py),
+# and they are the right tool for "when does this code write". They cannot catch
+# the failures that live in the client/server boundary — the one that cost a
+# production outage was redis-py applying its socket timeout to a deliberately
+# parked XREAD BLOCK, which no fake has a socket to reproduce (see
+# app/core/valkey.py's BLOCKING_READ_TIMEOUT_S).
+#
+# Matched to production on the two things that change client behaviour:
+#   - Valkey 8.0, the same engine version as the Memorystore instance.
+#   - Standalone, i.e. cluster mode DISABLED, because prod's `custom-pico` node
+#     type is only sold that way. So VALKEY_CLUSTER stays false in both places
+#     and local exercises the same redis-py class (Redis, not RedisCluster).
+#     Getting that pair out of step fails at connect in one direction and mid-turn
+#     on a MOVED redirect in the other.
+#
+# NO PERSISTENCE AND NO PVC, deliberately. Prod runs --replica-count=0 on the
+# same reasoning: everything here is either reconstructible (the event stream —
+# the turn re-runs) or already committed to Postgres. Losing it costs in-flight
+# turns, not data. An empty Valkey on every cluster rebuild is also what a test
+# wants, so `save ""` and appendonly no keep it purely in memory.
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+spec:
+  selector:
+    app: valkey
+  ports:
+    - name: valkey
+      port: 6379
+      targetPort: valkey
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+    spec:
+      containers:
+        - name: valkey
+          image: valkey/valkey:8.0-alpine
+          # Both flags disable a persistence mechanism that is on by default.
+          # Without `--save ""` the server still snapshots to disk on a timer,
+          # which on an emptyDir is pure write amplification for data we have
+          # just said is disposable.
+          command: ["valkey-server", "--save", "", "--appendonly", "no"]
+          ports:
+            - containerPort: 6379
+              name: valkey
+          readinessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["valkey-cli", "ping"]
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            # The working set is TTL'd stream entries measured in megabytes, and
+            # a laptop's local traffic is one developer. Prod's sizing note says
+            # the same thing: memory was never the constraint here.
+            requests:
+              cpu: "50m"
+              memory: 64Mi
+            limits:
+              memory: 512Mi

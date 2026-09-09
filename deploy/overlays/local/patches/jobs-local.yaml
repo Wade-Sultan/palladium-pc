@@ -1,0 +1,25 @@
+# The telemetry drain, sped up for a laptop.
+#
+# WHAT THIS IS NOT. It is not the path that gets build telemetry into Postgres
+# in the normal case — turn_runner drains the buffer at the end of every turn,
+# synchronously, before the stream's terminal entry is written. That is already
+# immediate and this schedule has no bearing on it.
+#
+# This CronJob is the backstop for the cases turn_runner cannot cover: a worker
+# SIGTERM'd between the recorder's buffer write and its own drain, or a stretch
+# where Postgres was unreachable. Hourly is right in production, where those are
+# rare and nobody is watching. Locally it is the difference between seeing
+# whether recovery works and waiting up to an hour to find out.
+#
+# Five minutes rather than every minute: each run starts a pod that imports the
+# backend, so a one-minute schedule spends real laptop CPU on a job that almost
+# always finds an empty buffer. A test should not wait even five minutes anyway
+# — trigger it directly and watch that Job instead:
+#
+#   kubectl create job --from=cronjob/telemetry-drain drain-now
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: telemetry-drain
+spec:
+  schedule: "*/5 * * * *"

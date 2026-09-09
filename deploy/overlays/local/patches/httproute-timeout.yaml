@@ -9,4 +9,10 @@
 - op: add
   path: /spec/rules/0/timeouts
   value:
-    request: 300s
+    # 900s, matching DSPY_CHAT_TIMEOUT_S in patches/config-local.yaml. The
+    # gateway timeout has to be the OUTER bound of the two: cut it shorter and a
+    # local build that is running perfectly well has its connection reaped
+    # mid-stream, which looks like a broken pipeline rather than a slow one.
+    # Production pairs 300s here with its 180s pipeline timeout for the same
+    # reason, at a scale suited to a hosted model.
+    request: 900s

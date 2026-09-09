@@ -28,6 +28,49 @@ local_resource(
 
 k8s_yaml(kustomize('deploy/overlays/local'))
 
+# Rolls the pods whose configuration just changed.
+#
+# builder-config is a plain ConfigMap, not a generated one, so kustomize gives
+# it no content-hash suffix and `kubectl apply` of a changed ConfigMap does not
+# restart anything reading it. envFrom is resolved once, at pod start — so
+# without this, editing config-local.yaml updates the ConfigMap in the cluster
+# and every running pod keeps the old values, indefinitely.
+#
+# That failure is silent and it lies in the direction of a false pass: a builder
+# holding a stale, empty VALKEY_HOST serves every turn on the inline path while
+# the cluster looks correctly configured, so a test of the dispatched path
+# quietly exercises the fallback instead.
+local_resource(
+    'config-roll',
+    cmd='kubectl rollout restart deployment/builder deployment/worker && ' +
+        'kubectl rollout status deployment/builder --timeout=180s',
+    deps=[
+        'deploy/overlays/local/patches/config-local.yaml',
+        # The Secret has the same problem for the same reason: the
+        # generator's name-suffix hash is disabled (see kustomization.yaml),
+        # so a changed .env.local updates the Secret and rolls nothing.
+        'deploy/overlays/local/.env.local',
+    ],
+    # MUST run after the ConfigMaps are applied, or it does the opposite of its
+    # job: Tilt gives no ordering between a local_resource and a k8s apply, and
+    # the roll losing that race restarts the pods onto the OLD ConfigMap moments
+    # before the new one lands — the exact stale-config state this resource
+    # exists to prevent, now with a cluster that looks correct because the
+    # ConfigMap itself is right.
+    #
+    # 'uncategorized' is Tilt's catch-all resource, and it is where the
+    # ConfigMaps and the Secret live because no workload claims them. Depending
+    # on it is less explicit than grouping them under a name of their own — but
+    # do NOT do that: reassigning those objects to a new k8s_resource makes Tilt
+    # delete them from the cluster and report success without recreating them,
+    # which takes every pod that reads them into CreateContainerConfigError.
+    resource_deps=['uncategorized'],
+    # Nothing to do on a cold start: the pods are about to be created with the
+    # current ConfigMap anyway, and restarting them would only cost a rollout.
+    auto_init=False,
+    labels=['setup'],
+)
+
 docker_build(
     'palladium/builder',
     context='./backend',
@@ -56,30 +99,98 @@ local_resource(
 
 k8s_resource('postgres', port_forwards='5433:5432', labels=['data'])
 
-# Alembic is the only migration authority; everything else waits on it so no
-# service ever starts against an un-migrated schema.
-k8s_resource('migrate', resource_deps=['postgres', 'gcp-adc-secret'], labels=['data'])
+# Valkey and the Pub/Sub emulator: the two services that decide whether /chat
+# dispatches a turn to a worker or runs it inline. The port-forward is for
+# poking at keys from the host (any redis client speaks to Valkey).
+k8s_resource('valkey', port_forwards='6379:6379', labels=['data'])
+k8s_resource('pubsub-emulator', labels=['data'])
 
-# Restores .local-seed/palladium.dump into the cluster's Postgres, so a cold
-# `minikube delete && tilt up` comes back with a real catalog instead of an
-# empty schema. Skips itself when pc_parts already has rows, so it's nearly
-# free on every run after the first. No dump present = no-op.
+# Declares the topics and subscriptions into the emulator, which starts empty
+# and persists nothing. MANUAL trigger mode with the default auto_init: it runs
+# once on `tilt up`, then never again on its own. It uses the backend image (for
+# google-cloud-pubsub only), so without this it would re-run on every single
+# backend code change — pure noise, since the result is identical.
+#
+# Trigger it by hand if the emulator pod ever restarts: its topics die with it,
+# and the worker starts logging NotFound on the subscription.
+k8s_resource(
+    'pubsub-setup',
+    resource_deps=['pubsub-emulator'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    labels=['data'],
+)
+
+# RESTORE FIRST, THEN MIGRATE. This order is not cosmetic and it must not be
+# swapped back — it was the other way round, and that silently pinned local
+# development to a schema OLDER than the code.
+#
+# seed-local-db.sh restores a production dump with `pg_restore --clean`, which
+# drops and recreates every object it contains, including the alembic_version
+# row. Running it after the migration therefore threw the migration away: the
+# database ended up at whatever revision production was on when the dump was
+# taken, alembic never ran again, and nothing anywhere reported a problem. The
+# symptom is a column the ORM believes in and Postgres has never heard of,
+# surfacing as a runtime error inside whichever feature happens to touch it —
+# in this case the build-telemetry drain, whose write failed against a
+# build_sessions with no conversation_id.
+#
+# This order also matches what production actually does on every deploy: an
+# existing database, then `alembic upgrade head` over the top of it. Local now
+# exercises the same migration path rather than skipping it.
 local_resource(
     'seed-db',
     cmd='./scripts/seed-local-db.sh',
-    resource_deps=['migrate'],
+    resource_deps=['postgres'],
     deps=['scripts/seed-local-db.sh'],
     labels=['data'],
 )
 
+# Alembic is the only migration authority; everything else waits on it so no
+# service ever starts against an un-migrated schema.
+k8s_resource('migrate', resource_deps=['seed-db', 'gcp-adc-secret'], labels=['data'])
+
 # Services depend on seed-db so their pools open against a populated database
 # rather than connecting first and seeing rows appear underneath them.
-k8s_resource('builder', resource_deps=['seed-db'], port_forwards='8000:8000', labels=['services'])
-k8s_resource('commerce', resource_deps=['seed-db'], port_forwards='8080:8080', labels=['services'])
-k8s_resource('admin', resource_deps=['seed-db'], port_forwards='3001:3000', labels=['services'])
+#
+# builder ALSO waits on valkey, and that dependency is load-bearing rather than
+# tidy. app/core/valkey.py latches `_unavailable` on the first failed connection
+# and never retries for the life of the process — deliberately, so a
+# misconfigured deployment pays one timeout per pod instead of one per request.
+# The API starts a buffer gauge loop at startup that connects immediately, so a
+# builder that comes up before Valkey does latches OFF permanently and silently
+# serves every turn on the inline path. It looks like a working cluster. Only a
+# pod restart clears it.
+#
+# It waits on pubsub-setup for a milder reason: publishing to a topic that does
+# not exist yet fails the dispatch and falls back to inline for that turn.
+k8s_resource(
+    'builder',
+    resource_deps=['migrate', 'valkey', 'pubsub-setup'],
+    port_forwards='8000:8000',
+    labels=['services'],
+)
+
+# The worker cannot start at all without its subscription — app/worker.py raises
+# on an empty PUBSUB_SUBSCRIPTION and, given one, fails its streaming pull if the
+# subscription is absent. Same Valkey latch applies: it writes every turn event
+# to the stream, so a worker that latched off produces a turn nobody can read.
+k8s_resource(
+    'worker',
+    resource_deps=['migrate', 'valkey', 'pubsub-setup'],
+    labels=['services'],
+)
+k8s_resource('commerce', resource_deps=['migrate'], port_forwards='8080:8080', labels=['services'])
+k8s_resource('admin', resource_deps=['migrate'], port_forwards='3001:3000', labels=['services'])
 
 # CronJobs are deployed so their manifests stay exercised, but must not fire on
 # a laptop — the pricing ETL burns SerpAPI quota. Trigger by hand from the Tilt
 # UI, or: kubectl create job --from=cronjob/pricing-etl etl-manual-1
 k8s_resource('pricing-etl', trigger_mode=TRIGGER_MODE_MANUAL, auto_init=False, labels=['jobs'])
 k8s_resource('discovery', trigger_mode=TRIGGER_MODE_MANUAL, auto_init=False, labels=['jobs'])
+
+# Unlike the two above, this one IS deployed on startup and is allowed to fire:
+# it costs no API quota (it moves rows that were already paid for at build time)
+# and the local overlay shortens its schedule to every 5 minutes. To drain
+# immediately rather than waiting for the schedule:
+#   kubectl create job --from=cronjob/telemetry-drain drain-now
+k8s_resource('telemetry-drain', labels=['jobs'])

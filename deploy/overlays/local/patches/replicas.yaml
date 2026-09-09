@@ -13,20 +13,33 @@ spec:
   # — a single local replica is exactly where that class of bug hides.
   replicas: 1
 ---
-# Scaled to zero locally rather than omitted from base, so the manifest is still
-# rendered and validated by every `kustomize build` of this overlay.
+# One worker locally, where this used to be zero.
 #
-# It cannot run here: app/worker.py fails fast without PUBSUB_SUBSCRIPTION, and
-# minikube has neither a Pub/Sub emulator nor a Memorystore. Locally /chat takes
-# the inline path instead (app/api/routes/chat.py), which is why that fallback
-# has to keep working — it is the only chat path anyone exercises in development.
+# It was zero because the worker cannot start without a subscription to pull
+# from — app/worker.py fails fast on an empty PUBSUB_SUBSCRIPTION — and this
+# cluster had neither a Pub/Sub nor a Memorystore to point it at. That is no
+# longer true: the overlay now runs both (valkey.yaml, pubsub-emulator.yaml), so
+# the dispatched path is exercisable here for the first time.
 #
-# To work on the dispatched path locally, run the Pub/Sub emulator and a valkey
-# container, set PUBSUB_EMULATOR_HOST/VALKEY_HOST in .env.local, and scale this
-# to 1.
+# ONE, NOT TWO. Prod runs a pool because turns arrive concurrently; locally they
+# do not, and a second worker would only compete for the same laptop CPU and the
+# same single LM Studio endpoint. The behaviour a second replica would add that
+# one cannot — a redelivered turn arriving at a DIFFERENT worker than the one
+# holding the claim — is worth testing deliberately (scale to 2 for that), not
+# worth paying for continuously.
+#
+# This count must stay equal to minReplicaCount in keda-worker.yaml. Every
+# `kubectl apply` writes spec.replicas, so a Deployment that disagrees with its
+# autoscaler's floor is reset on each deploy and dragged back afterwards — a pod
+# started and killed for nothing, every time. (Prod has exactly that bug today:
+# its replicas transformer still says 0 while its ScaledObject floor is 1.)
+#
+# The inline fallback in api/routes/chat.py is now NOT the only chat path
+# running locally, but it is still the one the pytest suite exercises, so it
+# still has to keep working.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: worker
 spec:
-  replicas: 0
+  replicas: 1

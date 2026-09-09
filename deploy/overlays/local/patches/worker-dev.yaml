@@ -1,0 +1,33 @@
+# Laptop-sized worker, mirroring what builder-dev.yaml does for the API.
+#
+# Base asks for 2Gi of memory because a prod worker runs up to
+# PUBSUB_MAX_CONCURRENCY turns at once, each holding a DSPy state and a
+# candidate set. Locally there is one developer sending one turn at a time, and
+# that request competes with Postgres, Valkey, a JVM emulator and the API for a
+# fixed 16Gi minikube VM.
+#
+# The LIMIT stays at 2Gi rather than dropping with the request: the DSPy and
+# litellm import chain in warm_dspy_pipeline() is genuinely large, and an OOMKill
+# during startup looks like a mysterious crash-loop rather than a resource
+# problem.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  template:
+    spec:
+      # Must outlive a local build, which is far slower than a hosted one (see
+      # DSPY_CHAT_TIMEOUT_S in patches/config-local.yaml). Base sizes this for
+      # production's 180s pipeline; at 900s every `tilt up` redeploy would
+      # SIGKILL an in-flight turn instead of letting it drain.
+      terminationGracePeriodSeconds: 960
+      containers:
+        - name: worker
+          resources:
+            requests:
+              cpu: "250m"
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
