@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # whatever's left in the monthly SerpAPI budget. 30/day keeps the monthly
 # total (~930) comfortably under the 1000 cap even on a full month, leaving
 # headroom for on-demand/ad-hoc checks.
-DAILY_BATCH_SIZE = 30
+DAILY_BATCH_SIZE = 20
 
 # Grouped types (GPU/PSU/RAM/Storage) can have many board/kit/drive variants
 # sharing one group; searching every variant would blow the budget on a
@@ -99,8 +99,9 @@ async def _check_target(
         await quota.record_search(db)
         for r in results:
             score = title_match.similarity(q, r.title)
-            reason = title_match.exclusion_reason(score, r.title)
+            reason = title_match.exclusion_reason(score, r.title, part_title=q)
             row = {
+                "query": q,
                 "title": r.title,
                 "extracted_price": r.extracted_price,
                 "source": r.source,

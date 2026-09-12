@@ -74,7 +74,10 @@ def test_a_high_similarity_prebuilt_is_still_excluded():
     # It passes the similarity gate comfortably...
     assert score >= title_match.SIMILARITY_THRESHOLD
     # ...and is excluded anyway, by name rather than by score.
-    assert title_match.exclusion_reason(score, title) == title_match.REASON_SYSTEM
+    assert (
+        title_match.exclusion_reason(score, title, part_title=query)
+        == title_match.REASON_SYSTEM
+    )
 
 
 def test_wrong_product_is_excluded_on_similarity():
@@ -84,7 +87,8 @@ def test_wrong_product_is_excluded_on_similarity():
     score = title_match.similarity(query, title)
 
     assert (
-        title_match.exclusion_reason(score, title) == title_match.REASON_LOW_SIMILARITY
+        title_match.exclusion_reason(score, title, part_title=query)
+        == title_match.REASON_LOW_SIMILARITY
     )
 
 
@@ -94,7 +98,7 @@ def test_matching_listing_is_included():
 
     score = title_match.similarity(query, title)
 
-    assert title_match.exclusion_reason(score, title) is None
+    assert title_match.exclusion_reason(score, title, part_title=query) is None
 
 
 def test_disqualifier_beats_similarity_in_the_recorded_reason():
@@ -102,4 +106,7 @@ def test_disqualifier_beats_similarity_in_the_recorded_reason():
     # name the real problem, since it is what the classifier trains on.
     title = "Mega Bundle Deal"
 
-    assert title_match.exclusion_reason(0.0, title) == title_match.REASON_BUNDLE
+    assert (
+        title_match.exclusion_reason(0.0, title, part_title="RTX 5070")
+        == title_match.REASON_BUNDLE
+    )

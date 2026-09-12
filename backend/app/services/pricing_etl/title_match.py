@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import re
 
+from app.services.pricing_etl import product_identity
+
 # Deciding whether a shopping result is actually the part we searched for.
 #
-# Two independent gates, because they catch different failures:
+# Three independent gates, because they catch different failures:
 #
-#   similarity  — is this the same product? Catches the wrong SKU, the wrong
-#                 capacity, a different generation.
+#   identity    — do the model, suffix and capacity agree with the query?
+#   similarity  — does the rest of the title resemble the requested product?
 #   disqualifiers — is this a *part* at all? Catches the listings that score
 #                 well precisely because they contain the part's full name: a
 #                 prebuilt desktop built around it, a bundle, a five-pack, a
@@ -20,7 +22,7 @@ import re
 # 5080".
 
 # Below this, a result is treated as "probably not the part we searched for"
-# (wrong SKU, wrong capacity, ...) and excluded from the price stats — but
+# and excluded from the price stats — but
 # every raw result is still stored with its score and its reason, so this
 # threshold isn't a hard data-loss point, just a stats-inclusion gate. The
 # eventual ML classifier trains on exactly this signal plus the ones it rejects.
@@ -95,7 +97,10 @@ def similarity(part_title: str, result_title: str) -> float:
     5080") don't tank the score."""
     from rapidfuzz import fuzz  # lazy: pricing ETL job only, off the API import path
 
-    return fuzz.token_sort_ratio(part_title, result_title)
+    return fuzz.token_sort_ratio(
+        product_identity.normalize_for_similarity(part_title),
+        product_identity.normalize_for_similarity(result_title),
+    )
 
 
 def disqualifier(result_title: str) -> str | None:
@@ -110,7 +115,7 @@ def disqualifier(result_title: str) -> str | None:
     return None
 
 
-def exclusion_reason(score: float, result_title: str) -> str | None:
+def exclusion_reason(score: float, result_title: str, *, part_title: str) -> str | None:
     """Why this result should stay out of the price stats, or None to include
     it. Disqualifiers are checked first so the recorded reason names the real
     problem rather than a similarity score that may well have been fine."""
@@ -119,4 +124,4 @@ def exclusion_reason(score: float, result_title: str) -> str | None:
         return reason
     if score < SIMILARITY_THRESHOLD:
         return REASON_LOW_SIMILARITY
-    return None
+    return product_identity.exclusion_reason(part_title, result_title)

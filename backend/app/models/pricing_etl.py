@@ -72,11 +72,12 @@ class PriceCheck(Base):
     queries_used = Column(ARRAY(Text), nullable=False)
 
     # Every result SerpAPI returned, before title filtering:
-    # [{"title", "extracted_price", "source", "product_link",
+    # [{"query", "title", "extracted_price", "source", "product_link",
     #   "similarity_score", "included_in_stats", "exclusion_reason"}, ...]
     #
     # exclusion_reason names why a result was left out — a title disqualifier
-    # (title_match), an implausible price against MSRP, or an outlier against
+    # (title_match), a model/specification mismatch (product_identity),
+    # an implausible price against MSRP, or an outlier against
     # the rest of the sample (stats). That is the labelled negative set the
     # legitimacy classifier trains on; "excluded" alone would not be.
     raw_results = Column(JSONB, nullable=False)
