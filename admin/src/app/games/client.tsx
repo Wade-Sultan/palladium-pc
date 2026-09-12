@@ -35,6 +35,7 @@ const minimumPartSchema = z.object({
   tier: z.string().min(1),
   role: z.string().min(1),
   partId: z.string().nullable(),
+  gpuChipsetId: z.string().nullable(),
   publishedName: z.string(),
   minRamGb: z.coerce.number().int().nullable(),
 });
@@ -72,6 +73,7 @@ function gameDefaults(item: GameWithParts | null): GameFormData {
       tier: p.tier,
       role: p.role,
       partId: p.partId,
+      gpuChipsetId: p.gpuChipsetId,
       publishedName: p.publishedName ?? '',
       minRamGb: p.minRamGb,
     })),
@@ -165,7 +167,7 @@ function GameForm({
               Minimum Parts (one per tier × role)
             </p>
             <Button type="button" variant="outline" size="sm"
-              onClick={() => rows.append({ tier: 'minimum', role: 'cpu', partId: null, publishedName: '', minRamGb: null })}>
+              onClick={() => rows.append({ tier: 'minimum', role: 'cpu', partId: null, gpuChipsetId: null, publishedName: '', minRamGb: null })}>
               <Plus className="h-3.5 w-3.5" /> Add Row
             </Button>
           </div>
@@ -189,7 +191,7 @@ function GameForm({
                   <FormItem>
                     <FormLabel className="text-xs">Role</FormLabel>
                     <Select value={field.value}
-                      onValueChange={(v) => { field.onChange(v); form.setValue(`minimumParts.${i}.partId`, null); }}>
+                      onValueChange={(v) => { field.onChange(v); form.setValue(`minimumParts.${i}.partId`, null); form.setValue(`minimumParts.${i}.gpuChipsetId`, null); }}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         {ROLES.map((r) => <SelectItem key={r} value={r}>{r.toUpperCase()}</SelectItem>)}
@@ -202,14 +204,18 @@ function GameForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-xs">Catalog Part</FormLabel>
-                    <Select value={field.value ?? '__none'}
-                      onValueChange={(v) => field.onChange(v === '__none' ? null : v)}>
+                    <Select value={form.watch(`minimumParts.${i}.gpuChipsetId`) ? `chipset:${form.watch(`minimumParts.${i}.gpuChipsetId`)}` : field.value ?? '__none'}
+                      onValueChange={(v) => {
+                        const isChipset = v.startsWith('chipset:');
+                        field.onChange(isChipset || v === '__none' ? null : v);
+                        form.setValue(`minimumParts.${i}.gpuChipsetId`, isChipset ? v.slice(8) : null);
+                      }}>
                       <FormControl><SelectTrigger><SelectValue placeholder="— None —" /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="__none">— None —</SelectItem>
                         {partOptions
-                          .filter((p) => p.partType === form.watch(`minimumParts.${i}.role`))
-                          .map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                          .filter((p) => p.partType === form.watch(`minimumParts.${i}.role`) || (p.partType === 'gpu_chipset' && form.watch(`minimumParts.${i}.role`) === 'gpu'))
+                          .map((p) => <SelectItem key={p.id} value={p.partType === 'gpu_chipset' ? `chipset:${p.id}` : p.id}>{p.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </FormItem>

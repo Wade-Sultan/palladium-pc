@@ -42,6 +42,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/lib/utils';
+import { ApproveGameForm } from './approve-game';
 import {
   markDuplicate,
   rejectItem,
@@ -95,6 +96,7 @@ type Provenance = { source_url?: string; snippet?: string };
 type Confidence = { agreement?: number; n_sources?: number; values?: Record<string, unknown> };
 
 const CATEGORY_OPTIONS: { value: DiscoveryCategory; label: string }[] = [
+  { value: 'game', label: 'PC Game' },
   { value: 'cpu', label: 'CPU' },
   { value: 'gpu_chipset', label: 'GPU Chipset' },
   { value: 'gpu_variant', label: 'GPU Variant' },
@@ -395,7 +397,7 @@ function ReviewDialog({
 
   const fields = asRecord(item.extractedFields);
   const matchedId =
-    item.matchedPartId ?? item.matchedChipsetId ?? item.matchedAiModelId;
+    item.matchedPartId ?? item.matchedChipsetId ?? item.matchedAiModelId ?? item.matchedGameId;
   const matchedName = matchedId ? matchedNames[matchedId] : null;
   const validationErrors = Array.isArray(item.validationErrors)
     ? (item.validationErrors as { field?: string; rule?: string; detail?: string }[])
@@ -470,6 +472,9 @@ function ReviewDialog({
             </div>
 
             <FieldTable item={item} />
+            {fields.reference_only === true && (
+              <p className="text-sm">Discovered for a game requirement. CPU approval will add an inactive catalog entry.</p>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => act(markDuplicate)}>
@@ -485,6 +490,9 @@ function ReviewDialog({
           </div>
         ) : (
           <>
+            {item.category === 'game' && (
+              <ApproveGameForm itemId={item.id} extractedFields={fields} onSuccess={handleSuccess} />
+            )}
             {item.category === 'cpu' && (
               <ApproveCpuForm itemId={item.id} extractedFields={fields} onSuccess={handleSuccess} />
             )}

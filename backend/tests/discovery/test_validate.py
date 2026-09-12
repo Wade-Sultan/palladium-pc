@@ -57,7 +57,7 @@ def test_bad_brand_enum_fails():
 
 
 def test_bad_ddr_generation_element_fails():
-    fields = _valid_cpu() | {"ddr_generation": ["ddr5", "ddr3"]}
+    fields = _valid_cpu() | {"ddr_generation": ["ddr5", "ddr9"]}
     status, errors = validate_item("cpu", fields)
     assert status == "failed"
     assert ("ddr_generation", "enum") in _rules(errors)

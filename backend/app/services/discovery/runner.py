@@ -13,12 +13,14 @@ from app.crud.components import _normalize
 from app.models.discovery import DiscoveryRunType
 from app.services.chat_models import ChatModelConfig
 from app.services.discovery.dedup import filter_new_names, match_columns, match_item
+from app.services.discovery.evidence import confirmation_error
 from app.services.discovery.extract import (
     extract_candidate_names,
     extract_from_source,
     unwrap,
 )
 from app.services.discovery.fetch import fetch_document
+from app.services.discovery.game_requirements import match_reference, reference_key
 from app.services.discovery.huggingface import (
     HubModel,
     HuggingFaceError,
@@ -51,6 +53,12 @@ class _ItemOutcome(NamedTuple):
     sources_checked: int
     is_new: bool
     error: str | None
+    item_id: uuid.UUID | None = None
+
+
+class _StageResult(NamedTuple):
+    is_new: bool
+    item_id: uuid.UUID
 
 
 class _SweepCandidates(NamedTuple):
@@ -136,10 +144,12 @@ async def _process_source(
     )
     if extraction is None:
         return None
-    values, provenance = unwrap(extraction, result.url)
+    values, provenance = unwrap(extraction, doc.url)
+    if "confirmation_status" in provenance:
+        provenance["confirmation_status"]["verified"] = True
     if not values:
         return None
-    return result.url, values, provenance
+    return doc.url, values, provenance
 
 
 async def _stage(
@@ -150,7 +160,7 @@ async def _stage(
     confidence: dict | None,
     source_urls: list[str],
     fallback_name: str,
-) -> bool:
+) -> _StageResult:
     """validate -> dedup -> upsert. Returns True when the item is new.
 
     The tail every discovery path shares, whichever way it obtained its fields:
@@ -160,6 +170,9 @@ async def _stage(
     which pipeline produced a row.
     """
     name = extracted.get("name") or fallback_name
+    error = confirmation_error(category, extracted, provenance)
+    if error:
+        raise ValueError(error)
     model_number = extracted.get("model_number")
     validation_status, validation_errors = validate_item(category, extracted)
 
@@ -169,7 +182,7 @@ async def _stage(
     matched_id, match_method, match_score = match_item(name, model_number, candidates)
 
     async with AsyncSessionLocal() as db:
-        await crud.upsert_discovered_item(
+        item_id = await crud.upsert_discovered_item(
             db,
             run_id=run_id,
             category=category,
@@ -185,13 +198,13 @@ async def _stage(
             match_score=match_score,
             **match_columns(category, matched_id),
         )
-    return match_method is None
+    return _StageResult(match_method is None, item_id)
 
 
 async def _stage_hub_model(run_id: uuid.UUID, model: HubModel) -> _ItemOutcome:
     """Stage one Hugging Face model. Costs no LLM tokens, so usage_events
     doesn't come into it — sources_checked counts the one Hub record read."""
-    is_new = await _stage(
+    staged = await _stage(
         run_id,
         "ai_model",
         model.fields,
@@ -202,7 +215,7 @@ async def _stage_hub_model(run_id: uuid.UUID, model: HubModel) -> _ItemOutcome:
         [f"https://huggingface.co/{model.hub_id}"],
         model.hub_id,
     )
-    return _ItemOutcome(1, is_new, None)
+    return _ItemOutcome(1, staged.is_new, None, staged.item_id)
 
 
 async def _discover_ai_model(run_id: uuid.UUID, query: str) -> _ItemOutcome:
@@ -219,6 +232,8 @@ async def _discover_one(
     category: str,
     session_id: str,
     usage_events: list[dict],
+    *,
+    reference_only: bool = False,
 ) -> _ItemOutcome:
     """search -> fetch -> extract -> reconcile -> dedup -> stage, for one part.
 
@@ -263,10 +278,77 @@ async def _discover_one(
         )
 
     extracted, provenance, confidence, source_urls = reconcile(per_source)
-    is_new = await _stage(
+    if reference_only:
+        if reference_key(extracted.get("name", "")) != reference_key(query):
+            return _ItemOutcome(
+                len(results),
+                False,
+                "Official sources did not confirm the exact required model",
+            )
+        extracted["reference_only"] = True
+    dependency_sources = 0
+    if category == "game":
+        extracted["store_url"] = provenance.get("name", {}).get("source_url")
+        if validate_item(category, extracted)[0] == "passed":
+            dependencies, dependency_sources = await _game_dependencies(
+                run_id, extracted["requirements"], session_id, usage_events
+            )
+            extracted["hardware_dependencies"] = dependencies
+    staged = await _stage(
         run_id, category, extracted, provenance, confidence, source_urls, query
     )
-    return _ItemOutcome(len(results), is_new, None)
+    return _ItemOutcome(
+        len(results) + dependency_sources, staged.is_new, None, staged.item_id
+    )
+
+
+async def _game_dependencies(run_id, requirements, session_id, usage_events):
+    """Stage each distinct missing CPU/chipset once; never insert catalog parts.
+
+    Existing inactive CPUs are valid references. Only exact model identities
+    may be linked automatically; fuzzy matches remain review suggestions.
+    """
+    async with AsyncSessionLocal() as db:
+        catalogs = {
+            category: await crud.get_dedup_candidates(db, category)
+            for category in ("cpu", "gpu_chipset")
+        }
+    dependencies = []
+    seen = set()
+    sources = 0
+    for requirement in requirements:
+        category = "cpu" if requirement["role"] == "cpu" else "gpu_chipset"
+        name = requirement["published_name"]
+        key = (category, reference_key(name))
+        if key in seen:
+            continue
+        seen.add(key)
+        matched = match_reference(name, catalogs[category])
+        dependency = {
+            "name": name,
+            "category": category,
+            "catalog_id": str(matched) if matched else None,
+        }
+        if matched is None:
+            try:
+                result = await _discover_one(
+                    run_id,
+                    name,
+                    category,
+                    session_id,
+                    usage_events,
+                    reference_only=True,
+                )
+                sources += result.sources_checked
+                dependency["discovered_item_id"] = (
+                    str(result.item_id) if result.item_id else None
+                )
+                dependency["error"] = result.error
+            except Exception as exc:
+                logger.warning("game dependency %s failed", name, exc_info=True)
+                dependency["error"] = type(exc).__name__
+        dependencies.append(dependency)
+    return dependencies, sources
 
 
 async def _finalize(

@@ -47,6 +47,7 @@ class DiscoveryRunStatus(str, enum.Enum):
 
 
 class DiscoveryCategory(str, enum.Enum):
+    GAME = "game"
     CPU = "cpu"
     GPU_CHIPSET = "gpu_chipset"
     GPU_VARIANT = "gpu_variant"
@@ -67,7 +68,7 @@ class DiscoveryCategory(str, enum.Enum):
 GROUPED_CATEGORIES = frozenset({"ram_kit", "storage_drive", "psu"})
 
 # Categories that do not produce a pc_parts row at all.
-NON_PART_CATEGORIES = frozenset({"gpu_chipset", "ai_model"})
+NON_PART_CATEGORIES = frozenset({"gpu_chipset", "ai_model", "game"})
 
 
 class MatchMethod(str, enum.Enum):
@@ -192,6 +193,12 @@ class DiscoveredItem(Base):
         nullable=True,
         index=True,
     )
+    matched_game_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("games.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     match_method = Column(Text, nullable=True)
     match_score = Column(Float, nullable=True)
 
@@ -219,6 +226,12 @@ class DiscoveredItem(Base):
     created_ai_model_id = Column(
         UUID(as_uuid=True),
         ForeignKey("ai_models.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_game_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("games.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )

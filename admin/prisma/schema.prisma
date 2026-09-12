@@ -140,6 +140,7 @@ model GpuChipset {
 
   variants Gpu[]
   listings Listing[]
+  gameMinimums GameMinimumPart[]
 
   @@map("gpu_chipsets")
 }
@@ -619,6 +620,7 @@ model GameMinimumPart {
   tier          String // minimum | recommended | ultra
   role          String // cpu | gpu
   partId        String?  @map("part_id") @db.Uuid
+  gpuChipsetId  String?  @map("gpu_chipset_id") @db.Uuid
   publishedName String?  @map("published_name")
   minRamGb      Int?     @map("min_ram_gb")
   createdAt     DateTime @default(now()) @map("created_at")
@@ -626,8 +628,9 @@ model GameMinimumPart {
 
   game Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
   part PcPart? @relation(fields: [partId], references: [id])
+  gpuChipset GpuChipset? @relation(fields: [gpuChipsetId], references: [id])
 
-  @@unique([gameId, tier, role], map: "uq_game_min_parts_game_tier_role")
+  @@unique([gameId, tier, role, publishedName], map: "uq_game_min_parts_game_tier_role_name")
   @@map("game_minimum_parts")
 }
 
@@ -808,6 +811,7 @@ model DiscoveredItem {
   // ai_models is a standalone catalog, not a pc_parts subtype, so AI-model
   // matches and audit links need their own columns.
   matchedAiModelId     String?      @map("matched_ai_model_id") @db.Uuid
+  matchedGameId        String?      @map("matched_game_id") @db.Uuid
   matchMethod          String?      @map("match_method") // exact | model_number | fuzzy | embedding
   matchScore           Float?       @map("match_score")
   validationStatus     String       @map("validation_status") // passed | failed
@@ -817,6 +821,7 @@ model DiscoveredItem {
   createdPartId        String?      @map("created_part_id") @db.Uuid
   createdChipsetId     String?      @map("created_chipset_id") @db.Uuid
   createdAiModelId     String?      @map("created_ai_model_id") @db.Uuid
+  createdGameId        String?      @map("created_game_id") @db.Uuid
   createdAt            DateTime     @default(now()) @map("created_at")
 
   @@map("discovered_items")

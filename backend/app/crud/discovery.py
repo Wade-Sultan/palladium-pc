@@ -4,7 +4,7 @@ import uuid
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select, text, update
+from sqlalchemy import case, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +12,7 @@ from sqlalchemy.sql import func
 
 from app.models.ai_catalog import AIModel
 from app.models.discovery import DiscoveredItem, DiscoveryRun
+from app.models.games_catalog import Game
 from app.models.pcparts import (
     CPU,
     GPU,
@@ -97,6 +98,7 @@ async def upsert_discovered_item(
     matched_part_id: uuid.UUID | None,
     matched_chipset_id: uuid.UUID | None,
     matched_ai_model_id: uuid.UUID | None,
+    matched_game_id: uuid.UUID | None,
     match_method: str | None,
     match_score: float | None,
     validation_status: str,
@@ -115,6 +117,7 @@ async def upsert_discovered_item(
         "matched_part_id": matched_part_id,
         "matched_chipset_id": matched_chipset_id,
         "matched_ai_model_id": matched_ai_model_id,
+        "matched_game_id": matched_game_id,
         "match_method": match_method,
         "match_score": match_score,
         "validation_status": validation_status,
@@ -131,7 +134,22 @@ async def upsert_discovered_item(
         .on_conflict_do_update(
             index_elements=["category", "name_normalized"],
             index_where=text("review_status = 'pending'"),
-            set_=refresh,
+            set_=refresh
+            | {
+                # Rediscovery must not turn a requirement-only CPU into an
+                # active recommendation when its reviewer later approves it.
+                "extracted_fields": case(
+                    (
+                        DiscoveredItem.extracted_fields["reference_only"]
+                        .as_boolean()
+                        .is_(True),
+                        insert(DiscoveredItem).excluded.extracted_fields.op("||")(
+                            text("'{\"reference_only\": true}'::jsonb")
+                        ),
+                    ),
+                    else_=insert(DiscoveredItem).excluded.extracted_fields,
+                ),
+            },
         )
         .returning(DiscoveredItem.id)
     )
@@ -188,7 +206,7 @@ async def get_pending_names(db: AsyncSession, category: str) -> set[str]:
 
 # Discovery category -> the pc_parts subtype its items dedup against. Every
 # entry here is a PCPart subclass, so they share one query shape (id, name,
-# model_number, filtered to active). gpu_chipset and ai_model are handled
+# model_number, including inactive reference parts). Standalone catalogs are handled
 # separately below because neither is a pc_parts row.
 _PART_MODEL_BY_CATEGORY = {
     "cpu": CPU,
@@ -206,6 +224,9 @@ _PART_MODEL_BY_CATEGORY = {
 async def get_dedup_candidates(
     db: AsyncSession, category: str
 ) -> list[CatalogCandidate]:
+    if category == "game":
+        result = await db.execute(select(Game.id, Game.title))
+        return [CatalogCandidate(id=row[0], name=row[1]) for row in result.all()]
     if category == "gpu_chipset":
         result = await db.execute(select(GPUChipset.id, GPUChipset.name))
         return [CatalogCandidate(id=row[0], name=row[1]) for row in result.all()]
@@ -226,11 +247,7 @@ async def get_dedup_candidates(
     model = _PART_MODEL_BY_CATEGORY.get(category)
     if model is None:
         return []
-    result = await db.execute(
-        select(model.id, model.name, model.model_number).where(
-            model.is_active.is_(True)
-        )
-    )
+    result = await db.execute(select(model.id, model.name, model.model_number))
     return [
         CatalogCandidate(id=row[0], name=row[1], model_number=row[2])
         for row in result.all()

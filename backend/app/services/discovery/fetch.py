@@ -56,6 +56,19 @@ def _rasterize_pdf(data: bytes) -> list[str]:
     return images
 
 
+def _pdf_text(data: bytes) -> str:
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(data)
+    try:
+        return "\n".join(
+            pdf[i].get_textpage().get_text_range()
+            for i in range(min(len(pdf), _MAX_PDF_PAGES))
+        )[:_MAX_MARKDOWN_CHARS]
+    finally:
+        pdf.close()
+
+
 async def fetch_document(url: str) -> FetchedDoc | None:
     """Fetch a source page as extraction input: markdown for HTML, rasterized
     page images for PDF spec sheets. Returns None on any failure — the caller
@@ -74,12 +87,17 @@ async def fetch_document(url: str) -> FetchedDoc | None:
             images = await asyncio.to_thread(_rasterize_pdf, resp.content)
             if not images:
                 return None
-            return FetchedDoc(url=url, kind="pdf_images", images=images)
+            text = await asyncio.to_thread(_pdf_text, resp.content)
+            return FetchedDoc(
+                url=str(resp.url), kind="pdf_images", images=images, text=text
+            )
 
         markdown = await asyncio.to_thread(_extract_markdown, resp.text)
         if not markdown:
             return None
-        return FetchedDoc(url=url, kind="markdown", text=markdown[:_MAX_MARKDOWN_CHARS])
+        return FetchedDoc(
+            url=str(resp.url), kind="markdown", text=markdown[:_MAX_MARKDOWN_CHARS]
+        )
     except Exception:
         logger.warning("discovery: failed to fetch %s", url, exc_info=True)
         return None

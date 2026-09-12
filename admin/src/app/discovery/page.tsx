@@ -46,6 +46,11 @@ export default async function DiscoveryPage() {
   for (const p of matchedParts) matchedNames[p.id] = p.name;
   for (const c of chipsets) matchedNames[c.id] = c.name;
   for (const m of matchedAiModels) matchedNames[m.id] = m.name;
+  const gameIds = items.map((i) => i.matchedGameId).filter((id): id is string => id !== null);
+  if (gameIds.length) {
+    const games = await db.game.findMany({ where: { id: { in: gameIds } }, select: { id: true, title: true } });
+    for (const game of games) matchedNames[game.id] = game.title;
+  }
 
   const groups: GroupOptions = {
     ram: ramGroups,

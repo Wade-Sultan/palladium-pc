@@ -66,10 +66,11 @@ def match_columns(
     """
     return {
         "matched_part_id": matched_id
-        if category not in ("gpu_chipset", "ai_model")
+        if category not in ("gpu_chipset", "ai_model", "game")
         else None,
         "matched_chipset_id": matched_id if category == "gpu_chipset" else None,
         "matched_ai_model_id": matched_id if category == "ai_model" else None,
+        "matched_game_id": matched_id if category == "game" else None,
     }
 
 

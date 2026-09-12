@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import type { Control, FieldValues, FieldPath } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -550,7 +551,11 @@ const aiModelSchema = z.object({
   notes: z.string(),
 });
 
-function TextField({ control, name, label }: { control: any; name: string; label: string }) {
+function TextField<T extends FieldValues>({ control, name, label }: {
+  control: Control<T>;
+  name: FieldPath<T>;
+  label: string;
+}) {
   return (
     <FormField
       control={control}
@@ -566,14 +571,14 @@ function TextField({ control, name, label }: { control: any; name: string; label
   );
 }
 
-function NumberField({
+function NumberField<T extends FieldValues>({
   control,
   name,
   label,
   step,
 }: {
-  control: any;
-  name: string;
+  control: Control<T>;
+  name: FieldPath<T>;
   label: string;
   step?: string;
 }) {
@@ -602,13 +607,13 @@ function NumberField({
   );
 }
 
-function CheckboxField({
+function CheckboxField<T extends FieldValues>({
   control,
   name,
   label,
 }: {
-  control: any;
-  name: string;
+  control: Control<T>;
+  name: FieldPath<T>;
   label: string;
 }) {
   return (
@@ -630,19 +635,19 @@ function CheckboxField({
 /** Group picker for RAM/storage/PSU. Empty value means "create a new group
  * from the spec fields below", which is the right default for a discovered
  * part — the whole point of discovering it is that it's new. */
-function GroupField({
+function GroupField<T extends FieldValues & { groupId: string }>({
   control,
   groups,
   label,
 }: {
-  control: any;
+  control: Control<T>;
   groups: GroupOption[];
   label: string;
 }) {
   return (
     <FormField
       control={control}
-      name="groupId"
+      name={'groupId' as FieldPath<T>}
       render={({ field }) => (
         <FormItem className="col-span-2">
           <FormLabel>{label}</FormLabel>

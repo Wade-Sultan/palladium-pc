@@ -1,9 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import type { Prisma } from '@prisma/client';
+import type { DiscoveredItem, Prisma } from '@prisma/client';
 import { db } from '@/lib/prisma';
 import { splitCommaList, usdToCents } from '@/lib/utils';
+import { asRecord, requireConfirmation } from '@/lib/discovery-review';
+import { approveDiscoveredGame } from '@/lib/game-discovery';
 
 // Unlike the other pages' actions, everything here returns { error?: string }
 // instead of throwing — thrown server-action messages are masked in
@@ -11,6 +13,7 @@ import { splitCommaList, usdToCents } from '@/lib/utils';
 // to reach the reviewer verbatim.
 
 export type DiscoveryCategory =
+  | 'game'
   | 'cpu'
   | 'gpu_chipset'
   | 'gpu_variant'
@@ -315,18 +318,23 @@ export interface ApproveAiModelFormData {
 
 /** Flip the pending item to approved inside the same transaction that created
  * the catalog row; count 0 means someone else reviewed it first — throw so the
- * created row rolls back. */
+ * created row rolls back. Takes the item and the approved name directly —
+ * every caller already has both in hand, so re-fetching either here would
+ * just be a second round trip for data already loaded. */
 async function markApproved(
   tx: Prisma.TransactionClient,
-  itemId: string,
+  item: DiscoveredItem,
+  approvedName: string | undefined,
   link: {
     createdPartId?: string;
     createdChipsetId?: string;
     createdAiModelId?: string;
+    createdGameId?: string;
   },
 ) {
+  requireConfirmation(item, approvedName);
   const { count } = await tx.discoveredItem.updateMany({
-    where: { id: itemId, reviewStatus: 'pending' },
+    where: { id: item.id, reviewStatus: 'pending' },
     data: { reviewStatus: 'approved', reviewedAt: new Date(), ...link },
   });
   if (count === 0) throw new Error('Item was already reviewed');
@@ -338,6 +346,9 @@ export async function approveCpu(
 ): Promise<{ error?: string }> {
   try {
     await db.$transaction(async (tx) => {
+      const item = await tx.discoveredItem.findUniqueOrThrow({ where: { id: itemId } });
+      requireConfirmation(item, data.name);
+      const referenceOnly = asRecord(item.extractedFields).reference_only === true;
       const existing = await tx.pcPart.findFirst({
         where: { partType: 'cpu', name: { equals: data.name, mode: 'insensitive' } },
         select: { id: true },
@@ -352,7 +363,7 @@ export async function approveCpu(
           modelNumber: data.modelNumber || null,
           yearReleased: data.yearReleased,
           msrpCents: usdToCents(data.msrpUsd),
-          isActive: true,
+          isActive: !referenceOnly,
           partType: 'cpu',
           cpu: {
             create: {
@@ -374,7 +385,7 @@ export async function approveCpu(
           },
         },
       });
-      await markApproved(tx, itemId, { createdPartId: part.id });
+      await markApproved(tx, item, data.name, { createdPartId: part.id });
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Approval failed' };
@@ -390,6 +401,7 @@ export async function approveGpuChipset(
 ): Promise<{ error?: string }> {
   try {
     await db.$transaction(async (tx) => {
+      const item = await tx.discoveredItem.findUniqueOrThrow({ where: { id: itemId } });
       const existing = await tx.gpuChipset.findFirst({
         where: { name: { equals: data.name, mode: 'insensitive' } },
         select: { id: true },
@@ -415,7 +427,7 @@ export async function approveGpuChipset(
           supportedFeatures: splitCommaList(data.supportedFeaturesInput),
         },
       });
-      await markApproved(tx, itemId, { createdChipsetId: chipset.id });
+      await markApproved(tx, item, data.name, { createdChipsetId: chipset.id });
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Approval failed' };
@@ -431,6 +443,7 @@ export async function approveGpuVariant(
 ): Promise<{ error?: string }> {
   try {
     await db.$transaction(async (tx) => {
+      const item = await tx.discoveredItem.findUniqueOrThrow({ where: { id: itemId } });
       const existing = await tx.pcPart.findFirst({
         where: { partType: 'gpu', name: { equals: data.name, mode: 'insensitive' } },
         select: { id: true },
@@ -461,7 +474,7 @@ export async function approveGpuVariant(
           },
         },
       });
-      await markApproved(tx, itemId, { createdPartId: part.id });
+      await markApproved(tx, item, data.name, { createdPartId: part.id });
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Approval failed' };
@@ -489,6 +502,7 @@ async function approvePart(
 ): Promise<{ error?: string }> {
   try {
     await db.$transaction(async (tx) => {
+      const item = await tx.discoveredItem.findUniqueOrThrow({ where: { id: itemId } });
       const existing = await tx.pcPart.findFirst({
         where: { partType, name: { equals: name, mode: 'insensitive' } },
         select: { id: true },
@@ -499,7 +513,7 @@ async function approvePart(
         );
       }
       const part = await tx.pcPart.create({ data: await build(tx) });
-      await markApproved(tx, itemId, { createdPartId: part.id });
+      await markApproved(tx, item, name, { createdPartId: part.id });
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Approval failed' };
@@ -749,6 +763,7 @@ export async function approveAiModel(
 ): Promise<{ error?: string }> {
   try {
     await db.$transaction(async (tx) => {
+      const item = await tx.discoveredItem.findUniqueOrThrow({ where: { id: itemId } });
       const existing = await tx.aiModel.findFirst({
         where: {
           OR: [
@@ -777,13 +792,26 @@ export async function approveAiModel(
           notes: data.notes || null,
         },
       });
-      await markApproved(tx, itemId, { createdAiModelId: model.id });
+      await markApproved(tx, item, data.name, { createdAiModelId: model.id });
     });
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Approval failed' };
   }
   revalidatePath('/discovery');
   revalidatePath('/ai-models');
+  return {};
+}
+
+export async function approveGame(itemId: string): Promise<{ error?: string }> {
+  try {
+    await db.$transaction(async (tx) => {
+      await approveDiscoveredGame(tx, itemId);
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Game approval failed' };
+  }
+  revalidatePath('/discovery');
+  revalidatePath('/games');
   return {};
 }
 

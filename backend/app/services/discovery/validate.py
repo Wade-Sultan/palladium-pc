@@ -6,6 +6,7 @@ from typing import Any
 # (validation_status='failed') so extraction bugs stay visible in the queue.
 
 REQUIRED_FIELDS: dict[str, list[str]] = {
+    "game": ["name", "requirements"],
     "cpu": [
         "name",
         "brand",
@@ -54,10 +55,11 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
 _MOBO_FORM_FACTORS = frozenset({"atx", "matx", "itx", "eatx", "ssi_eeb", "ssi_ceb"})
 
 ENUM_VOCAB: dict[str, dict[str, frozenset[str]]] = {
+    "game": {},
     "cpu": {
         "brand": frozenset({"amd", "intel"}),
         # Add "ddr6" here to accept DDR6 during discovery (see DDRGeneration).
-        "ddr_generation": frozenset({"ddr4", "ddr5"}),
+        "ddr_generation": frozenset({"ddr2", "ddr3", "ddr4", "ddr5"}),
     },
     "gpu_chipset": {
         "vram_type": frozenset(
@@ -136,6 +138,7 @@ ENUM_VOCAB: dict[str, dict[str, frozenset[str]]] = {
 
 # (min, max) inclusive plausibility bounds.
 RANGES: dict[str, dict[str, tuple[float, float]]] = {
+    "game": {"min_storage_gb": (1, 2000)},
     "cpu": {
         # Upper bounds sized for server silicon, not desktop: a 500W SP5 EPYC
         # and a 96-core Threadripper are real parts, and a range that rejected
@@ -147,9 +150,9 @@ RANGES: dict[str, dict[str, tuple[float, float]]] = {
         "memory_channels": (1, 16),
         "base_clock_ghz": (1.0, 7.0),
         "boost_clock_ghz": (1.0, 7.0),
-        "l3_cache_mb": (4, 1152),
-        "pcie_generation": (3, 6),
-        "max_memory_gb": (16, 6144),
+        "l3_cache_mb": (0, 1152),
+        "pcie_generation": (1, 6),
+        "max_memory_gb": (1, 6144),
         "year_released": (2000, 2100),
         # $30k ceiling: top-bin EPYC and Threadripper PRO parts list well past
         # the $10k a desktop-only bound assumed.
@@ -158,12 +161,12 @@ RANGES: dict[str, dict[str, tuple[float, float]]] = {
     "gpu_chipset": {
         # 200GB covers datacenter parts (H200 = 141GB); the old 96GB ceiling
         # was exactly the consumer/workstation top end.
-        "vram_gb": (4, 200),
+        "vram_gb": (1, 200),
         "tdp_watts": (30, 800),
         "recommended_psu_watts": (200, 2000),
         "base_clock_mhz": (500, 4000),
         "boost_clock_mhz": (500, 4000),
-        "pcie_generation": (3, 6),
+        "pcie_generation": (1, 6),
     },
     "gpu_variant": {
         "length_mm": (140, 460),
@@ -321,7 +324,37 @@ def _cross_field_errors(category: str, fields: dict[str, Any]) -> list[dict]:
         v = fields.get(field)
         return v if isinstance(v, int) and not isinstance(v, bool) else None
 
-    if category == "cpu":
+    if category == "game":
+        from pydantic import ValidationError
+
+        from app.services.discovery.extract import GameRequirementExtraction
+
+        requirements = fields.get("requirements")
+        if not isinstance(requirements, list) or not 1 <= len(requirements) <= 16:
+            return [
+                _err(
+                    "requirements",
+                    "range",
+                    "expected 1 to 16 published CPU/GPU alternatives",
+                )
+            ]
+        seen = set()
+        for item in requirements:
+            try:
+                req = GameRequirementExtraction.model_validate(item)
+            except ValidationError:
+                errors.append(
+                    _err("requirements", "type", "invalid published requirement")
+                )
+                continue
+            key = (req.tier, req.role, req.published_name.casefold())
+            if key in seen:
+                errors.append(
+                    _err("requirements", "duplicate", "repeated tier/role/model")
+                )
+            seen.add(key)
+
+    elif category == "cpu":
         cores, threads = _int("cores"), _int("threads")
         if cores is not None and threads is not None and threads < cores:
             errors.append(

@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # Literal rather than derived from the enum so FastAPI renders the actual
 # values in the OpenAPI schema and the 422 body names them.
 DiscoveryCategoryLiteral = Literal[
+    "game",
     "cpu",
     "gpu_chipset",
     "gpu_variant",
@@ -60,6 +61,7 @@ class DiscoveredItemOut(BaseModel):
     matched_part_id: uuid.UUID | None
     matched_chipset_id: uuid.UUID | None
     matched_ai_model_id: uuid.UUID | None
+    matched_game_id: uuid.UUID | None
     match_method: str | None
     match_score: float | None
     validation_status: str

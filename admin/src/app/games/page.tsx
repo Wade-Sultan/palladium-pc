@@ -4,7 +4,7 @@ import { db } from '@/lib/prisma';
 import { GamesTable } from './client';
 
 export default async function GamesPage() {
-  const [games, partOptions] = await Promise.all([
+  const [games, partOptions, chipsets] = await Promise.all([
     db.game.findMany({
       orderBy: { title: 'asc' },
       include: {
@@ -20,7 +20,8 @@ export default async function GamesPage() {
       select: { id: true, name: true, partType: true },
       orderBy: { name: 'asc' },
     }),
+    db.gpuChipset.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
   ]);
 
-  return <GamesTable games={games} partOptions={partOptions} />;
+  return <GamesTable games={games} partOptions={[...partOptions, ...chipsets.map((c) => ({ ...c, partType: 'gpu_chipset' }))]} />;
 }

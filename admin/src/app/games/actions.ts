@@ -8,6 +8,7 @@ export interface GameMinimumPartFormData {
   tier: string; // minimum | recommended | ultra
   role: string; // cpu | gpu
   partId: string | null;
+  gpuChipsetId: string | null;
   publishedName: string;
   minRamGb: number | null;
 }
@@ -44,6 +45,7 @@ function toMinimumParts(rows: GameMinimumPartFormData[]) {
     tier: r.tier,
     role: r.role,
     partId: r.partId,
+    gpuChipsetId: r.gpuChipsetId,
     publishedName: r.publishedName || null,
     minRamGb: r.minRamGb,
   }));

@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import httpx
 
 from app.core.config import settings
+from app.services.discovery.evidence import official_source, speculative
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ _BLOCKED_DOMAINS = frozenset(
 # for the per-candidate run to extract from. The enumeration prompt rejects
 # rumors too — this just stops paying to fetch them.
 _CATEGORY_SWEEP_TERMS = {
+    "game": "new PC games official published minimum recommended system requirements",
     "cpu": "officially launched new desktop and workstation CPUs",
     "gpu_chipset": "officially launched new GPUs",
     "gpu_variant": "officially launched new graphics cards from board partners",
@@ -61,6 +63,7 @@ _CATEGORY_SWEEP_TERMS = {
 # listings, whose dimension tables are frequently wrong or truncated, while
 # "review" ranks the outlets that actually measure clearances.
 _CATEGORY_SPEC_SUFFIX = {
+    "game": "official PC system requirements minimum recommended",
     "ai_model": "model card",
     "case": "specifications clearance dimensions",
     # Benchmark backfill wants review outlets and results databases, not vendor
@@ -111,7 +114,7 @@ async def _tavily_search(query: str, fetch_count: int) -> list[SearchResult]:
     results = []
     for r in resp.json().get("results", []):
         url = r.get("url") or ""
-        if not url or _is_blocked(url):
+        if not url or _is_blocked(url) or speculative(r.get("title") or ""):
             continue
         results.append(
             SearchResult(
@@ -129,7 +132,9 @@ async def search_spec_pages(
     Rank order matters downstream: reconcile() breaks value ties in favor of
     the earliest source in this list."""
     suffix = _CATEGORY_SPEC_SUFFIX.get(category, "specifications")
-    results = await _tavily_search(f"{query} {suffix}", fetch_count=5)
+    results = await _tavily_search(f"{query} {suffix}", fetch_count=10)
+    if not category.endswith("_benchmark"):
+        results = [r for r in results if official_source(r.url, category)]
     return results[:max_results]
 
 
