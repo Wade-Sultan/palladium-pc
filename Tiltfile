@@ -13,19 +13,6 @@
 # at — including prod.
 allow_k8s_contexts('minikube')
 
-# docker_build below needs THIS shell's docker client pointed at minikube's
-# inner daemon (see scripts/minikube-cilium-up.sh on why the driver is docker,
-# not containerd). Skipping that step doesn't fail loudly here — Tilt just
-# falls back to pushing the built image to Docker Hub under its bare name,
-# which dies minutes later with a confusing "push access denied" from a
-# repository that was never meant to exist. Catch the actual cause up front.
-# Needed again every time after `minikube delete` / minikube-cilium-up.sh,
-# since that's a fresh docker daemon each time.
-if not os.environ.get('DOCKER_HOST'):
-    fail('DOCKER_HOST is not set — this shell is not pointed at minikube\'s ' +
-         'docker daemon. Run:\n\n    eval "$(minikube docker-env)"\n\n' +
-         'in this terminal, then re-run tilt up.')
-
 # The ADC secret can't come from secretGenerator: kustomize won't read files
 # above the kustomization root without --load-restrictor LoadRestrictionsNone.
 # Created here instead so a cold `minikube delete && tilt up` still works.
@@ -84,9 +71,22 @@ local_resource(
     labels=['setup'],
 )
 
-docker_build(
+# custom_build, not docker_build: this node's container runtime is containerd
+# (minikube v1.39.0 doesn't actually honor --container-runtime=docker for this
+# kubernetes-version pin — see minikube-cilium-up.sh), so there is no shared
+# docker daemon to build straight into. `minikube docker-env` still nominally
+# works around that, but only via an SSH tunnel into a secondary dockerd on
+# the node, on a port tied to the current node container — dead the moment
+# `minikube delete` recreates it, and unrelated to whether docker_build tries
+# to push instead (it does, straight to a nonexistent Docker Hub repo, the
+# moment that tunnel isn't live). Building on the HOST daemon and loading the
+# result with `minikube image load` needs nothing eval'd in any shell and
+# works the same after every rebuild, regardless of the node's runtime.
+custom_build(
     'palladium/builder',
-    context='./backend',
+    command='docker build -t $EXPECTED_REF ./backend && minikube image load $EXPECTED_REF',
+    deps=['./backend'],
+    disable_push=True,
     live_update=[
         # Paired with the local overlay's `fastapi dev` command, which reloads
         # on change. Syncing without that patch would copy files in and change
@@ -96,8 +96,18 @@ docker_build(
         run('uv sync', trigger=['./backend/pyproject.toml', './backend/uv.lock']),
     ],
 )
-docker_build('palladium/commerce', context='./commerce')
-docker_build('palladium/admin', context='./admin')
+custom_build(
+    'palladium/commerce',
+    command='docker build -t $EXPECTED_REF ./commerce && minikube image load $EXPECTED_REF',
+    deps=['./commerce'],
+    disable_push=True,
+)
+custom_build(
+    'palladium/admin',
+    command='docker build -t $EXPECTED_REF ./admin && minikube image load $EXPECTED_REF',
+    deps=['./admin'],
+    disable_push=True,
+)
 
 # Host-based routing entrypoint: 127.0.0.1:8081 → Cilium Gateway. The gateway
 # Service is created by Cilium (not this Tiltfile) and is selector-less, so

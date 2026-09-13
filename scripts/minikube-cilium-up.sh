@@ -79,12 +79,17 @@ minikube delete
 # container runtime requires CNI"), so a cold boot on 1.39+ dies at this
 # command without it.
 #
-# Docker rather than containerd because three things below and in the Tiltfile
-# all target the node's DOCKER daemon: the --docker-opt DNS fix, the build
-# verification that follows, and Tilt's docker_build, which relies on minikube
-# docker-env so images never need a registry. Under containerd that daemon
-# still exists but Kubernetes no longer reads from it, so every one of those
-# would look like it worked and the cluster would pull nothing.
+# Docker rather than containerd — in theory. On minikube v1.39.0 + this
+# --kubernetes-version, --container-runtime=docker is NOT actually honored:
+# `kubectl get nodes -o wide` shows containerd regardless, with no error or
+# warning from minikube. Left in place in case a future minikube build starts
+# honoring it again, but nothing here currently depends on it: the Tiltfile
+# builds on the HOST's docker daemon and loads into the node with `minikube
+# image load` (see the Tiltfile), rather than building inside the node's own
+# daemon — the docker-vs-containerd distinction below (the --docker-opt DNS
+# fix, the build verification that follows) predates that and is now dead
+# weight for the Tilt build path specifically, but harmless to leave: it's a
+# no-op DNS setting on a daemon nothing builds in anymore.
 #
 # --cni=false / --network-plugin=cni: hand pod networking entirely to Cilium.
 # skip-phases=addon/kube-proxy: no kube-proxy at all — Cilium's eBPF
@@ -167,12 +172,4 @@ helm upgrade --install keda kedacore/keda \
 # loaded. Waiting on the Deployment rather than the pod rides that out.
 kubectl wait --for=condition=available --timeout=300s -n keda deployment/keda-operator
 
-# Every fresh cluster is a fresh docker daemon, so this must be re-run in
-# whichever shell will run `tilt up` — a shell holding docker-env from the
-# previous instance (or none at all) makes Tilt fall back to pushing the
-# built image to Docker Hub instead of building into this daemon, which fails
-# with a confusing "push access denied" (the Tiltfile now fails fast on this
-# instead, but the fix is still the line below).
-echo "Cluster ready. Next:"
-echo "    eval \"\$(minikube docker-env)\""
-echo "    tilt up"
+echo "Cluster ready. Next: tilt up"
