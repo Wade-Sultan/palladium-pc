@@ -4,6 +4,8 @@ from functools import lru_cache
 
 import dspy
 
+from app.services.recommender.artifacts import load_artifact
+
 
 class CaseOptions(dspy.Signature):
     """
@@ -62,4 +64,4 @@ class DecideCase(dspy.Module):
 
 @lru_cache(maxsize=1)
 def load_program() -> DecideCase:
-    return DecideCase()
+    return load_artifact(DecideCase(), "decidecase")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import re
@@ -25,6 +26,7 @@ from app.schemas.chat import (
 )
 from app.services.chat_models import ChatModelConfig
 from app.services.llm import fetch_generation_cost, get_chat_model, usage_from_message
+from app.services.recommender.validation import BuildValidationError
 from app.services.resolver import resolve_build
 
 logger = logging.getLogger(__name__)
@@ -191,6 +193,9 @@ def warm_dspy_pipeline() -> None:
     from app.services.recommender.dspy_pipeline import load_all_programs
 
     load_all_programs()
+    from app.services.recommender.discussion import load_program as load_followup
+
+    load_followup()
 
     # The langgraph import chain is a second multi-second cost on a cold start,
     # and it lands on whichever request happens to arrive first. Paid here
@@ -469,6 +474,7 @@ async def extract_profile(
         games=games,
         workloads=workloads,
         notes=result.notes,
+        profile_updates=getattr(result, "profile_updates", []),
     )
 
 
@@ -538,6 +544,17 @@ def _format_build_context(
         return f"{line} (~${p['approx_price'] * quantity / 100:.0f})"
 
     parts_text = "\n".join(_line(p) for p in build["parts"])
+    # Validation's soft findings (recommender/validation.py). Handed to the
+    # model as an instruction rather than left to the card alone: a lead-in
+    # that says "fits your budget" above a card that says it doesn't is worse
+    # than either on its own.
+    caveats = build.get("caveats") or []
+    caveats_text = (
+        "\nCAVEATS (state each of these plainly in the lead-in; do not soften or "
+        "omit them):\n" + "\n".join(f"  - {c}" for c in caveats) + "\n"
+        if caveats
+        else ""
+    )
     return f"""\
 USER PROFILE:
   Primary use: {profile.primary_use}
@@ -554,7 +571,7 @@ RESOLVED BUILD: {build_key}
 
 PARTS:
 {parts_text}
-
+{caveats_text}
 Write the short lead-in message now. The BuildCard above is already shown to the user."""
 
 
@@ -1272,6 +1289,31 @@ async def _assemble_dspy_build(state: Any, db) -> dict:
     }
 
 
+async def validate_proposal(
+    build: dict,
+    profile: BuildProfile,
+    db,
+    *,
+    requirements: dict | None = None,
+    budget_usd: int | None = None,
+) -> dict:
+    from app.services.recommender.catalog_match import resolve_requirements
+    from app.services.recommender.validation import validate_build
+
+    budget = await _budget_for_async(profile, db) if budget_usd is None else budget_usd
+    if requirements is None:
+        resolved = await resolve_requirements(
+            db,
+            profile.games + profile.workloads,
+            ai_workload=profile.ai_workload,
+            workload_intensity=profile.workload_intensity,
+        )
+        requirements = resolved.to_dict()
+    return await validate_build(
+        db, build, budget_usd=budget, profile=profile, requirements=requirements
+    )
+
+
 async def _attach_reference_build(recorder: Any, ref_task: asyncio.Task) -> None:
     """Await the parallel reference-build task and record it on the DSPy session.
 
@@ -1424,7 +1466,13 @@ async def _run_dspy_build(
     request = _profile_to_build_request(
         profile, budget_usd=await _resolve_drift_scaled_budget(profile)
     )
-    recorder = BuildRecorder(request, PIPELINE_VERSION, conversation_id=conversation_id)
+    from app.services.recommender.artifacts import release_id
+
+    recorder = BuildRecorder(
+        request,
+        f"{PIPELINE_VERSION}+dspy:{release_id()}",
+        conversation_id=conversation_id,
+    )
 
     def _progress(step: str, message: str) -> None:
         progress_queue.put_nowait(
@@ -1559,6 +1607,14 @@ async def resume_build(
                 logger.warning("resumed post-case step failed: %s", state.error)
                 return None
             build = await _assemble_dspy_build(state, db)
+            build = await validate_proposal(
+                build,
+                profile,
+                db,
+                requirements=state.requirements_snapshot,
+                budget_usd=state.request.budget_usd,
+            )
+            recorder.finish(BuildSessionStatus.COMPLETED)
 
         return ResumedBuild(
             build=build,
@@ -1567,6 +1623,10 @@ async def resume_build(
             case_options={"token": token, "chosen": picked, "options": options},
             session_id=state.session_id or token,
         )
+    except BuildValidationError:
+        if recorder is not None:
+            recorder.finish(BuildSessionStatus.ERROR)
+        raise
     except Exception:
         logger.exception("resuming a paused build crashed")
         if recorder is not None:
@@ -1602,6 +1662,13 @@ async def _load_cached_reference_build(
     ):
         return conversation.reference_build_key, conversation.reference_build
     return None
+
+
+async def current_fallback(profile: BuildProfile) -> tuple[str, dict]:
+    """A freshly resolved and validated fallback, separate from the old estimate."""
+    async with AsyncSessionLocal() as db:
+        key, build = await resolve_build(profile, db)
+        return key, await validate_proposal(build, profile, db)
 
 
 async def _get_reference_build(
@@ -1646,6 +1713,11 @@ def _build_payload(build: Build, profile: BuildProfile) -> dict:
         "description": build["description"],
         "total_approx": build["total_approx"],
         "parts": build["parts"],
+        # From validation (recommender/validation.py). Carried explicitly: the
+        # card renders them and the lead-in prompt is told to say them, and a
+        # payload built without this line silently presented an over-budget
+        # fallback as if it fit.
+        "caveats": list(build.get("caveats") or []),
         "profile": profile.model_dump(),
     }
 
@@ -1697,6 +1769,42 @@ async def create_shared_build(
 
 
 # --- Public API — orchestrate the full flow -----------------------------------
+
+
+# A real build payload is a few KB. Anything past this is not one, and it
+# would go straight into the discussion prompt.
+_MAX_CLIENT_BUILD_BYTES = 64 * 1024
+
+
+async def _load_proposed_build(
+    conversation_id: str, messages: list[ChatMessage]
+) -> dict | None:
+    from sqlalchemy import select
+
+    from app.models.message import Message
+
+    # Restrict to the retained branch, so editing an earlier intake message
+    # does not accidentally reuse a proposal from the discarded future.
+    retained = {m.content for m in messages if m.role == "assistant"}
+    async with AsyncSessionLocal() as db:
+        rows = (
+            (
+                await db.execute(
+                    select(Message)
+                    .where(
+                        Message.conversation_id == uuid.UUID(conversation_id),
+                        Message.role == "assistant",
+                    )
+                    .order_by(Message.created_at.desc(), Message.id.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for row in rows:
+            if row.content in retained and row.metadata_ and row.metadata_.get("build"):
+                return row.metadata_["build"]
+    return None
 
 
 async def run_chat_turn(
@@ -1759,11 +1867,28 @@ async def run_chat_turn(
     attach_thread(thread_id)
     attach_run_metadata(is_guest=is_guest)
 
+    # Metadata supplies display context for guests as well as signed-in chats.
+    # It can only select the read-only path, never execute or persist a build.
+    # Client-supplied, so bounded: it is pasted into a prompt verbatim.
+    proposed_build = next(
+        (
+            m.build
+            for m in reversed(messages)
+            if m.role == "assistant"
+            and m.build
+            and len(json.dumps(m.build)) <= _MAX_CLIENT_BUILD_BYTES
+        ),
+        None,
+    )
+    if proposed_build is None and conversation_id:
+        proposed_build = await _load_proposed_build(conversation_id, messages)
     initial: dict = {
         "messages": [m.model_dump() for m in messages],
         "conversation_id": conversation_id,
         "session_id": thread_id,
         "usage": new_usage(),
+        "proposed_build": proposed_build,
+        "phase": "discussion" if proposed_build else "gathering",
         # Reset per turn; only `profile` and `asked_fields` are meant to carry,
         # and those are restored from the checkpoint rather than passed in.
         "next_question": None,
@@ -1776,6 +1901,7 @@ async def run_chat_turn(
         # reached the builder and finished would route to `finalize` on a stale
         # flag and never present the build it just made.
         "build_paused": False,
+        "build_rejected": False,
         "case_options": None,
     }
 
@@ -1825,12 +1951,23 @@ async def resume_chat_turn(
 
     yield {"type": "progress", "step": "resuming", "message": "Finishing your build…"}
 
-    resumed = await resume_build(
-        token,
-        case_name,
-        conversation_id=conversation_id,
-        progress_callback=_progress,
-    )
+    try:
+        resumed = await resume_build(
+            token,
+            case_name,
+            conversation_id=conversation_id,
+            progress_callback=_progress,
+        )
+    except BuildValidationError as exc:
+        yield {
+            "type": "token",
+            "text": "I couldn't verify this build: "
+            + "; ".join(exc.issues)
+            + ". Please adjust the requirements or budget and try again.",
+        }
+        yield {"type": "usage", **new_usage()}
+        yield {"type": "done"}
+        return
 
     # Drain whatever the pipeline emitted while it ran. Collected rather than
     # interleaved because resume_build is awaited as a unit; the steps left
@@ -1890,6 +2027,7 @@ def _build_payload_from_dict(build: dict, profile: BuildProfile) -> dict:
         "description": build["description"],
         "total_approx": build["total_approx"],
         "parts": build["parts"],
+        "caveats": list(build.get("caveats") or []),
         "profile": profile.model_dump(),
     }
 

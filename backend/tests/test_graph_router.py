@@ -351,3 +351,22 @@ def test_usage_accumulates_across_every_node(in_memory_graph, stub_router, monke
     assert usage["tokens_out"] == 20 + 1 + 30
     assert usage["cost_usd"] == pytest.approx(0.01 + 0.0001 + 0.02)
     assert set(usage["models"]) == {"x", "stub/router", "y"}
+
+
+# ------------------------------------------------------- the discussion phase --
+
+
+def test_a_turn_after_a_presented_build_enters_discussion_not_intake():
+    """Once a build is on screen, ordinary questions must not rebuild it. The
+    entry edge branches on the presence of that build and nothing else — a
+    complete profile alone used to send every later turn back to the builder."""
+    payload = {"label": "Custom Build", "parts": [], "total_approx": 0}
+    assert nodes.entry_stage(_state(_profile(), proposed_build=payload)) == "discuss"
+    assert nodes.entry_stage(_state(_profile(), proposed_build=None)) == "collect"
+    assert nodes.entry_stage(_state(_profile())) == "collect"
+
+
+def test_a_rejected_build_finalizes_without_presenting():
+    assert nodes.should_present({"build_rejected": True}) == "finalize"
+    assert nodes.should_present({"build_paused": True}) == "finalize"
+    assert nodes.should_present({}) == "present"

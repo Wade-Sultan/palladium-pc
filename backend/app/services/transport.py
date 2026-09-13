@@ -188,7 +188,13 @@ def to_chat_messages(messages: Any) -> list[ChatMessage]:
         role = msg.get("role")
         content = msg.get("content") or ""
         if role in ("user", "assistant") and content.strip():
-            out.append(ChatMessage(role=role, content=content))
+            out.append(
+                ChatMessage(
+                    role=role,
+                    content=content,
+                    build=msg.get("build") if role == "assistant" else None,
+                )
+            )
     return out
 
 
@@ -283,6 +289,8 @@ def _apply_event(controller: RunController, index: int, event: dict) -> bool:
         controller.state["pipeline"] = None
     elif etype == "case_options":
         _apply_case_options(controller, index, event.get("data") or {})
+    elif etype == "part":
+        controller.state["messages"][index]["part"] = event.get("data")
     return True
 
 

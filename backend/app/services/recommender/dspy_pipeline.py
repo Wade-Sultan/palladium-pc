@@ -772,6 +772,10 @@ class DSPyBuildState:
     # through fans) under one session in OpenRouter's dashboard. Set once by
     # run_pipeline and reused by run_pipeline_post_case for the fans step.
     session_id: str = ""
+    artifact_release: str = "builtin"
+    fans_artifact: dict | None = None
+    fans_schema: str | None = None
+    requirements_snapshot: dict = field(default_factory=dict)
 
     # Flattened use cases + preferences + Q&A, passed as the `use_cases`
     # input to every Decide* module. Set once by run_pipeline.
@@ -1582,6 +1586,11 @@ async def run_pipeline(
     Call run_pipeline_post_case() once the user has picked their case.
     """
     state = DSPyBuildState(request=request, progress_callback=progress_callback)
+    from app.services.recommender.artifacts import release_id, schema_hash
+
+    state.artifact_release = release_id()
+    state.fans_artifact = load_fans().dump_state()
+    state.fans_schema = schema_hash(load_fans())
     state.use_case_summary = _request_summary(request)
     # Resolve the titles the user actually named against the games / software /
     # ai_models catalogs and fold their published requirements into the summary
@@ -1589,6 +1598,7 @@ async def run_pipeline(
     # (or no API key) yields an empty result and the summary is unchanged.
     state.catalog_requirements = await _resolve_catalog_requirements(session, request)
     if state.catalog_requirements is not None:
+        state.requirements_snapshot = state.catalog_requirements.to_dict()
         summary = state.catalog_requirements.summary()
         if summary:
             state.use_case_summary = f"{state.use_case_summary}\n{summary}"
@@ -1661,9 +1671,24 @@ async def run_pipeline_post_case(
         # chipset the main step chose (deterministic; no LLM call).
         await _resolve_gpu_variant(state, session)
         with dspy.context(lm=session_lm(session_id)):
-            await _step_fans(state, session, budget, load_fans(), recorder)
-        if recorder is not None:
-            recorder.finish(BuildSessionStatus.COMPLETED)
+            from app.services.recommender.artifacts import (
+                ArtifactError,
+                _load_state,
+                check_resume,
+                schema_hash,
+            )
+
+            fans = DecideFans()
+            if state.fans_artifact is not None:
+                if schema_hash(fans) != state.fans_schema:
+                    raise ArtifactError(
+                        "The paused fan signature is incompatible with this deployment"
+                    )
+                _load_state(fans, state.fans_artifact)
+            else:
+                check_resume(state.artifact_release)
+                fans = load_fans()
+            await _step_fans(state, session, budget, fans, recorder)
     except Exception as exc:
         state.error = str(exc)
         if recorder is not None:

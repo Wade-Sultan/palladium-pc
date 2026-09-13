@@ -90,9 +90,19 @@ data:
   # tokens the router gets in production are eight for a reason — it returns a
   # single integer.
   CHAT_ROUTE_MAX_TOKENS: "1536"
-  CHAT_RECOMMEND_MAX_TOKENS: "1536"
+  # 4096, not 1536: the build lead-in now has to state validation caveats
+  # (an over-budget total, a game spec shortfall), and the model was measured
+  # spending the whole 1536 thinking about them and emitting nothing.
+  CHAT_RECOMMEND_MAX_TOKENS: "4096"
   CHAT_ELICIT_MAX_TOKENS: "1792"
-  RECOMMEND_MAX_TOKENS: "4096"
+  # The post-build Q&A answer. Production's 700 is a real answer's worth for a
+  # model that answers directly; here it is one thought process.
+  CHAT_DISCUSS_MAX_TOKENS: "4096"
+  # 8192, not 4096: the CPU step was measured being cut off at 4096 mid-thought
+  # ("LM response was truncated due to exceeding max_tokens"), which fails the
+  # whole DSPy run and hands the turn to the reference-build fallback — the
+  # same silent substitution DSPY_CHAT_TIMEOUT_S below is raised to avoid.
+  RECOMMEND_MAX_TOKENS: "8192"
 
   # --- The build timeout, raised for a local GPU --------------------------
   # Production's 180s default (chat_pipeline._DSPY_CHAT_TIMEOUT_S) is sized for
@@ -121,6 +131,16 @@ data:
   # dspy_pipeline.litellm_model rewrites it to `openai/` when the endpoint is
   # not OpenRouter — so name the bare model here.
   RECOMMEND_MODEL: "qwen3.8-27b"
+
+  # --- DSPy release pin (optional locally) -----------------------------------
+  # Same loader as prod (app/services/recommender/artifacts.py), pointed at a
+  # local path instead of gs://. Export a bundle with
+  # backend/scripts/export_dspy_release.py, copy the directory into the pod
+  # (kubectl cp) or mount it, and set the two values; the digest is optional
+  # for a local path and required for gs://. A manifest's serving_model must
+  # equal RECOMMEND_MODEL above, so export it with RECOMMEND_MODEL=qwen3.8-27b.
+  # DSPY_ARTIFACT_URI: "/app/dspy-release/manifest.json"
+  # DSPY_ARTIFACT_SHA256: ""
 
   # Parts discovery stays on OpenRouter even though chat does not. It sends
   # rasterized PDF spec sheets with a per-category JSON schema, so it needs a

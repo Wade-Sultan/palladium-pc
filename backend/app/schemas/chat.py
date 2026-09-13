@@ -19,6 +19,8 @@ NO_BUDGET_CEILING = -1
 class ChatMessage(BaseModel):
     role: str  # User or Assistant
     content: str
+    # Display context only; never accepted as a build to persist or execute.
+    build: dict[str, Any] | None = None
 
 
 class ChatRequest(BaseModel):
@@ -76,6 +78,13 @@ class ConversationDetail(BaseModel):
     # payload so a reloaded thread shows the thumb already lit, rather than
     # needing a second request per conversation.
     feedback: FeedbackOut | None = None
+
+
+class ProfileUpdate(BaseModel):
+    field: str
+    operation: Literal["set", "clear", "add", "remove"]
+    value: Any = None
+    evidence: str = Field(description="Exact quote from the latest user message")
 
 
 class BuildProfile(BaseModel):
@@ -137,6 +146,7 @@ class BuildProfile(BaseModel):
     games: list[str] = []
     workloads: list[str] = []
     notes: str = ""
+    profile_updates: list[ProfileUpdate] = Field(default_factory=list, exclude=True)
 
 
 class ChatResponse(BaseModel):

@@ -52,6 +52,7 @@ from sqlalchemy.orm import selectinload
 from app.models.ai_catalog import AIModel
 from app.models.embeddings import EmbeddedEntity
 from app.models.games_catalog import Game, RequirementTier
+from app.models.pcparts import CPU, GPU, GPUChipset
 from app.models.software_catalog import Software
 from app.services.embeddings import store
 
@@ -140,6 +141,7 @@ class CatalogRequirements:
 
     # One line per match, for the prompt.
     notes: list[str] = field(default_factory=list)
+    game_requirements: list[dict] = field(default_factory=list)
 
     def _raise_floor(self, attr: str, value: int | None) -> None:
         if value is None:
@@ -228,6 +230,7 @@ class CatalogRequirements:
         makes two equal requirement snapshots compare equal as stored JSON.
         """
         return {
+            "game_requirements": self.game_requirements,
             "matched_names": list(self.matched_names),
             "unmatched_terms": list(self.unmatched_terms),
             "min_vram_gb": self.min_vram_gb,
@@ -266,21 +269,60 @@ async def _apply_game(
 
     # Prefer the recommended tier over minimum: a user naming a game wants to
     # play it well, and "minimum" describes the spec at which it launches.
-    by_tier = {p.tier: p for p in game.minimum_parts}
-    part = by_tier.get(RequirementTier.RECOMMENDED.value) or by_tier.get(
-        RequirementTier.MINIMUM.value
-    )
-    if part is not None:
-        req._raise_floor("min_ram_gb", part.min_ram_gb)
-        tier_label = part.tier
-        detail = f"{game.title}: {tier_label} spec"
-        if part.published_name:
-            detail += f" calls for {part.published_name}"
-        if part.min_ram_gb:
-            detail += f", {part.min_ram_gb}GB RAM"
-        req.notes.append(detail)
-    else:
+    if not game.minimum_parts:
         req.notes.append(f"{game.title}: no published part requirements on file")
+    for role in ("cpu", "gpu"):
+        rows = [p for p in game.minimum_parts if getattr(p, "role", role) == role]
+        preferred = [p for p in rows if p.tier == RequirementTier.RECOMMENDED.value]
+        chosen = preferred or [
+            p for p in rows if p.tier == RequirementTier.MINIMUM.value
+        ]
+        alternatives = []
+        for part in chosen:
+            req._raise_floor("min_ram_gb", part.min_ram_gb)
+            hardware = None
+            if role == "cpu" and getattr(part, "part_id", None):
+                hardware = await db.get(CPU, part.part_id)
+            elif role == "gpu":
+                chipset_id = getattr(part, "gpu_chipset_id", None)
+                if not chipset_id and getattr(part, "part_id", None):
+                    board = await db.get(GPU, part.part_id)
+                    chipset_id = board.gpu_chipset_id if board is not None else None
+                if chipset_id:
+                    hardware = await db.get(GPUChipset, chipset_id)
+            alternatives.append(
+                {
+                    "name": part.published_name
+                    or (hardware.name if hardware is not None else "Unspecified"),
+                    "benchmark_scores": (hardware.benchmark_scores or {})
+                    if hardware is not None
+                    else {},
+                    "vram_gb": getattr(hardware, "vram_gb", None),
+                }
+            )
+        if alternatives:
+            req.game_requirements.append(
+                {
+                    "game": game.title,
+                    "role": role,
+                    "tier": chosen[0].tier,
+                    "alternatives": alternatives,
+                }
+            )
+            req.notes.append(
+                f"{game.title}: {chosen[0].tier} {role}: "
+                + " OR ".join(a["name"] for a in alternatives)
+                + ". Published requirements are not a measured FPS guarantee."
+            )
+            # Deliberately NOT raising min_vram_gb from the published GPU. The
+            # VRAM floor is a hard requirement in validation (a model that does
+            # not fit does not run), whereas a game's recommended GPU is a
+            # publisher's claim about an unstated resolution and frame rate —
+            # the benchmark comparison in validation.check_game_requirements
+            # already turns a shortfall into a caveat, and a hard VRAM floor
+            # from the same row would reject what that check only warns about.
+    if game.requirements_notes:
+        req.notes.append(f"{game.title}: {game.requirements_notes}")
 
 
 async def _apply_software(

@@ -43,6 +43,11 @@ dependencies = [
     # asyncio RedisCluster, which Memorystore for Valkey requires.
     "redis>=5.0",
     "google-cloud-pubsub>=2.21",
+    # Imported directly by app/services/recommender/artifacts.py to fetch a
+    # pinned DSPy release from GCS. It already arrived transitively through
+    # firebase-admin; declared here so that dependency's next release cannot
+    # silently drop it.
+    "google-cloud-storage>=3.0",
     # Chat turn harness. langgraph-checkpoint carries BaseCheckpointSaver and
     # JsonPlusSerializer, which app/services/graph/checkpoint.py implements
     # against directly — langgraph-checkpoint-redis is deliberately NOT here,

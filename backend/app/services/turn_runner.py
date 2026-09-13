@@ -173,6 +173,7 @@ def save_turn(
     graph_checkpoint_id: str | None = None,
     rewound: bool = False,
     case_options_data: dict | None = None,
+    part_data: dict | None = None,
 ) -> bool:
     """Persist this chat turn. Runs in a thread executor (sync SQLAlchemy).
 
@@ -318,12 +319,14 @@ def save_turn(
             opening_picker = (
                 case_options_data if _is_open_picker(case_options_data) else None
             )
-            if is_this_turns_reply and (build_data or opening_picker):
+            if is_this_turns_reply and (build_data or opening_picker or part_data):
                 metadata = {}
                 if build_data:
                     metadata["build"] = build_data
                 if opening_picker:
                     metadata["case_options"] = opening_picker
+                if part_data:
+                    metadata["part"] = part_data
             db.add(
                 Message(
                     conversation_id=conv_uuid,
@@ -489,6 +492,7 @@ async def _run_turn(
     # Last case_options event wins: the closing emit (chosen set) overwrites
     # the opening one, so what gets persisted is the resolved picker.
     case_options_data: dict | None = None
+    part_data: dict | None = None
 
     events = (
         resume_chat_turn(case_pick[0], case_pick[1], conversation_id=conversation_id)
@@ -503,6 +507,8 @@ async def _run_turn(
                 assistant_text += event.get("text", "")
             elif etype == "case_options":
                 case_options_data = event.get("data")
+            elif etype == "part":
+                part_data = event.get("data")
             elif etype == "build":
                 # The recommend path emitted a build — this conversation is a completed build.
                 reached_recommendation = True
@@ -564,6 +570,7 @@ async def _run_turn(
                 "graph_checkpoint": graph_checkpoint,
                 "graph_checkpoint_id": graph_checkpoint_id,
                 "case_options_data": case_options_data,
+                "part_data": part_data,
             },
         )
 
@@ -585,6 +592,7 @@ async def _run_turn(
                 graph_checkpoint_id,
                 rewound,
                 case_options_data,
+                part_data,
             ),
         )
 

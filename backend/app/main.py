@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager, suppress
 
 import sentry_sdk
@@ -45,10 +46,10 @@ async def _warm_dspy_pipeline() -> None:
         logger.exception(
             "DSPy warm-up failed; it will be configured lazily on first /chat request instead."
         )
-    finally:
-        # Flip readiness either way — see mark_dspy_warm's docstring for why a
-        # failed warm-up must not pin the pod out of the Service forever.
-        mark_dspy_warm()
+        if os.getenv("DSPY_ARTIFACT_URI"):
+            # A pinned, invalid release must never silently serve baseline prompts.
+            return
+    mark_dspy_warm()
 
 
 @asynccontextmanager

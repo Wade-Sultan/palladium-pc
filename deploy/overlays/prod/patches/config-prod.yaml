@@ -78,6 +78,33 @@ data:
   # Comfortably above _DSPY_CHAT_TIMEOUT_S (180s) so a slow-but-healthy build is
   # never redelivered underneath itself.
   PUBSUB_ACK_EXTENSION_S: "600"
+
+  # --- DSPy release pin ------------------------------------------------------
+  # Both unset means the builtin prompts (the Decide* signatures as written in
+  # app/services/recommender/components). To serve a GEPA-optimized release:
+  #
+  #   1. backend/scripts/export_dspy_release.py export ... writes a directory
+  #      of module JSON plus manifest.json and prints the manifest digest.
+  #   2. Copy that directory, unchanged, to an immutable path in the releases
+  #      bucket: gs://<bucket>/dspy-releases/<release-name>/. One directory
+  #      per release, never overwritten — rollback is repointing, not
+  #      re-uploading.
+  #   3. Set BOTH values below and roll. The pod fetches the manifest at
+  #      startup, verifies the digest, every module's hash and signature
+  #      shape, and the serving model, and refuses readiness on any mismatch
+  #      (app/main.py) — a pinned release that cannot be loaded is never
+  #      silently replaced by the builtin prompts.
+  #
+  # The builder's GSA (palladium-backend, see workload-identity.yaml) needs
+  # roles/storage.objectViewer on the bucket. Uploads are done by a person or
+  # the training pipeline under a different principal; the runtime never
+  # writes here.
+  #
+  # serving_model in the manifest must equal RECOMMEND_MODEL, so a release
+  # evaluated against one model is never served by another.
+  #
+  # DSPY_ARTIFACT_URI: "gs://<bucket>/dspy-releases/2026-09-12/manifest.json"
+  # DSPY_ARTIFACT_SHA256: "<digest printed by export>"
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import dspy
 
+from app.services.recommender.artifacts import load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "decidegpu.json"
@@ -154,10 +155,7 @@ class DecideGPU(dspy.Module):
 
 @lru_cache(maxsize=1)
 def load_program() -> DecideGPU:
-    module = DecideGPU()
-    if WEIGHTS_PATH.exists():
-        module.load(str(WEIGHTS_PATH))
-    return module
+    return load_artifact(DecideGPU(), "decidegpu")
 
 
 def optimize(

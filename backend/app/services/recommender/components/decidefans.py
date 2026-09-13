@@ -4,6 +4,8 @@ from functools import lru_cache
 
 import dspy
 
+from app.services.recommender.artifacts import load_artifact
+
 
 class FanSelection(dspy.Signature):
     """
@@ -88,4 +90,4 @@ class DecideFans(dspy.Module):
 
 @lru_cache(maxsize=1)
 def load_program() -> DecideFans:
-    return DecideFans()
+    return load_artifact(DecideFans(), "decidefans")

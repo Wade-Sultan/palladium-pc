@@ -7,7 +7,7 @@ import type {
 import { unstable_createMessageConverter as createMessageConverter } from "@assistant-ui/react"
 import type { ReadonlyJSONValue } from "assistant-stream/utils"
 
-import type { BuildData, CaseOptionsData } from "@/types/build"
+import type { BuildData, CaseOptionsData, PartData } from "@/types/build"
 import { stepMessage } from "./pipeline-steps"
 
 /**
@@ -31,6 +31,7 @@ export interface ChatMessageState {
   build?: BuildData | null
   /** The mid-build case picker, on the turn that asked. See types/build.ts. */
   case_options?: CaseOptionsData | null
+  part?: PartData | null
 }
 
 export interface ChatAgentState {
@@ -79,7 +80,7 @@ const messageConverter = createMessageConverter<ChatMessageState>(
   (message): ThreadMessageLike & { convertConfig: typeof NEVER_JOIN } => {
     if (
       message.role !== "assistant" ||
-      (!message.build && !message.case_options)
+      (!message.build && !message.case_options && !message.part)
     ) {
       return {
         role: message.role,
@@ -93,6 +94,7 @@ const messageConverter = createMessageConverter<ChatMessageState>(
     const parts: (
       | DataMessagePart<CaseOptionsData>
       | DataMessagePart<BuildData>
+      | DataMessagePart<PartData>
     )[] = []
     if (message.case_options) {
       parts.push({
@@ -104,6 +106,8 @@ const messageConverter = createMessageConverter<ChatMessageState>(
     if (message.build) {
       parts.push({ type: "data", name: "build", data: message.build })
     }
+    if (message.part)
+      parts.push({ type: "data", name: "part", data: message.part })
     return {
       role: "assistant",
       content: [{ type: "text", text: message.content }, ...parts],

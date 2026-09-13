@@ -250,6 +250,13 @@ export const BuildCard: DataMessagePartComponent<BuildData> = (props) => {
             </Badge>
           </div>
           <CardDescription>{data.description}</CardDescription>
+          {data.caveats && data.caveats.length > 0 && (
+            <ul className="mt-1 list-disc space-y-0.5 pl-4 text-amber-700 text-sm dark:text-amber-400">
+              {data.caveats.map((caveat) => (
+                <li key={caveat}>{caveat}</li>
+              ))}
+            </ul>
+          )}
           {/* Above the parts list, not in the footer: the disclosure has to be
               readable before the first buy button, not after it. See
               AffiliateDisclosure for the rule this satisfies. */}

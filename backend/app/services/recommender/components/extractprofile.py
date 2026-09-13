@@ -4,6 +4,8 @@ from pathlib import Path
 
 import dspy
 
+from app.schemas.chat import ProfileUpdate
+from app.services.recommender.artifacts import load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "extractprofile.json"
@@ -14,6 +16,15 @@ class ProfileExtraction(dspy.Signature):
     Extract a structured intent profile from a PC build consultation conversation.
 
     Infer the user's actual needs rather than echoing their words literally.
+    Also report explicit changes in the LATEST USER message as profile_updates.
+    Use set for a changed scalar, clear for a retracted preference or budget,
+    and add/remove for individual games and workloads. Include an exact quote
+    from that message as evidence. Do not turn assistant suggestions into user
+    preferences. For "no case size preference anymore", clear form_factor.
+    For "I no longer play Game A", remove Game A from games. An omitted field
+    is not a retraction. If a numeric budget replaces an unlimited budget, set
+    both stated_budget_usd and budget_tier. If money is no longer a constraint,
+    clear stated_budget_usd and set budget_tier to custom.
     Pick the most demanding use case when multiple are mentioned.
     Infer budget tier from context clues even when no dollar figure is given.
     Every use-case-specific field must be 'none' (or empty, for rendering_software)
@@ -170,6 +181,10 @@ class ProfileExtraction(dspy.Signature):
         desc="Any remaining constraints or preferences not captured above, or empty string"
     )
 
+    profile_updates: list[ProfileUpdate] = dspy.OutputField(
+        desc="Explicit set/clear/add/remove operations grounded in the latest user message; [] if none"
+    )
+
 
 class ExtractProfile(dspy.Module):
     def __init__(self) -> None:
@@ -180,11 +195,7 @@ class ExtractProfile(dspy.Module):
 
 
 def load_program() -> ExtractProfile:
-    """Load saved weights if available, otherwise return a fresh module."""
-    module = ExtractProfile()
-    if WEIGHTS_PATH.exists():
-        module.load(str(WEIGHTS_PATH))
-    return module
+    return load_artifact(ExtractProfile(), "extractprofile")
 
 
 def optimize(

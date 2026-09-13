@@ -12,7 +12,13 @@ from app.models.reference_build import ReferenceBuild, ReferenceBuildPart
 # (gpu_chipset_id, psu_group_id, ...) are present for resolve_part_price_cents.
 # A plain joinedload of the polymorphic base leaves them unloaded, and reading
 # one would be an async-unsafe lazy load.
-_PART_POLY = with_polymorphic(PCPart, "*")
+#
+# flat=True is required, not cosmetic: this alias is only ever used inside a
+# joinedload chain (market_drift_factor), and SQLAlchemy refuses to joined-load
+# a non-flat with_polymorphic ("Detected unaliased columns when generating
+# joined load"). Without it every drift measurement failed, was logged, and
+# silently left the budget ladder unscaled.
+_PART_POLY = with_polymorphic(PCPart, "*", flat=True)
 
 logger = logging.getLogger(__name__)
 

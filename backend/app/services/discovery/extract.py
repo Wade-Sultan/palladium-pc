@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from functools import lru_cache
+from functools import cache
 from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, create_model
@@ -446,7 +446,7 @@ CATEGORY_SCHEMAS: dict[str, type[BaseModel]] = {
 }
 
 
-@lru_cache(maxsize=None)
+@cache
 def _confirmed_schema(category: str) -> type[BaseModel]:
     """Wraps a category's schema with confirmation_status once per category —
     create_model() rebuilds pydantic's core schema, which is wasteful to redo

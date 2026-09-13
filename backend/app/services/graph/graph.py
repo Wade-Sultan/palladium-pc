@@ -54,8 +54,12 @@ def build_graph() -> StateGraph:
     builder.add_node("build", nodes.build)
     builder.add_node("present", nodes.present)
     builder.add_node("finalize", nodes.finalize)
+    builder.add_node("discuss", nodes.discuss)
 
-    builder.add_edge(START, "collect")
+    builder.add_conditional_edges(
+        START, nodes.entry_stage, {"collect": "collect", "discuss": "discuss"}
+    )
+    builder.add_edge("discuss", "finalize")
     builder.add_edge("collect", "route")
     builder.add_conditional_edges(
         "route", nodes.should_build, {"ask": "ask", "build": "build"}

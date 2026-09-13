@@ -21,10 +21,11 @@ import { toast } from "sonner"
 
 import { BuildCard } from "@/components/assistant-ui/build-card"
 import { CaseOptionsCard } from "@/components/assistant-ui/case-card"
+import { PartCard } from "@/components/assistant-ui/part-card"
 import { getAccessToken } from "@/hooks/useAuth"
 import { usePipelineStatusStore } from "@/hooks/usePipelineStatus"
 import type { FeedbackRating } from "@/lib/feedback"
-import type { BuildData, CaseOptionsData } from "@/types/build"
+import type { BuildData, CaseOptionsData, PartData } from "@/types/build"
 import {
   type ChatAgentState,
   commandsToMessages,
@@ -35,6 +36,7 @@ import {
 import { type AgentTransition, diffAgentState } from "./transitions"
 
 const BuildDataUI = makeAssistantDataUI({ name: "build", render: BuildCard })
+const PartDataUI = makeAssistantDataUI({ name: "part", render: PartCard })
 const CaseOptionsUI = makeAssistantDataUI({
   name: "case_options",
   render: CaseOptionsCard,
@@ -158,7 +160,11 @@ function ConversationLoader({
             role: string
             content: string | null
             created_at: string
-            metadata?: { build?: BuildData; case_options?: CaseOptionsData }
+            metadata?: {
+              build?: BuildData
+              case_options?: CaseOptionsData
+              part?: PartData
+            }
           }>
         ).filter((m) => m.role === "user" || m.role === "assistant")
 
@@ -178,6 +184,7 @@ function ConversationLoader({
               role: m.role as "user" | "assistant",
               content: m.content ?? "",
               build: m.metadata?.build ?? null,
+              part: m.metadata?.part ?? null,
               // Persisted with `chosen` always set (see save_turn), so history
               // renders a locked picker, never one still soliciting a click.
               case_options: m.metadata?.case_options ?? null,
@@ -328,6 +335,7 @@ function ChatRuntimeMount({
     <ChatConversationContext.Provider value={conversation}>
       <AssistantRuntimeProvider runtime={runtime}>
         <BuildDataUI />
+        <PartDataUI />
         <CaseOptionsUI />
         <AgentStateSync />
         {children}

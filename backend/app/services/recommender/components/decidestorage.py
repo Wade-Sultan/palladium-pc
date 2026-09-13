@@ -5,6 +5,7 @@ from pathlib import Path
 
 import dspy
 
+from app.services.recommender.artifacts import load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "decidestorage.json"
@@ -92,10 +93,7 @@ class DecideStorage(dspy.Module):
 
 @lru_cache(maxsize=1)
 def load_program() -> DecideStorage:
-    module = DecideStorage()
-    if WEIGHTS_PATH.exists():
-        module.load(str(WEIGHTS_PATH))
-    return module
+    return load_artifact(DecideStorage(), "decidestorage")
 
 
 def optimize(

@@ -6,6 +6,13 @@
  * backend/app/services/transport.py) and is rendered straight from the message
  * it hangs off. Nothing accumulates it on the client.
  */
+export interface PartData {
+  part_id: string
+  model: string
+  brand: string
+  component: string
+}
+
 export interface RecommendedPart {
   component: string
   brand: string
@@ -39,6 +46,13 @@ export interface BuildData {
    * generated before the feature (and when the snapshot write failed).
    */
   share_token?: string | null
+  /**
+   * Constraints the finished build misses, from the backend's acceptance
+   * check (recommender/validation.py): over the stated budget, or below a
+   * named game's published spec. Shown on the card so the number in the
+   * badge is never the whole story. Absent on builds made before the check.
+   */
+  caveats?: string[]
 }
 
 /**

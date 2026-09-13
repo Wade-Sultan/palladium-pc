@@ -1,0 +1,12 @@
+# Tilt watches every path under a custom_build's deps (./backend, ./commerce,
+# ...). Local tooling writes into these without changing what ships, and each
+# write was rebuilding the image and replacing the pod — which also kills any
+# job exec'd into it. `uv run` alone re-installs the project into .venv.
+backend/.venv
+backend/.ruff_cache
+backend/.pytest_cache
+backend/.mypy_cache
+backend/htmlcov
+backend/.coverage
+**/__pycache__
+**/*.pyc

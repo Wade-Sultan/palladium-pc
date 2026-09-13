@@ -56,17 +56,25 @@ _PART_POLY = with_polymorphic(PCPart, "*")
 
 async def get_part_by_name(db: AsyncSession, name: str) -> PCPart | None:
     """Case-insensitive lookup on the polymorphic base — any part type. Subclass
-    columns (incl. the group FKs) are eager-loaded for resolve_part_price_cents."""
+    columns (incl. the group FKs) are eager-loaded for resolve_part_price_cents.
+
+    Skips a pc_parts row that has no row in its subclass table. The
+    polymorphic load outer-joins the subclass table, and on such a row the
+    subclass's null primary key wins the shared `id` attribute — so the
+    instance comes back with `id is None`, no specs and no price. The local
+    catalog holds several duplicate-named parts where one copy is exactly
+    that, and `.limit(1)` was handing the DSPy assembler the orphan.
+    """
     stmt = (
         select(_PART_POLY)
         .where(
             func.lower(_PART_POLY.name) == name.lower(),
             _PART_POLY.is_active == True,  # noqa: E712
         )
-        .limit(1)
+        .limit(5)
     )
     result = await db.execute(stmt)
-    return result.scalars().first()
+    return next((p for p in result.scalars().all() if p.id is not None), None)
 
 
 async def get_part_by_id(db: AsyncSession, part_id: uuid.UUID) -> PCPart | None:

@@ -37,6 +37,10 @@ class ChatModelConfig:
     ROUTE_MAX_TOKENS: int = int(os.getenv("CHAT_ROUTE_MAX_TOKENS", "8"))
     RECOMMEND_MAX_TOKENS: int = int(os.getenv("CHAT_RECOMMEND_MAX_TOKENS", "128"))
     ELICIT_MAX_TOKENS: int = int(os.getenv("CHAT_ELICIT_MAX_TOKENS", "256"))
+    # The post-build Q&A answer (recommender/discussion.py). Larger than the
+    # lead-in because it answers a question rather than introducing a card,
+    # and it needs the same raise as the others under a reasoning model.
+    DISCUSS_MAX_TOKENS: int = int(os.getenv("CHAT_DISCUSS_MAX_TOKENS", "700"))
 
     @classmethod
     def get_extract_model(cls) -> str:

@@ -31,6 +31,10 @@ class ChatTurnState(TypedDict, total=False):
     # -- accumulated across turns -----------------------------------------
     profile: dict[str, Any] | None
     asked_fields: Annotated[list[str], operator.add]
+    profile_sources: dict[str, Any]
+    profile_operations: list[dict[str, Any]]
+    phase: str
+    proposed_build: dict[str, Any] | None
 
     # -- per-turn scratch --------------------------------------------------
     missing_fields: list[str]
@@ -49,6 +53,7 @@ class ChatTurnState(TypedDict, total=False):
     # the pick starts a fresh turn that resumes the pipeline. This is the value
     # the edge out of `build` branches on.
     build_paused: bool
+    build_rejected: bool
     # The picker shown by a paused turn, persisted onto the assistant message
     # so a reload rebuilds it. Shaped like the case_options event's data.
     case_options: dict[str, Any] | None
@@ -85,6 +90,9 @@ _STICKY_FIELDS = (
     "color_theme",
     "rgb_lighting",
     "noise_tolerance",
+    "stated_budget_usd",
+    "llm_quantization",
+    "llm_context_tokens",
 )
 
 
@@ -108,7 +116,22 @@ def merge_profile(
 
     merged = dict(current)
 
+    changed_use = current.get("primary_use") not in (
+        None,
+        "unknown",
+        previous.get("primary_use"),
+    )
+    shared = {
+        "stated_budget_usd",
+        "price_sensitivity",
+        "form_factor",
+        "color_theme",
+        "rgb_lighting",
+        "noise_tolerance",
+    }
     for field in _STICKY_FIELDS:
+        if changed_use and field not in shared:
+            continue
         if merged.get(field) is None and previous.get(field) is not None:
             merged[field] = previous[field]
 
@@ -132,3 +155,87 @@ def merge_profile(
         merged["notes"] = previous["notes"]
 
     return merged
+
+
+def apply_profile_updates(
+    profile: dict, updates: list, user_text: str
+) -> tuple[dict, list[dict]]:
+    """Apply only explicit, quoted user changes; leave omissions alone.
+
+    Returns the updated profile and the operations that were actually applied,
+    in order. Every applied operation is returned, not the last one per field:
+    "I no longer play A or B" is two removes on `games`, and dropping the first
+    would let merge_profile's accumulation resurrect A on the next turn.
+    """
+    from app.schemas.chat import BuildProfile
+
+    result = dict(profile)
+    applied: list[dict] = []
+    for update in updates:
+        field = update.field
+        quote = update.evidence.strip()
+        if field not in BuildProfile.model_fields or field == "profile_updates":
+            continue
+        if not quote or quote.casefold() not in user_text.casefold():
+            continue
+        value = update.value
+        if update.operation == "clear":
+            value = (
+                "unknown"
+                if field in ("primary_use", "budget_tier")
+                else []
+                if field in ("games", "workloads")
+                else ""
+                if field == "notes"
+                else None
+            )
+        elif update.operation in ("add", "remove"):
+            if field not in ("games", "workloads") or not isinstance(value, str):
+                continue
+            old = list(result.get(field) or [])
+            value = (
+                [item for item in old if item.casefold() != value.casefold()]
+                if update.operation == "remove"
+                else old
+                + (
+                    [value]
+                    if value.casefold() not in {item.casefold() for item in old}
+                    else []
+                )
+            )
+        try:
+            candidate = BuildProfile(**{**result, field: value}).model_dump()
+        except ValueError:
+            continue
+        result = candidate
+        applied.append(
+            {
+                "field": field,
+                "operation": update.operation,
+                "value": update.value,
+                "evidence": quote,
+            }
+        )
+    return result, applied
+
+
+def replay_retractions(profile: dict, history: list[dict]) -> dict:
+    """Re-apply every recorded clear/remove, in order, over a merged profile.
+
+    Only retractions are replayed. merge_profile already carries values
+    forward, so a recorded set/add has nothing to add — and replaying one
+    would let a stale "set budget 2000" from turn 1 overwrite a fresh 3000
+    the extractor found this turn but did not report as an operation. A
+    retraction is the one thing accumulation cannot represent, so it is the
+    one thing that has to be said again each turn.
+    """
+    from app.schemas.chat import ProfileUpdate
+
+    for old in history:
+        if old.get("operation") not in ("clear", "remove"):
+            continue
+        operation = ProfileUpdate(
+            **{k: v for k, v in old.items() if k != "message_index"}
+        )
+        profile, _ = apply_profile_updates(profile, [operation], operation.evidence)
+    return profile

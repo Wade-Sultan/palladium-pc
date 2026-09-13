@@ -534,3 +534,49 @@ def test_the_browser_rebuilds_exactly_what_the_server_holds(monkeypatch):
     # The history the client round-trips next turn must be intact, or the
     # elicitation model answers without seeing what was asked of it.
     assert len(transport.messages_from_state(rebuilt)) == 4
+
+
+# --------------------------------------------------------------- part cards --
+
+
+def test_a_part_card_lands_on_the_streaming_message(monkeypatch):
+    """The post-build lookup's card hangs off the reply that showed it, like a
+    build does — and only that reply. The proposed build stays where it was."""
+    state = _drive(
+        monkeypatch,
+        {"type": "build", "key": "custom_dspy", "data": {"label": "Custom Build"}},
+        {"type": "token", "text": "Here it is."},
+    )
+    build_index = len(state["messages"]) - 1
+
+    part = {
+        "part_id": "p-1",
+        "model": "RTX 5070 Ti",
+        "brand": "ASUS",
+        "component": "gpu",
+    }
+    state = _drive(
+        monkeypatch,
+        {"type": "part", "data": part},
+        {"type": "token", "text": "Here's that card for reference."},
+        state=state,
+        pending=transport.command_messages([_user_command("show me a 5070 Ti")]),
+    )
+
+    assert state["messages"][-1]["part"] == part
+    assert state["messages"][-1]["build"] is None
+    assert state["messages"][build_index]["build"] == {"label": "Custom Build"}
+
+
+def test_an_assistant_message_keeps_its_build_on_the_way_back_in():
+    """The client round-trips the build it was shown, and that metadata is what
+    lets a guest's next question enter the discussion phase. User messages
+    never carry one, whatever the client sends."""
+    out = transport.to_chat_messages(
+        [
+            {"role": "user", "content": "build me a pc", "build": {"label": "x"}},
+            {"role": "assistant", "content": "Here it is.", "build": {"label": "x"}},
+        ]
+    )
+    assert out[0].build is None
+    assert out[1].build == {"label": "x"}

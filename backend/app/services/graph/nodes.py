@@ -22,10 +22,34 @@ from langgraph.config import get_stream_writer
 from app.schemas.chat import BuildProfile
 from app.services import chat_pipeline as cp
 from app.services.chat_models import ChatModelConfig
-from app.services.graph.state import ChatTurnState, merge_profile, new_usage
+from app.services.graph.state import (
+    ChatTurnState,
+    apply_profile_updates,
+    merge_profile,
+    new_usage,
+    replay_retractions,
+)
 from app.services.llm import get_chat_model, usage_from_message
 
 logger = logging.getLogger(__name__)
+
+
+def entry_stage(state: ChatTurnState) -> str:
+    return "discuss" if state.get("proposed_build") else "collect"
+
+
+async def discuss(state: ChatTurnState) -> dict[str, Any]:
+    from app.services.recommender.discussion import discuss as stream_discussion
+
+    usage = new_usage()
+    async for event in stream_discussion(
+        _messages_of(state), state["proposed_build"], state.get("session_id")
+    ):
+        if event["type"] == "usage":
+            usage = {k: v for k, v in event.items() if k != "type"}
+        else:
+            get_stream_writer()(event)
+    return {"usage": usage, "phase": "discussion"}
 
 
 def _profile_of(state: ChatTurnState) -> BuildProfile:
@@ -59,7 +83,26 @@ async def collect(state: ChatTurnState) -> dict[str, Any]:
     cp._merge_usage(usage, sink)
 
     merged = merge_profile(state.get("profile"), profile.model_dump())
-    return {"profile": merged, "usage": usage}
+
+    history = state.get("profile_operations") or []
+    # Explicit past retractions remain authoritative when full-history extraction
+    # rediscovers the old words. This turn's operations are applied after the
+    # replay, so a later explicit set/add still supersedes an old retraction.
+    merged = replay_retractions(merged, history)
+    messages = _messages_of(state)
+    last_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
+    merged, applied = apply_profile_updates(merged, profile.profile_updates, last_user)
+    last_index = max((i for i, m in enumerate(messages) if m.role == "user"), default=0)
+    applied = [{**op, "message_index": last_index} for op in applied]
+    return {
+        "profile": merged,
+        "profile_operations": history + applied,
+        "profile_sources": {
+            **(state.get("profile_sources") or {}),
+            **{op["field"]: op for op in applied},
+        },
+        "usage": usage,
+    }
 
 
 # --- route --------------------------------------------------------------------
@@ -326,9 +369,23 @@ async def build(state: ChatTurnState) -> dict[str, Any]:
                 "reference build task errored (already recorded/ignored)", exc_info=True
             )
     else:
-        build_key, built, rcached = await ref_task
-        if not rcached:
-            ref_key, ref_data = build_key, cp._build_payload(built, profile)
+        # Reap the historical estimate, but never present it as today's fallback.
+        try:
+            await ref_task
+        except Exception:
+            logger.debug("Historical estimate unavailable", exc_info=True)
+        try:
+            build_key, built = await cp.current_fallback(profile)
+        except cp.BuildValidationError as exc:
+            writer(
+                {
+                    "type": "token",
+                    "text": "I couldn't verify a complete build for these requirements: "
+                    + "; ".join(exc.issues)
+                    + ". Please adjust the requirements or budget and try again.",
+                }
+            )
+            return {"build_rejected": True, "build_data": None}
 
     if ref_key is not None:
         writer({"type": "reference_estimate", "key": ref_key, "data": ref_data})
@@ -355,6 +412,8 @@ async def build(state: ChatTurnState) -> dict[str, Any]:
         "ref_estimate_key": ref_key,
         "ref_estimate_data": ref_data,
         "build_paused": False,
+        "proposed_build": payload,
+        "phase": "discussion",
     }
 
 
@@ -414,7 +473,11 @@ async def _pause_for_case(
 
 def should_present(state: ChatTurnState) -> str:
     """Conditional edge out of `build`. A paused turn has no build to introduce."""
-    return "finalize" if state.get("build_paused") else "present"
+    return (
+        "finalize"
+        if state.get("build_paused") or state.get("build_rejected")
+        else "present"
+    )
 
 
 # --- present ------------------------------------------------------------------
