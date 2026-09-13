@@ -97,7 +97,7 @@ minikube delete
 # address information: Try again" on a different package every run. Public
 # resolvers are reachable from the build netns; stored in the profile, so this
 # survives `minikube stop && minikube start`.
-minikube start --driver=docker --cpus=6 --memory=16g \
+minikube start --driver=docker --cpus=4 --memory=12g \
   --kubernetes-version=v1.33.0 \
   --addons=metrics-server \
   --container-runtime=docker \
@@ -167,4 +167,12 @@ helm upgrade --install keda kedacore/keda \
 # loaded. Waiting on the Deployment rather than the pod rides that out.
 kubectl wait --for=condition=available --timeout=300s -n keda deployment/keda-operator
 
-echo "Cluster ready. Next: tilt up"
+# Every fresh cluster is a fresh docker daemon, so this must be re-run in
+# whichever shell will run `tilt up` — a shell holding docker-env from the
+# previous instance (or none at all) makes Tilt fall back to pushing the
+# built image to Docker Hub instead of building into this daemon, which fails
+# with a confusing "push access denied" (the Tiltfile now fails fast on this
+# instead, but the fix is still the line below).
+echo "Cluster ready. Next:"
+echo "    eval \"\$(minikube docker-env)\""
+echo "    tilt up"

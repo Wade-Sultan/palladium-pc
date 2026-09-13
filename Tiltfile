@@ -13,6 +13,19 @@
 # at — including prod.
 allow_k8s_contexts('minikube')
 
+# docker_build below needs THIS shell's docker client pointed at minikube's
+# inner daemon (see scripts/minikube-cilium-up.sh on why the driver is docker,
+# not containerd). Skipping that step doesn't fail loudly here — Tilt just
+# falls back to pushing the built image to Docker Hub under its bare name,
+# which dies minutes later with a confusing "push access denied" from a
+# repository that was never meant to exist. Catch the actual cause up front.
+# Needed again every time after `minikube delete` / minikube-cilium-up.sh,
+# since that's a fresh docker daemon each time.
+if not os.environ.get('DOCKER_HOST'):
+    fail('DOCKER_HOST is not set — this shell is not pointed at minikube\'s ' +
+         'docker daemon. Run:\n\n    eval "$(minikube docker-env)"\n\n' +
+         'in this terminal, then re-run tilt up.')
+
 # The ADC secret can't come from secretGenerator: kustomize won't read files
 # above the kustomization root without --load-restrictor LoadRestrictionsNone.
 # Created here instead so a cold `minikube delete && tilt up` still works.
