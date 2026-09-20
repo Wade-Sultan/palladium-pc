@@ -91,7 +91,10 @@ class GPUSelection(dspy.Signature):
     )
     candidates: str = dspy.InputField(
         desc="JSON list of GPU chipsets with the chipset's street price. Fields: "
-        "chipset, brand, vram_gb, tdp_w, street_price_usd, used_market_viable"
+        "chipset, brand, vram_gb, tdp_w, has_ray_tracing, street_price_usd, "
+        "perf_score, performance_headroom, meets_performance_profile, and "
+        "profile_shortfalls. Prefer a verified profile fit; null means the "
+        "catalog lacks enough benchmark data to verify that candidate."
     )
 
     gpu_chipset: str = dspy.OutputField(

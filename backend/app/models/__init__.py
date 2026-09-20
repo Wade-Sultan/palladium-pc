@@ -14,7 +14,12 @@ from .embeddings import (
     EmbeddedEntity,
     Embedding,
 )
-from .games_catalog import Game, GameMinimumPart
+from .games_catalog import (
+    Game,
+    GameMinimumPart,
+    GamePerformanceObservation,
+    GamePerformanceProfile,
+)
 from .guide_video import GuideVideo
 from .listing import AmazonListing, EbayListing, Listing
 from .listing_failure import (

@@ -13,6 +13,30 @@ export interface GameMinimumPartFormData {
   minRamGb: number | null;
 }
 
+export interface GamePerformanceProfileFormData {
+  gameVersion: string;
+  resolution: '1080p' | '1440p' | '4k';
+  targetFps: number;
+  qualityPreset: 'low' | 'medium' | 'high' | 'ultra';
+  rayTracingMode: 'off' | 'low' | 'medium' | 'high' | 'ultra' | 'path_tracing';
+  upscalingMode: 'native' | 'quality' | 'balanced' | 'performance';
+  frameGeneration: boolean;
+  minGpuRasterScore: number | null;
+  minGpuRtScore: number | null;
+  minGpuModernScore: number | null;
+  minCpuSingleScore: number | null;
+  minCpuMultiScore: number | null;
+  minVramGb: number | null;
+  minRamGb: number | null;
+  requiredFeaturesInput: string;
+  confidence: number;
+  sampleCount: number;
+  derivationMethod: string;
+  sourceUrlsInput: string;
+  notes: string;
+  isActive: boolean;
+}
+
 export interface GameFormData {
   title: string;
   slug: string;
@@ -23,6 +47,7 @@ export interface GameFormData {
   minStorageGb: number | null;
   requirementsNotes: string;
   minimumParts: GameMinimumPartFormData[];
+  performanceProfiles: GamePerformanceProfileFormData[];
 }
 
 function toData(d: GameFormData) {
@@ -51,9 +76,39 @@ function toMinimumParts(rows: GameMinimumPartFormData[]) {
   }));
 }
 
+function toPerformanceProfiles(rows: GamePerformanceProfileFormData[]) {
+  return rows.map((r) => ({
+    gameVersion: r.gameVersion || null,
+    resolution: r.resolution,
+    targetFps: r.targetFps,
+    qualityPreset: r.qualityPreset,
+    rayTracingMode: r.rayTracingMode,
+    upscalingMode: r.upscalingMode,
+    frameGeneration: r.frameGeneration,
+    minGpuRasterScore: r.minGpuRasterScore,
+    minGpuRtScore: r.minGpuRtScore,
+    minGpuModernScore: r.minGpuModernScore,
+    minCpuSingleScore: r.minCpuSingleScore,
+    minCpuMultiScore: r.minCpuMultiScore,
+    minVramGb: r.minVramGb,
+    minRamGb: r.minRamGb,
+    requiredFeatures: splitCommaList(r.requiredFeaturesInput),
+    confidence: r.confidence,
+    sampleCount: r.sampleCount,
+    derivationMethod: r.derivationMethod,
+    sourceUrls: splitCommaList(r.sourceUrlsInput),
+    notes: r.notes || null,
+    isActive: r.isActive,
+  }));
+}
+
 export async function createGame(data: GameFormData) {
   await db.game.create({
-    data: { ...toData(data), minimumParts: { create: toMinimumParts(data.minimumParts) } },
+    data: {
+      ...toData(data),
+      minimumParts: { create: toMinimumParts(data.minimumParts) },
+      performanceProfiles: { create: toPerformanceProfiles(data.performanceProfiles) },
+    },
   });
   revalidatePath('/games');
 }
@@ -64,6 +119,10 @@ export async function updateGame(id: string, data: GameFormData) {
     data: {
       ...toData(data),
       minimumParts: { deleteMany: {}, create: toMinimumParts(data.minimumParts) },
+      performanceProfiles: {
+        deleteMany: {},
+        create: toPerformanceProfiles(data.performanceProfiles),
+      },
     },
   });
   revalidatePath('/games');

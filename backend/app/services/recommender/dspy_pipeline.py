@@ -747,6 +747,36 @@ async def _resolve_catalog_requirements(
                 if isinstance(answers.get("general.workload_intensity"), str)
                 else None
             ),
+            gaming_resolution=(
+                answers.get("gaming.resolution")
+                if isinstance(answers.get("gaming.resolution"), str)
+                else None
+            ),
+            gaming_fps=(
+                answers.get("gaming.target_fps")
+                if isinstance(answers.get("gaming.target_fps"), str)
+                else None
+            ),
+            gaming_quality=(
+                answers.get("gaming.quality")
+                if isinstance(answers.get("gaming.quality"), str)
+                else None
+            ),
+            gaming_ray_tracing=(
+                answers.get("gaming.ray_tracing")
+                if isinstance(answers.get("gaming.ray_tracing"), str)
+                else None
+            ),
+            gaming_upscaling=(
+                answers.get("gaming.upscaling")
+                if isinstance(answers.get("gaming.upscaling"), str)
+                else None
+            ),
+            gaming_frame_generation=(
+                answers.get("gaming.frame_generation")
+                if isinstance(answers.get("gaming.frame_generation"), str)
+                else None
+            ),
         )
     except Exception:  # pragma: no cover - defensive
         logger.warning("catalog requirement lookup failed", exc_info=True)
@@ -756,6 +786,33 @@ async def _resolve_catalog_requirements(
     # catalog is missing — see app/services/discovery/queue.py.
     await _queue_unmatched_terms(request, requirements)
     return requirements
+
+
+def _attach_catalog_floors(
+    request: BuildRequest, requirements: CatalogRequirements
+) -> None:
+    """Expose absolute envelope floors to deterministic candidate scoring.
+
+    These keys are internal BuildRequest answers.  They are added only after
+    ``use_case_summary`` has rendered the user's own Q&A, so raw suite numbers
+    do not masquerade as something the user said.  Candidate serializers use
+    them to compute headroom before stripping benchmark_scores.
+    """
+    mapping = {
+        "requirements.min_vram_gb": requirements.min_vram_gb,
+        "requirements.gpu_raster_score": requirements.min_gpu_raster_score,
+        "requirements.gpu_rt_score": requirements.min_gpu_rt_score,
+        "requirements.gpu_modern_score": requirements.min_gpu_modern_score,
+        "requirements.cpu_single_score": requirements.min_cpu_single_score,
+        "requirements.cpu_multi_score": requirements.min_cpu_multi_score,
+    }
+    for key, value in mapping.items():
+        if value is not None:
+            request.answers[key] = str(value)
+    if requirements.required_features:
+        request.answers["requirements.required_features"] = sorted(
+            requirements.required_features
+        )
 
 
 # --- Pipeline state -----------------------------------------------------------
@@ -1598,6 +1655,7 @@ async def run_pipeline(
     # (or no API key) yields an empty result and the summary is unchanged.
     state.catalog_requirements = await _resolve_catalog_requirements(session, request)
     if state.catalog_requirements is not None:
+        _attach_catalog_floors(request, state.catalog_requirements)
         state.requirements_snapshot = state.catalog_requirements.to_dict()
         summary = state.catalog_requirements.summary()
         if summary:

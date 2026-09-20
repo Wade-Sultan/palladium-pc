@@ -6,7 +6,7 @@ import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { ColumnDef } from '@tanstack/react-table';
-import type { Game, GameMinimumPart } from '@prisma/client';
+import type { Game, GameMinimumPart, GamePerformanceProfile } from '@prisma/client';
 import { Pencil, Trash2, Plus, X } from 'lucide-react';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { joinCommaList } from '@/lib/utils';
@@ -25,10 +26,23 @@ import { createGame, updateGame, deleteGame, type GameFormData } from './actions
 
 const TIERS = ['minimum', 'recommended', 'ultra'] as const;
 const ROLES = ['cpu', 'gpu'] as const;
+const RESOLUTIONS = ['1080p', '1440p', '4k'] as const;
+const QUALITY_PRESETS = ['low', 'medium', 'high', 'ultra'] as const;
+const RT_MODES = ['off', 'low', 'medium', 'high', 'ultra', 'path_tracing'] as const;
+const UPSCALING_MODES = ['native', 'quality', 'balanced', 'performance'] as const;
+
+function scenarioOption<const T extends readonly string[]>(
+  value: string,
+  allowed: T,
+  fallback: T[number],
+): T[number] {
+  return allowed.includes(value) ? value : fallback;
+}
 
 type PartOption = { id: string; name: string; partType: string };
 type GameWithParts = Game & {
   minimumParts: (GameMinimumPart & { part: { id: string; name: string } | null })[];
+  performanceProfiles: GamePerformanceProfile[];
 };
 
 const minimumPartSchema = z.object({
@@ -38,6 +52,30 @@ const minimumPartSchema = z.object({
   gpuChipsetId: z.string().nullable(),
   publishedName: z.string(),
   minRamGb: z.coerce.number().int().nullable(),
+});
+
+const performanceProfileSchema = z.object({
+  gameVersion: z.string(),
+  resolution: z.enum(RESOLUTIONS),
+  targetFps: z.coerce.number().int().positive(),
+  qualityPreset: z.enum(QUALITY_PRESETS),
+  rayTracingMode: z.enum(RT_MODES),
+  upscalingMode: z.enum(UPSCALING_MODES),
+  frameGeneration: z.boolean(),
+  minGpuRasterScore: z.coerce.number().positive().nullable(),
+  minGpuRtScore: z.coerce.number().positive().nullable(),
+  minGpuModernScore: z.coerce.number().positive().nullable(),
+  minCpuSingleScore: z.coerce.number().positive().nullable(),
+  minCpuMultiScore: z.coerce.number().positive().nullable(),
+  minVramGb: z.coerce.number().int().positive().nullable(),
+  minRamGb: z.coerce.number().int().positive().nullable(),
+  requiredFeaturesInput: z.string(),
+  confidence: z.coerce.number().min(0).max(1),
+  sampleCount: z.coerce.number().int().min(0),
+  derivationMethod: z.string().min(1),
+  sourceUrlsInput: z.string(),
+  notes: z.string(),
+  isActive: z.boolean(),
 });
 
 const schema = z.object({
@@ -50,6 +88,7 @@ const schema = z.object({
   minStorageGb: z.coerce.number().int().nullable(),
   requirementsNotes: z.string(),
   minimumParts: z.array(minimumPartSchema),
+  performanceProfiles: z.array(performanceProfileSchema),
 });
 
 function gameDefaults(item: GameWithParts | null): GameFormData {
@@ -58,6 +97,7 @@ function gameDefaults(item: GameWithParts | null): GameFormData {
       title: '', slug: '', genre: '', storeUrl: '', imageUrl: '',
       hardRequirementsInput: '', minStorageGb: null, requirementsNotes: '',
       minimumParts: [],
+      performanceProfiles: [],
     };
   }
   return {
@@ -77,6 +117,29 @@ function gameDefaults(item: GameWithParts | null): GameFormData {
       publishedName: p.publishedName ?? '',
       minRamGb: p.minRamGb,
     })),
+    performanceProfiles: item.performanceProfiles.map((p) => ({
+      gameVersion: p.gameVersion ?? '',
+      resolution: scenarioOption(p.resolution, RESOLUTIONS, '1440p'),
+      targetFps: p.targetFps,
+      qualityPreset: scenarioOption(p.qualityPreset, QUALITY_PRESETS, 'high'),
+      rayTracingMode: scenarioOption(p.rayTracingMode, RT_MODES, 'off'),
+      upscalingMode: scenarioOption(p.upscalingMode, UPSCALING_MODES, 'native'),
+      frameGeneration: p.frameGeneration,
+      minGpuRasterScore: p.minGpuRasterScore,
+      minGpuRtScore: p.minGpuRtScore,
+      minGpuModernScore: p.minGpuModernScore,
+      minCpuSingleScore: p.minCpuSingleScore,
+      minCpuMultiScore: p.minCpuMultiScore,
+      minVramGb: p.minVramGb,
+      minRamGb: p.minRamGb,
+      requiredFeaturesInput: joinCommaList(p.requiredFeatures),
+      confidence: p.confidence,
+      sampleCount: p.sampleCount,
+      derivationMethod: p.derivationMethod,
+      sourceUrlsInput: joinCommaList(p.sourceUrls),
+      notes: p.notes ?? '',
+      isActive: p.isActive,
+    })),
   };
 }
 
@@ -92,6 +155,7 @@ function GameForm({
     defaultValues: gameDefaults(item),
   });
   const rows = useFieldArray({ control: form.control, name: 'minimumParts' });
+  const profileRows = useFieldArray({ control: form.control, name: 'performanceProfiles' });
   const [error, setError] = useState<string | null>(null);
 
   const numField = (field: { value: number | null; onChange: (v: number | null) => void }) => ({
@@ -246,6 +310,133 @@ function GameForm({
           ))}
         </div>
 
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Performance Envelopes
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Numeric capability floors for one resolution, preset, FPS, and ray-tracing scenario.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm"
+              onClick={() => profileRows.append({
+                gameVersion: '', resolution: '1440p', targetFps: 60,
+                qualityPreset: 'high', rayTracingMode: 'off', upscalingMode: 'native',
+                frameGeneration: false, minGpuRasterScore: null, minGpuRtScore: null,
+                minGpuModernScore: null, minCpuSingleScore: null, minCpuMultiScore: null,
+                minVramGb: null, minRamGb: null, requiredFeaturesInput: '', confidence: 0.5,
+                sampleCount: 0, derivationMethod: 'manual', sourceUrlsInput: '', notes: '',
+                isActive: true,
+              })}>
+              <Plus className="h-3.5 w-3.5" /> Add Envelope
+            </Button>
+          </div>
+          {profileRows.fields.map((row, i) => (
+            <div key={row.id} className="space-y-3 rounded-lg border bg-muted/20 p-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <FormField control={form.control} name={`performanceProfiles.${i}.resolution`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Resolution</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>{RESOLUTIONS.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.targetFps`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Target FPS</FormLabel>
+                      <FormControl><Input {...numField(field as { value: number | null; onChange: (v: number | null) => void })} /></FormControl>
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.qualityPreset`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Quality</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>{QUALITY_PRESETS.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.rayTracingMode`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Ray Tracing</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>{RT_MODES.map((v) => <SelectItem key={v} value={v}>{v.replace('_', ' ')}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.upscalingMode`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Upscaling</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                        <SelectContent>{UPSCALING_MODES.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.gameVersion`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Game/Patch Version</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.derivationMethod`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Derivation</FormLabel><FormControl><Input {...field} placeholder="measured, aggregate, manual" /></FormControl></FormItem>
+                  )} />
+                <div className="flex items-end gap-5 pb-2">
+                  <FormField control={form.control} name={`performanceProfiles.${i}.frameGeneration`}
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-xs">Frame gen</FormLabel></FormItem>
+                    )} />
+                  <FormField control={form.control} name={`performanceProfiles.${i}.isActive`}
+                    render={({ field }) => (
+                      <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel className="text-xs">Active</FormLabel></FormItem>
+                    )} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {([
+                  ['minGpuRasterScore', 'Time Spy floor'], ['minGpuRtScore', 'Port Royal floor'],
+                  ['minGpuModernScore', 'Speed Way floor'], ['minCpuSingleScore', 'Geekbench 6 single'],
+                  ['minCpuMultiScore', 'Geekbench 6 multi'], ['minVramGb', 'VRAM (GB)'],
+                  ['minRamGb', 'RAM (GB)'], ['sampleCount', 'Samples'], ['confidence', 'Confidence (0–1)'],
+                ] as const).map(([name, label]) => (
+                  <FormField key={name} control={form.control} name={`performanceProfiles.${i}.${name}`}
+                    render={({ field }) => (
+                      <FormItem><FormLabel className="text-xs">{label}</FormLabel>
+                        <FormControl><Input {...numField(field as { value: number | null; onChange: (v: number | null) => void })} step={name === 'confidence' ? '0.05' : undefined} /></FormControl>
+                      </FormItem>
+                    )} />
+                ))}
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <FormField control={form.control} name={`performanceProfiles.${i}.requiredFeaturesInput`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Required Features</FormLabel><FormControl><Input {...field} placeholder="ray_tracing, mesh_shaders" /></FormControl></FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.sourceUrlsInput`}
+                  render={({ field }) => (
+                    <FormItem><FormLabel className="text-xs">Source URLs</FormLabel><FormControl><Input {...field} placeholder="comma-separated" /></FormControl></FormItem>
+                  )} />
+                <FormField control={form.control} name={`performanceProfiles.${i}.notes`}
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2"><FormLabel className="text-xs">Notes</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl></FormItem>
+                  )} />
+              </div>
+              <div className="flex justify-end">
+                <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => profileRows.remove(i)}>
+                  <X className="h-3.5 w-3.5" /> Remove Envelope
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end pt-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -281,6 +472,15 @@ export function GamesTable({ games, partOptions }: { games: GameWithParts[]; par
         const n = row.original.minimumParts.length;
         return n
           ? <span className="text-xs text-muted-foreground">{n} tier/role rows</span>
+          : <span className="text-muted-foreground text-xs">None</span>;
+      },
+    },
+    {
+      id: 'profiles', header: 'Performance',
+      cell: ({ row }) => {
+        const n = row.original.performanceProfiles.length;
+        return n
+          ? <span className="text-xs text-muted-foreground">{n} envelope{n === 1 ? '' : 's'}</span>
           : <span className="text-muted-foreground text-xs">None</span>;
       },
     },

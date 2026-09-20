@@ -13,9 +13,14 @@ measuring it against real data.
 
 from __future__ import annotations
 
+import uuid
+from types import SimpleNamespace
+
 from app.services.recommender.catalog_match import (
     CatalogRequirements,
+    _apply_performance_profile,
     _normalize_term,
+    _select_performance_profile,
 )
 
 
@@ -95,3 +100,118 @@ def test_matched_and_unmatched_terms_coexist_in_one_summary():
     assert "Llama 3.1 70B" in summary
     assert "Gemma 4 31B" in summary
     assert "at least 42GB of VRAM" in summary
+
+
+def _performance_profile(**overrides):
+    values = {
+        "id": uuid.uuid4(),
+        "is_active": True,
+        "game_version": "2.3",
+        "resolution": "1440p",
+        "target_fps": 60,
+        "quality_preset": "high",
+        "ray_tracing_mode": "off",
+        "upscaling_mode": "native",
+        "frame_generation": False,
+        "min_gpu_raster_score": 16000.0,
+        "min_gpu_rt_score": None,
+        "min_gpu_modern_score": 3500.0,
+        "min_cpu_single_score": 2400.0,
+        "min_cpu_multi_score": None,
+        "min_vram_gb": 8,
+        "min_ram_gb": 16,
+        "required_features": [],
+        "confidence": 0.8,
+        "sample_count": 4,
+        "derivation_method": "review_aggregate",
+        "source_urls": ["https://example.test/benchmark"],
+        "notes": None,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+def test_performance_profile_selection_prefers_requested_rt_scenario():
+    raster = _performance_profile()
+    ray = _performance_profile(
+        ray_tracing_mode="high", min_gpu_rt_score=12000.0, upscaling_mode="quality"
+    )
+
+    selected, note = _select_performance_profile(
+        [raster, ray],
+        resolution="1440p",
+        target_fps="60",
+        quality_preset="high",
+        ray_tracing="on",
+        upscaling="quality",
+        frame_generation="no",
+    )
+
+    assert selected is ray
+    assert note is None
+
+
+def test_performance_profile_selection_reports_approximation():
+    selected, note = _select_performance_profile(
+        [_performance_profile()],
+        resolution="4k",
+        target_fps="120",
+        quality_preset="ultra",
+        ray_tracing="off",
+        upscaling="allowed",
+        frame_generation="allowed",
+    )
+
+    assert selected is not None
+    assert "requested 4k" in note
+    assert "requested 120 FPS" in note
+
+
+def test_performance_profile_becomes_numeric_catalog_floors():
+    game = SimpleNamespace(title="Example Quest")
+    profile = _performance_profile(ray_tracing_mode="high", min_gpu_rt_score=12000.0)
+    requirements = CatalogRequirements(matched_names=[game.title])
+
+    _apply_performance_profile(
+        game, profile, None, requirements, requested_ray_tracing="on"
+    )
+
+    assert requirements.min_gpu_raster_score == 16000
+    assert requirements.min_gpu_rt_score == 12000
+    assert requirements.min_vram_gb == 8
+    assert "ray_tracing" in requirements.required_features
+    assert requirements.to_dict()["game_performance_profiles"][0]["game"] == game.title
+
+
+def test_rt_profile_does_not_force_rt_when_the_user_requested_raster():
+    game = SimpleNamespace(title="Example Quest")
+    profile = _performance_profile(
+        ray_tracing_mode="high",
+        min_gpu_rt_score=12000.0,
+        required_features=["ray_tracing"],
+    )
+    requirements = CatalogRequirements(matched_names=[game.title])
+
+    _apply_performance_profile(
+        game, profile, "only an RT profile is available", requirements
+    )
+
+    assert requirements.min_gpu_rt_score is None
+    assert "ray_tracing" not in requirements.required_features
+    assert requirements.min_gpu_raster_score == 16000
+
+
+def test_profile_approximation_reports_upscaling_and_frame_generation():
+    selected, note = _select_performance_profile(
+        [_performance_profile(upscaling_mode="quality", frame_generation=True)],
+        resolution="1440p",
+        target_fps="60",
+        quality_preset="high",
+        ray_tracing="off",
+        upscaling="native",
+        frame_generation="no",
+    )
+
+    assert selected is not None
+    assert "requested native upscaling" in note
+    assert "requested frame generation no" in note

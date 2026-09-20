@@ -225,6 +225,76 @@ def check_game_requirements(parts: dict, groups: list[dict]) -> list[str]:
     return caveats
 
 
+def check_game_performance_profiles(parts: dict, profiles: list[dict]) -> list[str]:
+    """Compare selected hardware with versioned game-performance envelopes.
+
+    A profile is an estimate with explicit confidence, so benchmark shortfalls
+    are caveats rather than structural build failures. Feature/VRAM constraints
+    are validated separately as hard floors in ``validate_build``.
+    """
+    caveats: list[str] = []
+    cpu = (parts.get("cpu") or [None])[0]
+    gpu_board = (parts.get("gpu") or [None])[0]
+    gpu = getattr(gpu_board, "chipset", None)
+    for profile in profiles or []:
+        gpu_scores = getattr(gpu, "benchmark_scores", None) or {}
+        cpu_scores = getattr(cpu, "benchmark_scores", None) or {}
+        checks = [
+            (label, gpu_scores.get(key), profile.get(field))
+            for label, key, field in (
+                ("raster", "timespy", "min_gpu_raster_score"),
+                ("ray tracing", "port_royal", "min_gpu_rt_score"),
+                ("modern rendering", "speed_way", "min_gpu_modern_score"),
+            )
+        ]
+        checks.extend(
+            (label, cpu_scores.get(key), profile.get(field))
+            for label, key, field in (
+                ("CPU single-thread", "geekbench_6_single", "min_cpu_single_score"),
+                ("CPU multi-thread", "geekbench_6_multi", "min_cpu_multi_score"),
+            )
+        )
+
+        missing = []
+        below = []
+        for label, actual, floor in checks:
+            if not isinstance(floor, int | float) or floor <= 0:
+                continue
+            if not isinstance(actual, int | float) or actual <= 0:
+                missing.append(label)
+            elif actual < floor:
+                below.append(label)
+
+        scenario = (
+            f"{profile.get('resolution')} {profile.get('quality_preset')} at "
+            f"{profile.get('target_fps')} FPS, RT {profile.get('ray_tracing_mode')}"
+        )
+        confidence = profile.get("confidence")
+        confidence_text = (
+            f", {confidence:.0%} confidence"
+            if isinstance(confidence, int | float)
+            else ""
+        )
+        if below:
+            caveats.append(
+                f"The selected hardware is below {profile.get('game')}'s {scenario} "
+                f"performance envelope on {', '.join(below)}{confidence_text}; "
+                "expect to lower settings, resolution, or FPS."
+            )
+        elif missing:
+            caveats.append(
+                f"{profile.get('game')}'s {scenario} envelope could not be fully "
+                f"verified because {', '.join(missing)} benchmark data is missing"
+                f"{confidence_text}."
+            )
+        if profile.get("match_notes"):
+            caveats.append(
+                f"{profile.get('game')} uses the closest available performance "
+                f"profile: {profile['match_notes']}."
+            )
+    return caveats
+
+
 async def validate_build(
     db, build: dict, *, budget_usd: int, profile=None, requirements: dict | None = None
 ) -> dict:
@@ -307,6 +377,11 @@ async def validate_build(
         caveats.extend(
             check_game_requirements(parts, requirements.get("game_requirements", []))
         )
+        caveats.extend(
+            check_game_performance_profiles(
+                parts, requirements.get("game_performance_profiles", [])
+            )
+        )
         ram = sum(
             p.group.capacity_gb * quantities[str(p.id)] for p in parts.get("ramkit", [])
         )
@@ -327,8 +402,13 @@ async def validate_build(
         ):
             if requirements.get(field) and value < requirements[field]:
                 issues.append(
-                    f"Insufficient {label} for the published workload requirements"
+                    f"Insufficient {label} for the catalog workload requirements"
                 )
+        required_features = set(requirements.get("required_features") or [])
+        if "ray_tracing" in required_features and not any(
+            p.chipset and p.chipset.has_ray_tracing for p in parts.get("gpu", [])
+        ):
+            issues.append("The requested game profile requires ray-tracing hardware")
     if issues:
         raise BuildValidationError(list(dict.fromkeys(issues)))
     result["total_approx"] = total

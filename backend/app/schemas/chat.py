@@ -93,6 +93,16 @@ class BuildProfile(BaseModel):
     primary_use: str
     gaming_resolution: str | None = None  # "1080p" | "1440p" | "4k"
     gaming_fps: str | None = None  # "60" | "120" | "144" | "240"
+    # Optional fidelity controls. They are populated only from explicit user
+    # language so an old DSPy extraction artifact remains schema-compatible.
+    # The performance-profile resolver supplies high/raster/allowed defaults
+    # when these are absent.
+    gaming_quality: str | None = None  # "low" | "medium" | "high" | "ultra"
+    gaming_ray_tracing: str | None = None  # "off" | "on" | "path_tracing"
+    gaming_upscaling: str | None = (
+        None  # "native" | "quality" | "balanced" | "performance" | "allowed"
+    )
+    gaming_frame_generation: str | None = None  # "yes" | "no" | "allowed"
     streaming_style: str | None = None  # "while_gaming" | "camera_only"
     ai_workload: str | None = None  # "inference" | "training" | "image_gen"
     ai_model_scale: str | None = None  # "small" | "medium" | "large"

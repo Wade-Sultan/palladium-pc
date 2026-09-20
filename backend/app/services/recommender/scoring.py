@@ -192,6 +192,33 @@ def _resolution_adjusted(
     return {a: w / total for a, w in adjusted.items()}
 
 
+def _ray_tracing_adjusted(
+    weights: dict[str, float], answers: dict, part_type: str, use_cases: list[str]
+) -> dict[str, float]:
+    """Make an explicit gaming RT choice matter more than a generic default.
+
+    Rendering keeps its own RT weight: a user's gaming toggle must not erase
+    the RT-core demand of Blender/OptiX in a mixed-use build.
+    """
+    if part_type != "gpu" or "rendering" in use_cases:
+        return weights
+    mode = str(answers.get("gaming.ray_tracing") or "").casefold()
+    if mode not in ("off", "on", "path_tracing"):
+        return weights
+
+    target_ray = {"off": 0.0, "on": 0.40, "path_tracing": 0.60}[mode]
+    non_ray = {axis: value for axis, value in weights.items() if axis != "ray"}
+    total = sum(non_ray.values())
+    if total <= 0:
+        return {"ray": 1.0}
+    adjusted = {
+        axis: value / total * (1.0 - target_ray) for axis, value in non_ray.items()
+    }
+    if target_ray:
+        adjusted["ray"] = target_ray
+    return adjusted
+
+
 def weights_for(
     part_type: str, use_cases: list[str], answers: dict | None = None
 ) -> dict[str, float]:
@@ -200,7 +227,9 @@ def weights_for(
     default = _DEFAULT_CPU_WEIGHTS if part_type == "cpu" else _DEFAULT_GPU_WEIGHTS
     matched = [table[uc] for uc in (use_cases or []) if uc in table]
     weights = _blend(matched) if matched else dict(default)
-    return _resolution_adjusted(weights, answers or {}, part_type)
+    answers = answers or {}
+    weights = _resolution_adjusted(weights, answers, part_type)
+    return _ray_tracing_adjusted(weights, answers, part_type, use_cases)
 
 
 # --- Scoring ------------------------------------------------------------------
@@ -260,6 +289,80 @@ def _candidate_axis_values(
     return values
 
 
+def _answer_float(answers: dict, key: str) -> float | None:
+    return _as_float(answers.get(key))
+
+
+def _performance_fit(
+    row: dict, scores: dict, part_type: str, answers: dict
+) -> tuple[float | None, bool | None, list[str], bool]:
+    """Return (worst headroom, verified fit, shortfalls) for absolute floors.
+
+    ``None`` fit means a profile had a floor but this candidate lacks the suite
+    measurement needed to verify it.  It remains selectable, but can never be
+    described as known-sufficient or trigger the dominance shortcut.
+    """
+    if part_type == "gpu":
+        floor_keys = {
+            "timespy": "requirements.gpu_raster_score",
+            "port_royal": "requirements.gpu_rt_score",
+            "speed_way": "requirements.gpu_modern_score",
+        }
+    else:
+        # Profile CPU floors are standardized on Geekbench 6.  Unlike the
+        # relative scoring axes, absolute Cinebench and Geekbench numbers are
+        # not interchangeable scales.
+        floor_keys = {
+            "geekbench_6_single": "requirements.cpu_single_score",
+            "geekbench_6_multi": "requirements.cpu_multi_score",
+        }
+
+    ratios: list[float] = []
+    shortfalls: list[str] = []
+    missing = False
+    has_floor = False
+    for benchmark, answer_key in floor_keys.items():
+        floor = _answer_float(answers, answer_key)
+        if floor is None:
+            continue
+        has_floor = True
+        value = _as_float(scores.get(benchmark))
+        if value is None:
+            missing = True
+            continue
+        ratio = value / floor
+        ratios.append(ratio)
+        if ratio < 1:
+            shortfalls.append(benchmark)
+
+    if part_type == "gpu":
+        vram_floor = _answer_float(answers, "requirements.min_vram_gb")
+        if vram_floor is not None:
+            has_floor = True
+            vram = _as_float(row.get("vram_gb"))
+            if vram is None:
+                missing = True
+            else:
+                ratio = vram / vram_floor
+                ratios.append(ratio)
+                if ratio < 1:
+                    shortfalls.append("vram")
+        required = answers.get("requirements.required_features") or []
+        if "ray_tracing" in required:
+            has_floor = True
+            if row.get("has_ray_tracing") is not True:
+                shortfalls.append("ray_tracing")
+
+    if not has_floor:
+        return None, None, [], False
+    headroom = min(ratios) if ratios else None
+    if shortfalls:
+        return headroom, False, shortfalls, True
+    if missing:
+        return headroom, None, [], True
+    return headroom, True, [], True
+
+
 def score_candidates(
     rows: list[dict],
     part_type: str,
@@ -278,6 +381,7 @@ def score_candidates(
     read precision that is not there.
     """
     axes = _CPU_AXES if part_type == "cpu" else _GPU_AXES
+    answers = answers or {}
     weights = weights_for(part_type, use_cases, answers)
     maxima = _axis_maxima(rows, axes)
 
@@ -288,8 +392,25 @@ def score_candidates(
         scores = row.get("benchmark_scores")
         row.pop("benchmark_scores", None)  # internal input, never shown to the LLM
         if not isinstance(scores, dict) or not scores:
+            _, fit, shortfalls, has_floor = _performance_fit(
+                row, {}, part_type, answers
+            )
+            if has_floor:
+                row["meets_performance_profile"] = fit
+            if shortfalls:
+                row["profile_shortfalls"] = shortfalls
             row["perf_score"] = None
             continue
+
+        headroom, fit, shortfalls, has_floor = _performance_fit(
+            row, scores, part_type, answers
+        )
+        if headroom is not None:
+            row["performance_headroom"] = round(headroom, 2)
+        if has_floor:
+            row["meets_performance_profile"] = fit
+        if shortfalls:
+            row["profile_shortfalls"] = shortfalls
 
         values = _candidate_axis_values(scores, axes, maxima)
         if not required.issubset(values.keys()):
@@ -367,6 +488,15 @@ def find_dominant(
     both axes), not a general-purpose ranker.
     """
     if not DOMINANCE_SKIP_ENABLED or len(rows) < 2:
+        return None
+    # Absolute game-envelope floors outrank relative leadership.  If a profile
+    # is present, every candidate must be verified sufficient before the LLM
+    # can be skipped; otherwise the cheapest relative leader could still miss
+    # the requested FPS/RT scenario.
+    profiled = any("meets_performance_profile" in row for row in rows)
+    if profiled and any(
+        row.get("meets_performance_profile") is not True for row in rows
+    ):
         return None
 
     scored = [r for r in rows if isinstance(r.get("perf_score"), int | float)]

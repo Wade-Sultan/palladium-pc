@@ -19,6 +19,7 @@ from app.schemas.chat import NO_BUDGET_CEILING, BuildProfile
 from app.services.recommender import validation
 from app.services.recommender.validation import (
     BuildValidationError,
+    check_game_performance_profiles,
     check_game_requirements,
     check_hardware,
     validate_build,
@@ -272,6 +273,52 @@ def test_missing_benchmarks_do_not_count_against_the_build():
     assert check_game_requirements(parts, [_requirement()]) == []
 
 
+def _performance_profile(**overrides):
+    return {
+        "game": "Cyberpunk 2077",
+        "resolution": "1440p",
+        "target_fps": 60,
+        "quality_preset": "ultra",
+        "ray_tracing_mode": "high",
+        "min_gpu_raster_score": 26000,
+        "min_gpu_rt_score": 15000,
+        "min_gpu_modern_score": None,
+        "min_cpu_single_score": 2800,
+        "min_cpu_multi_score": None,
+        "confidence": 0.8,
+        "match_notes": [],
+        **overrides,
+    }
+
+
+def test_performance_profile_shortfalls_name_the_scenario_and_axes():
+    parts = _parts()
+    parts["gpu"][0].chipset.benchmark_scores["port_royal"] = 12000
+    parts["cpu"][0].benchmark_scores["geekbench_6_single"] = 3000
+
+    caveats = check_game_performance_profiles(parts, [_performance_profile()])
+
+    assert len(caveats) == 1
+    assert "1440p ultra at 60 FPS, RT high" in caveats[0]
+    assert "raster, ray tracing" in caveats[0]
+    assert "80% confidence" in caveats[0]
+
+
+def test_performance_profile_reports_missing_measurements_and_closest_match():
+    parts = _parts()
+    parts["gpu"][0].chipset.benchmark_scores = {}
+    parts["cpu"][0].benchmark_scores = {}
+    profile = _performance_profile(
+        match_notes=["requested 4k; closest profile is 1440p"]
+    )
+
+    caveats = check_game_performance_profiles(parts, [profile])
+
+    assert len(caveats) == 2
+    assert "benchmark data is missing" in caveats[0]
+    assert "closest available performance profile" in caveats[1]
+
+
 # ---------------------------------------------------------------- validate_build --
 
 
@@ -431,6 +478,4 @@ def test_insufficient_ram_for_the_workload_is_still_a_rejection(catalog):
     requirements = {"game_requirements": [], "min_ram_gb": 64}
     with pytest.raises(BuildValidationError) as exc:
         _validate(catalog, _build_dict(catalog.parts), requirements=requirements)
-    assert (
-        "Insufficient RAM for the published workload requirements" in exc.value.issues
-    )
+    assert "Insufficient RAM for the catalog workload requirements" in exc.value.issues

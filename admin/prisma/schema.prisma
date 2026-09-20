@@ -25,21 +25,22 @@ model PcPart {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  cpu              Cpu?
-  gpu              Gpu?
-  motherboard      Motherboard?
-  ramKit           RamKit?
-  storageDrive     StorageDrive?
-  psu              Psu?
-  pcCase           PcCase?
-  cpuCooler        CpuCooler?
-  fan              Fan?
-  listings         Listing[]
-  listingFailure   ListingLookupFailure?
-  referenceBuilds  ReferenceBuildPart[]
-  buildParts       BuildPart[]
-  gameMinimums     GameMinimumPart[]
-  softwareMinimums SoftwareMinimumPart[]
+  cpu                         Cpu?
+  gpu                         Gpu?
+  motherboard                 Motherboard?
+  ramKit                      RamKit?
+  storageDrive                StorageDrive?
+  psu                         Psu?
+  pcCase                      PcCase?
+  cpuCooler                   CpuCooler?
+  fan                         Fan?
+  listings                    Listing[]
+  listingFailure              ListingLookupFailure?
+  referenceBuilds             ReferenceBuildPart[]
+  buildParts                  BuildPart[]
+  gameMinimums                GameMinimumPart[]
+  gamePerformanceObservations GamePerformanceObservation[]
+  softwareMinimums            SoftwareMinimumPart[]
 
   @@map("pc_parts")
 }
@@ -138,9 +139,10 @@ model GpuChipset {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
-  variants Gpu[]
-  listings Listing[]
-  gameMinimums GameMinimumPart[]
+  variants                    Gpu[]
+  listings                    Listing[]
+  gameMinimums                GameMinimumPart[]
+  gamePerformanceObservations GamePerformanceObservation[]
 
   @@map("gpu_chipsets")
 }
@@ -609,7 +611,9 @@ model Game {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  minimumParts GameMinimumPart[]
+  minimumParts            GameMinimumPart[]
+  performanceProfiles     GamePerformanceProfile[]
+  performanceObservations GamePerformanceObservation[]
 
   @@map("games")
 }
@@ -626,12 +630,76 @@ model GameMinimumPart {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  game Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  part PcPart? @relation(fields: [partId], references: [id])
+  game       Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  part       PcPart?     @relation(fields: [partId], references: [id])
   gpuChipset GpuChipset? @relation(fields: [gpuChipsetId], references: [id])
 
   @@unique([gameId, tier, role, publishedName], map: "uq_game_min_parts_game_tier_role_name")
   @@map("game_minimum_parts")
+}
+
+model GamePerformanceProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  gameId            String   @map("game_id") @db.Uuid
+  gameVersion       String?  @map("game_version")
+  resolution        String
+  targetFps         Int      @map("target_fps")
+  qualityPreset     String   @default("high") @map("quality_preset")
+  rayTracingMode    String   @default("off") @map("ray_tracing_mode")
+  upscalingMode     String   @default("native") @map("upscaling_mode")
+  frameGeneration   Boolean  @default(false) @map("frame_generation")
+  minGpuRasterScore Float?   @map("min_gpu_raster_score")
+  minGpuRtScore     Float?   @map("min_gpu_rt_score")
+  minGpuModernScore Float?   @map("min_gpu_modern_score")
+  minCpuSingleScore Float?   @map("min_cpu_single_score")
+  minCpuMultiScore  Float?   @map("min_cpu_multi_score")
+  minVramGb         Int?     @map("min_vram_gb")
+  minRamGb          Int?     @map("min_ram_gb")
+  requiredFeatures  String[] @map("required_features")
+  confidence        Float    @default(0.5)
+  sampleCount       Int      @default(0) @map("sample_count")
+  derivationMethod  String   @map("derivation_method")
+  sourceUrls        String[] @map("source_urls")
+  notes             String?
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, resolution, targetFps, rayTracingMode, isActive], map: "ix_game_perf_profiles_scenario")
+  @@map("game_performance_profiles")
+}
+
+model GamePerformanceObservation {
+  id              String    @id @default(uuid()) @db.Uuid
+  gameId          String    @map("game_id") @db.Uuid
+  gpuChipsetId    String?   @map("gpu_chipset_id") @db.Uuid
+  cpuPartId       String?   @map("cpu_part_id") @db.Uuid
+  gameVersion     String?   @map("game_version")
+  driverVersion   String?   @map("driver_version")
+  resolution      String
+  qualityPreset   String    @map("quality_preset")
+  rayTracingMode  String    @default("off") @map("ray_tracing_mode")
+  upscalingMode   String    @default("native") @map("upscaling_mode")
+  frameGeneration Boolean   @default(false) @map("frame_generation")
+  averageFps      Float     @map("average_fps")
+  p1Fps           Float?    @map("p1_fps")
+  minimumFps      Float?    @map("minimum_fps")
+  sourceUrl       String    @map("source_url")
+  sourceName      String?   @map("source_name")
+  sourceType      String    @map("source_type")
+  confidence      Float     @default(0.5)
+  metadata        Json?     @map("metadata")
+  measuredAt      DateTime? @map("measured_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  game       Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gpuChipset GpuChipset? @relation(fields: [gpuChipsetId], references: [id], onDelete: SetNull)
+  cpuPart    PcPart?     @relation(fields: [cpuPartId], references: [id], onDelete: SetNull)
+
+  @@index([gameId, resolution, rayTracingMode], map: "ix_game_perf_observations_scenario")
+  @@map("game_performance_observations")
 }
 
 // --- Software catalog ---

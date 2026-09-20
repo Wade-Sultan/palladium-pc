@@ -48,7 +48,10 @@ class CPUSelection(dspy.Signature):
         "cores, threads, base_clock_ghz, boost_clock_ghz, tdp_w, socket, "
         "ddr_gen, has_integrated_graphics, pcie_lanes, memory_channels, "
         "supports_ecc, street_price_usd. The last three are null on consumer "
-        "desktop parts — that absence is meaningful, not missing data."
+        "desktop parts — that absence is meaningful, not missing data. When a "
+        "game performance envelope is available, performance_headroom and "
+        "meets_performance_profile report whether the measured CPU clears it; "
+        "prefer a verified fit."
     )
 
     cpu_name: str = dspy.OutputField(

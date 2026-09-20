@@ -12,6 +12,13 @@ export default async function GamesPage() {
           orderBy: [{ tier: 'asc' }, { role: 'asc' }],
           include: { part: { select: { id: true, name: true } } },
         },
+        performanceProfiles: {
+          orderBy: [
+            { resolution: 'asc' },
+            { targetFps: 'asc' },
+            { rayTracingMode: 'asc' },
+          ],
+        },
       },
     }),
     // Minimum-spec rows link to a CPU or GPU part.

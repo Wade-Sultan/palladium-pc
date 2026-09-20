@@ -385,6 +385,74 @@ def _resolve_budget(
     return "elite", price_sensitivity or "stretch"
 
 
+_RT_OFF_RE = re.compile(
+    r"(?:\b(?:no|without|disable[ds]?|off)\b.{0,20}\b(?:ray|path) tracing\b|"
+    r"\b(?:ray|path) tracing\b.{0,20}\b(?:off|disabled?)\b)",
+    re.I,
+)
+_PATH_TRACING_RE = re.compile(r"\b(?:path tracing|overdrive mode)\b", re.I)
+_RAY_TRACING_RE = re.compile(r"\b(?:ray tracing|rtx on)\b", re.I)
+_QUALITY_RE = re.compile(
+    r"(?:\b(low|medium|high|ultra)\b\s+(?:graphics|quality|preset|settings)|"
+    r"(?:graphics|quality|preset|settings)\s+(?:at|on|to)?\s*\b(low|medium|high|ultra)\b)",
+    re.I,
+)
+_NATIVE_RE = re.compile(
+    r"\b(?:native resolution|no (?:dlss|fsr|xess|upscal(?:e|ing)))\b", re.I
+)
+_UPSCALING_RE = re.compile(
+    r"\b(?:dlss|fsr|xess|upscal(?:e|ing))\b(?:.{0,20}\b(quality|balanced|performance)\b)?",
+    re.I,
+)
+_FRAME_GEN_OFF_RE = re.compile(
+    r"(?:\b(?:no|without|disable[ds]?)\b.{0,20}\bframe generation\b|"
+    r"\bframe generation\b.{0,20}\b(?:off|disabled?)\b)",
+    re.I,
+)
+_FRAME_GEN_RE = re.compile(r"\b(?:frame generation|dlss 3)\b", re.I)
+
+
+def _explicit_gaming_preferences(messages: list[ChatMessage]) -> dict[str, str]:
+    """Extract only fidelity choices the user stated explicitly.
+
+    This deliberately complements rather than changes ``ProfileExtraction``.
+    Adding DSPy output fields would invalidate every optimized artifact at
+    startup.  The vocabulary here is narrow and auditable, and merge_profile
+    carries the last explicit value across later turns.
+    """
+    preferences: dict[str, str] = {}
+    for message in messages:
+        if message.role != "user":
+            continue
+        text = message.content or ""
+
+        quality = _QUALITY_RE.search(text)
+        if quality:
+            preferences["gaming_quality"] = (
+                quality.group(1) or quality.group(2)
+            ).casefold()
+
+        if _RT_OFF_RE.search(text):
+            preferences["gaming_ray_tracing"] = "off"
+        elif _PATH_TRACING_RE.search(text):
+            preferences["gaming_ray_tracing"] = "path_tracing"
+        elif _RAY_TRACING_RE.search(text):
+            preferences["gaming_ray_tracing"] = "on"
+
+        if _NATIVE_RE.search(text):
+            preferences["gaming_upscaling"] = "native"
+        elif upscaling := _UPSCALING_RE.search(text):
+            preferences["gaming_upscaling"] = (
+                upscaling.group(1) or "allowed"
+            ).casefold()
+
+        if _FRAME_GEN_OFF_RE.search(text):
+            preferences["gaming_frame_generation"] = "no"
+        elif _FRAME_GEN_RE.search(text):
+            preferences["gaming_frame_generation"] = "yes"
+    return preferences
+
+
 async def extract_profile(
     messages: list[ChatMessage],
     usage_sink: dict | None = None,
@@ -427,6 +495,7 @@ async def extract_profile(
 
     games = [g.strip() for g in result.games.split(",") if g.strip()]
     workloads = [w.strip() for w in result.workloads.split(",") if w.strip()]
+    gaming_preferences = _explicit_gaming_preferences(messages)
 
     def _opt(value: str) -> str | None:
         """Map the extraction model's 'none'/empty sentinel to a real None."""
@@ -461,6 +530,10 @@ async def extract_profile(
         primary_use=result.primary_use,
         gaming_resolution=_opt(result.gaming_resolution),
         gaming_fps=_opt(result.gaming_fps),
+        gaming_quality=gaming_preferences.get("gaming_quality"),
+        gaming_ray_tracing=gaming_preferences.get("gaming_ray_tracing"),
+        gaming_upscaling=gaming_preferences.get("gaming_upscaling"),
+        gaming_frame_generation=gaming_preferences.get("gaming_frame_generation"),
         streaming_style=_opt(result.streaming_style),
         ai_workload=_opt(result.ai_workload),
         ai_model_scale=_opt(result.ai_model_scale),
@@ -502,6 +575,14 @@ def _profile_details(profile: BuildProfile) -> str:
         bits.append(f"resolution: {profile.gaming_resolution}")
     if profile.gaming_fps:
         bits.append(f"target fps: {profile.gaming_fps}")
+    if profile.gaming_quality:
+        bits.append(f"quality: {profile.gaming_quality}")
+    if profile.gaming_ray_tracing:
+        bits.append(f"ray tracing: {profile.gaming_ray_tracing}")
+    if profile.gaming_upscaling:
+        bits.append(f"upscaling: {profile.gaming_upscaling}")
+    if profile.gaming_frame_generation:
+        bits.append(f"frame generation: {profile.gaming_frame_generation}")
     if profile.streaming_style:
         bits.append(f"streaming style: {profile.streaming_style}")
     if profile.ai_workload:
@@ -1172,6 +1253,14 @@ def _profile_to_build_request(
         answers["gaming.resolution"] = profile.gaming_resolution
     if profile.gaming_fps:
         answers["gaming.target_fps"] = profile.gaming_fps
+    if profile.gaming_quality:
+        answers["gaming.quality"] = profile.gaming_quality
+    if profile.gaming_ray_tracing:
+        answers["gaming.ray_tracing"] = profile.gaming_ray_tracing
+    if profile.gaming_upscaling:
+        answers["gaming.upscaling"] = profile.gaming_upscaling
+    if profile.gaming_frame_generation:
+        answers["gaming.frame_generation"] = profile.gaming_frame_generation
     if profile.streaming_style:
         answers["streaming.style"] = profile.streaming_style
     if profile.ai_workload:

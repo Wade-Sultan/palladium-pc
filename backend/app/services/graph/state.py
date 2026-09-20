@@ -77,6 +77,10 @@ def new_usage() -> dict[str, Any]:
 _STICKY_FIELDS = (
     "gaming_resolution",
     "gaming_fps",
+    "gaming_quality",
+    "gaming_ray_tracing",
+    "gaming_upscaling",
+    "gaming_frame_generation",
     "streaming_style",
     "ai_workload",
     "ai_model_scale",

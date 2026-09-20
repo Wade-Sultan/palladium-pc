@@ -2,9 +2,11 @@ import enum
 import uuid
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -13,7 +15,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -78,6 +80,16 @@ class Game(Base):
 
     minimum_parts = relationship(
         "GameMinimumPart",
+        back_populates="game",
+        cascade="all, delete-orphan",
+    )
+    performance_profiles = relationship(
+        "GamePerformanceProfile",
+        back_populates="game",
+        cascade="all, delete-orphan",
+    )
+    performance_observations = relationship(
+        "GamePerformanceObservation",
         back_populates="game",
         cascade="all, delete-orphan",
     )
@@ -166,3 +178,148 @@ class GameMinimumPart(Base):
     game = relationship("Game", back_populates="minimum_parts")
     part = relationship("PCPart")
     gpu_chipset = relationship("GPUChipset")
+
+
+class GamePerformanceProfile(Base):
+    """Versioned performance envelope for one playable game scenario.
+
+    These are deliberately ordinary numeric columns rather than semantic
+    embeddings.  A build either clears a measured benchmark/VRAM floor or it
+    does not; cosine distance cannot preserve that ordering.  Text embeddings
+    continue to resolve a user's free-text title to ``Game`` and this table
+    supplies the auditable hardware knowledge after that match.
+    """
+
+    __tablename__ = "game_performance_profiles"
+    __table_args__ = (
+        CheckConstraint("target_fps > 0", name="ck_game_perf_profile_fps_positive"),
+        CheckConstraint(
+            "confidence >= 0 AND confidence <= 1",
+            name="ck_game_perf_profile_confidence",
+        ),
+        CheckConstraint("sample_count >= 0", name="ck_game_perf_profile_sample_count"),
+        Index(
+            "ix_game_perf_profiles_scenario",
+            "game_id",
+            "resolution",
+            "target_fps",
+            "ray_tracing_mode",
+            "is_active",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    game_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("games.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    game_version = Column(String(100), nullable=True)
+    resolution = Column(String(20), nullable=False)
+    target_fps = Column(Integer, nullable=False)
+    quality_preset = Column(String(20), nullable=False, server_default="high")
+    ray_tracing_mode = Column(String(30), nullable=False, server_default="off")
+    upscaling_mode = Column(String(30), nullable=False, server_default="native")
+    frame_generation = Column(Boolean, nullable=False, server_default="false")
+
+    # Floors use the same suite keys carried by CPU/GPU benchmark_scores.
+    min_gpu_raster_score = Column(Float, nullable=True)  # Time Spy
+    min_gpu_rt_score = Column(Float, nullable=True)  # Port Royal
+    min_gpu_modern_score = Column(Float, nullable=True)  # Speed Way
+    min_cpu_single_score = Column(Float, nullable=True)
+    min_cpu_multi_score = Column(Float, nullable=True)
+    min_vram_gb = Column(Integer, nullable=True)
+    min_ram_gb = Column(Integer, nullable=True)
+    required_features = Column(ARRAY(String), nullable=False, server_default="{}")
+
+    confidence = Column(Float, nullable=False, server_default="0.5")
+    sample_count = Column(Integer, nullable=False, server_default="0")
+    derivation_method = Column(String(40), nullable=False)
+    source_urls = Column(ARRAY(Text), nullable=False, server_default="{}")
+    notes = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, server_default="true")
+
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    game = relationship("Game", back_populates="performance_profiles")
+
+
+class GamePerformanceObservation(Base):
+    """One immutable-ish FPS observation used to derive a profile.
+
+    Keeping observations separate means reviewers can disagree without either
+    row overwriting the other.  Patch, settings, upscaling and frame generation
+    remain attached to the number that was actually measured.
+    """
+
+    __tablename__ = "game_performance_observations"
+    __table_args__ = (
+        CheckConstraint(
+            "average_fps > 0", name="ck_game_perf_observation_fps_positive"
+        ),
+        CheckConstraint(
+            "confidence >= 0 AND confidence <= 1",
+            name="ck_game_perf_observation_confidence",
+        ),
+        Index(
+            "ix_game_perf_observations_scenario",
+            "game_id",
+            "resolution",
+            "ray_tracing_mode",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    game_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("games.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    gpu_chipset_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("gpu_chipsets.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    cpu_part_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("pc_parts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    game_version = Column(String(100), nullable=True)
+    driver_version = Column(String(100), nullable=True)
+    resolution = Column(String(20), nullable=False)
+    quality_preset = Column(String(20), nullable=False)
+    ray_tracing_mode = Column(String(30), nullable=False, server_default="off")
+    upscaling_mode = Column(String(30), nullable=False, server_default="native")
+    frame_generation = Column(Boolean, nullable=False, server_default="false")
+    average_fps = Column(Float, nullable=False)
+    p1_fps = Column(Float, nullable=True)
+    minimum_fps = Column(Float, nullable=True)
+
+    source_url = Column(Text, nullable=False)
+    source_name = Column(String(120), nullable=True)
+    source_type = Column(String(40), nullable=False)
+    confidence = Column(Float, nullable=False, server_default="0.5")
+    metadata_json = Column("metadata", JSONB, nullable=True)
+    measured_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    game = relationship("Game", back_populates="performance_observations")
+    gpu_chipset = relationship("GPUChipset")
+    cpu_part = relationship("PCPart")

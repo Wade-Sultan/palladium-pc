@@ -19,7 +19,6 @@ import pytest
 
 from app.services.recommender import scoring
 
-
 # --- Helpers ------------------------------------------------------------------
 
 
@@ -93,6 +92,18 @@ def test_resolution_does_not_shift_gpu_weights():
     assert base == at_4k
 
 
+def test_explicit_ray_tracing_reweights_gaming_gpu_axes():
+    raster = scoring.weights_for("gpu", ["gaming"], {"gaming.ray_tracing": "off"})
+    ray = scoring.weights_for("gpu", ["gaming"], {"gaming.ray_tracing": "on"})
+    path = scoring.weights_for(
+        "gpu", ["gaming"], {"gaming.ray_tracing": "path_tracing"}
+    )
+
+    assert "ray" not in raster
+    assert ray["ray"] == pytest.approx(0.4)
+    assert path["ray"] == pytest.approx(0.6)
+
+
 # --- score_candidates ---------------------------------------------------------
 
 
@@ -111,6 +122,43 @@ def test_benchmark_scores_are_stripped_from_the_prompt_payload():
     rows = [_cpu("A", 300, single=100, multi=1000)]
     scoring.score_candidates(rows, "cpu", ["gaming"])
     assert "benchmark_scores" not in rows[0]
+
+
+def test_absolute_game_profile_annotates_gpu_headroom():
+    rows = [_gpu("Enough", 700, timespy=20000, speedway=5000, port_royal=12000)]
+    rows[0].update(vram_gb=12, has_ray_tracing=True)
+    scoring.score_candidates(
+        rows,
+        "gpu",
+        ["gaming"],
+        {
+            "gaming.ray_tracing": "on",
+            "requirements.gpu_raster_score": "16000",
+            "requirements.gpu_rt_score": "10000",
+            "requirements.min_vram_gb": "10",
+            "requirements.required_features": ["ray_tracing"],
+        },
+    )
+
+    assert rows[0]["meets_performance_profile"] is True
+    assert rows[0]["performance_headroom"] == pytest.approx(1.2)
+
+
+def test_absolute_game_profile_marks_rt_shortfall():
+    rows = [_gpu("RasterOnly", 400, timespy=20000, speedway=5000)]
+    rows[0].update(vram_gb=12, has_ray_tracing=False)
+    scoring.score_candidates(
+        rows,
+        "gpu",
+        ["gaming"],
+        {
+            "requirements.gpu_raster_score": "16000",
+            "requirements.required_features": ["ray_tracing"],
+        },
+    )
+
+    assert rows[0]["meets_performance_profile"] is False
+    assert "ray_tracing" in rows[0]["profile_shortfalls"]
 
 
 def test_unscorable_candidate_is_kept_with_a_null_score():

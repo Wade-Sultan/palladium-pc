@@ -51,7 +51,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.ai_catalog import AIModel
 from app.models.embeddings import EmbeddedEntity
-from app.models.games_catalog import Game, RequirementTier
+from app.models.games_catalog import Game, GamePerformanceProfile, RequirementTier
 from app.models.pcparts import CPU, GPU, GPUChipset
 from app.models.software_catalog import Software
 from app.services.embeddings import store
@@ -127,6 +127,15 @@ class CatalogRequirements:
     min_storage_gb: int | None = None
     min_cores: int | None = None
 
+    # Game-performance envelopes.  These are absolute floors in the benchmark
+    # suites already carried on CPU/GPU catalog rows, unlike perf_score (which
+    # is relative to whichever candidates happened to fit this build's budget).
+    min_gpu_raster_score: float | None = None
+    min_gpu_rt_score: float | None = None
+    min_gpu_modern_score: float | None = None
+    min_cpu_single_score: float | None = None
+    min_cpu_multi_score: float | None = None
+
     # True when any matched AI workload declares it shards across cards. This is
     # the one signal that legitimately pushes a build toward multiple GPUs.
     supports_multi_gpu: bool = False
@@ -142,6 +151,7 @@ class CatalogRequirements:
     # One line per match, for the prompt.
     notes: list[str] = field(default_factory=list)
     game_requirements: list[dict] = field(default_factory=list)
+    game_performance_profiles: list[dict] = field(default_factory=list)
 
     def _raise_floor(self, attr: str, value: int | None) -> None:
         if value is None:
@@ -149,6 +159,13 @@ class CatalogRequirements:
         current = getattr(self, attr)
         if current is None or value > current:
             setattr(self, attr, value)
+
+    def _raise_numeric_floor(self, attr: str, value: float | None) -> None:
+        if value is None:
+            return
+        current = getattr(self, attr)
+        if current is None or value > current:
+            setattr(self, attr, float(value))
 
     @property
     def is_empty(self) -> bool:
@@ -204,6 +221,18 @@ class CatalogRequirements:
             floors.append(f"at least {self.min_cores} CPU cores")
         if floors:
             lines.append(f"  Combined floor: {', '.join(floors)}.")
+        for profile in self.game_performance_profiles:
+            scenario = (
+                f"{profile['resolution']} {profile['quality_preset']} at "
+                f"{profile['target_fps']} FPS, RT {profile['ray_tracing_mode']}"
+            )
+            lines.append(
+                f"  {profile['game']} performance envelope: {scenario} "
+                f"(confidence {profile['confidence']:.0%}, "
+                f"{profile['derivation_method']})."
+            )
+            if profile.get("match_notes"):
+                lines.append(f"    Approximation: {profile['match_notes']}")
         if self.supports_multi_gpu:
             lines.append(
                 "  At least one named workload shards across multiple GPUs, so "
@@ -237,25 +266,223 @@ class CatalogRequirements:
             "min_ram_gb": self.min_ram_gb,
             "min_storage_gb": self.min_storage_gb,
             "min_cores": self.min_cores,
+            "min_gpu_raster_score": self.min_gpu_raster_score,
+            "min_gpu_rt_score": self.min_gpu_rt_score,
+            "min_gpu_modern_score": self.min_gpu_modern_score,
+            "min_cpu_single_score": self.min_cpu_single_score,
+            "min_cpu_multi_score": self.min_cpu_multi_score,
             "supports_multi_gpu": self.supports_multi_gpu,
             "quantization_alternatives": self.quantization_alternatives,
             "gpu_backends": sorted(self.gpu_backends),
             "required_features": sorted(self.required_features),
             "notes": list(self.notes),
+            "game_performance_profiles": list(self.game_performance_profiles),
         }
 
 
 # --- Per-entity requirement extraction ----------------------------------------
 
 
+_RESOLUTION_ORDER = {"1080p": 0, "1440p": 1, "4k": 2}
+_QUALITY_ORDER = {"low": 0, "medium": 1, "high": 2, "ultra": 3}
+_RT_ORDER = {"off": 0, "low": 1, "medium": 2, "high": 3, "ultra": 4, "path_tracing": 5}
+
+
+def _scenario_value(value: str | None, choices: dict[str, int], default: str) -> int:
+    return choices.get(str(value or default).casefold(), choices[default])
+
+
+def _select_performance_profile(
+    profiles: list[GamePerformanceProfile],
+    *,
+    resolution: str | None,
+    target_fps: str | None,
+    quality_preset: str | None,
+    ray_tracing: str | None,
+    upscaling: str | None,
+    frame_generation: str | None,
+) -> tuple[GamePerformanceProfile | None, str | None]:
+    """Choose the closest measured scenario and describe any approximation.
+
+    Resolution and RT mode dominate the ranking; a 4K raster profile is not a
+    better answer to a 1440p path-tracing request merely because both target
+    60 FPS.  Ties prefer the more strongly evidenced profile.
+    """
+    active = [p for p in profiles if p.is_active]
+    if not active:
+        return None, None
+
+    wanted_resolution = str(resolution or "1080p").casefold()
+    try:
+        wanted_fps = max(1, int(target_fps or 60))
+    except (TypeError, ValueError):
+        wanted_fps = 60
+    wanted_quality = str(quality_preset or "high").casefold()
+    wanted_rt = str(ray_tracing or "off").casefold()
+    wanted_upscaling = str(upscaling or "allowed").casefold()
+    wanted_fg = str(frame_generation or "allowed").casefold()
+
+    def rt_penalty(mode: str) -> int:
+        mode = mode.casefold()
+        if wanted_rt == "off":
+            return 0 if mode == "off" else 100 + _RT_ORDER.get(mode, 6)
+        if wanted_rt == "path_tracing":
+            return (
+                0
+                if mode == "path_tracing"
+                else 100
+                + abs(
+                    _scenario_value(mode, _RT_ORDER, "off") - _RT_ORDER["path_tracing"]
+                )
+            )
+        # "on" means a representative RT scenario; high is the neutral target.
+        return (
+            100
+            if mode == "off"
+            else abs(_scenario_value(mode, _RT_ORDER, "high") - _RT_ORDER["high"])
+        )
+
+    def rank(p: GamePerformanceProfile) -> tuple:
+        resolution_gap = abs(
+            _scenario_value(p.resolution, _RESOLUTION_ORDER, "1080p")
+            - _scenario_value(wanted_resolution, _RESOLUTION_ORDER, "1080p")
+        )
+        quality_gap = abs(
+            _scenario_value(p.quality_preset, _QUALITY_ORDER, "high")
+            - _scenario_value(wanted_quality, _QUALITY_ORDER, "high")
+        )
+        if wanted_upscaling in ("allowed", "any"):
+            upscaling_gap = 0
+        else:
+            upscaling_gap = int(p.upscaling_mode.casefold() != wanted_upscaling)
+        if wanted_fg in ("allowed", "any"):
+            fg_gap = 0
+        else:
+            wants_fg = wanted_fg in ("yes", "on", "true")
+            fg_gap = int(bool(p.frame_generation) != wants_fg)
+        return (
+            resolution_gap,
+            rt_penalty(p.ray_tracing_mode),
+            quality_gap,
+            upscaling_gap,
+            fg_gap,
+            abs(p.target_fps - wanted_fps),
+            -float(p.confidence or 0),
+            -int(p.sample_count or 0),
+        )
+
+    chosen = min(active, key=rank)
+    mismatches = []
+    if chosen.resolution.casefold() != wanted_resolution:
+        mismatches.append(
+            f"requested {wanted_resolution}, closest profile is {chosen.resolution}"
+        )
+    if chosen.target_fps != wanted_fps:
+        mismatches.append(
+            f"requested {wanted_fps} FPS, closest profile is {chosen.target_fps} FPS"
+        )
+    if chosen.quality_preset.casefold() != wanted_quality:
+        mismatches.append(
+            f"requested {wanted_quality}, closest profile is {chosen.quality_preset}"
+        )
+    chosen_rt = chosen.ray_tracing_mode.casefold()
+    if wanted_rt == "off" and chosen_rt != "off":
+        mismatches.append(f"requested RT off, closest profile uses {chosen_rt}")
+    elif wanted_rt == "path_tracing" and chosen_rt != "path_tracing":
+        mismatches.append(f"requested path tracing, closest profile uses {chosen_rt}")
+    elif wanted_rt == "on" and chosen_rt == "off":
+        mismatches.append(
+            "requested ray tracing, but only a raster profile is available"
+        )
+    if (
+        wanted_upscaling not in ("allowed", "any")
+        and chosen.upscaling_mode.casefold() != wanted_upscaling
+    ):
+        mismatches.append(
+            f"requested {wanted_upscaling} upscaling, closest profile uses "
+            f"{chosen.upscaling_mode}"
+        )
+    if wanted_fg not in ("allowed", "any"):
+        wants_fg = wanted_fg in ("yes", "on", "true")
+        if bool(chosen.frame_generation) != wants_fg:
+            state = "on" if chosen.frame_generation else "off"
+            mismatches.append(
+                f"requested frame generation {wanted_fg}, closest profile is {state}"
+            )
+    return chosen, "; ".join(mismatches) or None
+
+
+def _apply_performance_profile(
+    game: Game,
+    profile: GamePerformanceProfile,
+    match_notes: str | None,
+    req: CatalogRequirements,
+    requested_ray_tracing: str | None = None,
+) -> None:
+    wanted_rt = str(requested_ray_tracing or "off").casefold()
+    req._raise_numeric_floor("min_gpu_raster_score", profile.min_gpu_raster_score)
+    if wanted_rt != "off":
+        req._raise_numeric_floor("min_gpu_rt_score", profile.min_gpu_rt_score)
+    req._raise_numeric_floor("min_gpu_modern_score", profile.min_gpu_modern_score)
+    req._raise_numeric_floor("min_cpu_single_score", profile.min_cpu_single_score)
+    req._raise_numeric_floor("min_cpu_multi_score", profile.min_cpu_multi_score)
+    req._raise_floor("min_vram_gb", profile.min_vram_gb)
+    req._raise_floor("min_ram_gb", profile.min_ram_gb)
+    for feature in profile.required_features or []:
+        if feature and feature.strip():
+            normalized = feature.strip()
+            if normalized != "ray_tracing" or wanted_rt != "off":
+                req.required_features.add(normalized)
+    if wanted_rt in ("on", "path_tracing"):
+        req.required_features.add("ray_tracing")
+    req.game_performance_profiles.append(
+        {
+            "game": game.title,
+            "profile_id": str(profile.id),
+            "game_version": profile.game_version,
+            "resolution": profile.resolution,
+            "target_fps": profile.target_fps,
+            "quality_preset": profile.quality_preset,
+            "ray_tracing_mode": profile.ray_tracing_mode,
+            "upscaling_mode": profile.upscaling_mode,
+            "frame_generation": profile.frame_generation,
+            "min_gpu_raster_score": profile.min_gpu_raster_score,
+            "min_gpu_rt_score": profile.min_gpu_rt_score,
+            "min_gpu_modern_score": profile.min_gpu_modern_score,
+            "min_cpu_single_score": profile.min_cpu_single_score,
+            "min_cpu_multi_score": profile.min_cpu_multi_score,
+            "min_vram_gb": profile.min_vram_gb,
+            "min_ram_gb": profile.min_ram_gb,
+            "required_features": list(profile.required_features or []),
+            "confidence": float(profile.confidence),
+            "sample_count": profile.sample_count,
+            "derivation_method": profile.derivation_method,
+            "source_urls": list(profile.source_urls or []),
+            "match_notes": match_notes,
+        }
+    )
+
+
 async def _apply_game(
-    db: AsyncSession, game_id: uuid.UUID, req: CatalogRequirements
+    db: AsyncSession,
+    game_id: uuid.UUID,
+    req: CatalogRequirements,
+    *,
+    gaming_resolution: str | None = None,
+    gaming_fps: str | None = None,
+    gaming_quality: str | None = None,
+    gaming_ray_tracing: str | None = None,
+    gaming_upscaling: str | None = None,
+    gaming_frame_generation: str | None = None,
 ) -> None:
     game = (
         await db.execute(
             select(Game)
             .where(Game.id == game_id)
-            .options(selectinload(Game.minimum_parts))
+            .options(
+                selectinload(Game.minimum_parts),
+                selectinload(Game.performance_profiles),
+            )
         )
     ).scalar_one_or_none()
     if game is None:
@@ -266,6 +493,27 @@ async def _apply_game(
     for feature in game.hard_requirements or []:
         if feature and feature.strip():
             req.required_features.add(feature.strip())
+
+    profile, match_notes = _select_performance_profile(
+        game.performance_profiles,
+        resolution=gaming_resolution,
+        target_fps=gaming_fps,
+        quality_preset=gaming_quality,
+        ray_tracing=gaming_ray_tracing,
+        upscaling=gaming_upscaling,
+        frame_generation=gaming_frame_generation,
+    )
+    if profile is not None:
+        _apply_performance_profile(
+            game,
+            profile,
+            match_notes,
+            req,
+            requested_ray_tracing=gaming_ray_tracing,
+        )
+        if profile.notes:
+            req.notes.append(f"{game.title}: {profile.notes}")
+        return
 
     # Prefer the recommended tier over minimum: a user naming a game wants to
     # play it well, and "minimum" describes the spec at which it launches.
@@ -527,6 +775,12 @@ async def resolve_requirements(
     *,
     ai_workload: str | None = None,
     workload_intensity: str | None = None,
+    gaming_resolution: str | None = None,
+    gaming_fps: str | None = None,
+    gaming_quality: str | None = None,
+    gaming_ray_tracing: str | None = None,
+    gaming_upscaling: str | None = None,
+    gaming_frame_generation: str | None = None,
 ) -> CatalogRequirements:
     """Match each free-text term to a catalog row and aggregate its requirements.
 
@@ -575,7 +829,17 @@ async def resolve_requirements(
 
         kind = _APPLIERS.get(hit.entity_type)
         if kind == "game":
-            await _apply_game(db, hit.entity_id, req)
+            await _apply_game(
+                db,
+                hit.entity_id,
+                req,
+                gaming_resolution=gaming_resolution,
+                gaming_fps=gaming_fps,
+                gaming_quality=gaming_quality,
+                gaming_ray_tracing=gaming_ray_tracing,
+                gaming_upscaling=gaming_upscaling,
+                gaming_frame_generation=gaming_frame_generation,
+            )
         elif kind == "software":
             await _apply_software(db, hit.entity_id, req, workload_intensity)
         elif kind == "ai_model":
