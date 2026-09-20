@@ -246,11 +246,6 @@ const AssistantMessage: FC = () => {
       data-role="assistant"
     >
       <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-        {/* A real pipeline step always wins; the idle phrase only fills the
-            stretches that have none. See components/Chat/status-messages.ts. */}
-        {isRunning && (
-          <LoadingIndicator message={statusMessage ?? idleMessage} />
-        )}
         <MessagePrimitive.Parts>
           {({ part }) => {
             if (part.type === "text") return <MarkdownText />
@@ -260,6 +255,14 @@ const AssistantMessage: FC = () => {
             return null
           }}
         </MessagePrimitive.Parts>
+        {/* Keep progress after the turn's content. In particular, selecting a
+            case starts a new turn while its picker is still the last message,
+            and the save status belongs below those options rather than above
+            them. A real pipeline step always wins; the idle phrase only fills
+            stretches that have none. See components/Chat/status-messages.ts. */}
+        {isRunning && (
+          <LoadingIndicator message={statusMessage ?? idleMessage} />
+        )}
         <MessageError />
       </div>
 

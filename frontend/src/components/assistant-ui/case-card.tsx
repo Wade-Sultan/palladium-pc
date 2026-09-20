@@ -5,7 +5,7 @@ import {
   useAssistantTransportSendCommand,
   useAuiState,
 } from "@assistant-ui/react"
-import { CheckIcon, PcCaseIcon } from "lucide-react"
+import { CheckIcon, ChevronDownIcon, PcCaseIcon } from "lucide-react"
 import { useState } from "react"
 import type { ChatAgentState } from "@/components/Chat/converter"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type { CaseOption, CaseOptionsData } from "@/types/build"
@@ -205,6 +210,13 @@ export const CaseOptionsCard: DataMessagePartComponent<CaseOptionsData> = (
   const sendCommand = useAssistantTransportSendCommand()
   const turnRunning = useTurnRunning()
   const [pending, setPending] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
+
+  // An unresolved picker must stay open. Once the server confirms `chosen`,
+  // it becomes collapsible and starts closed; this ties the minimization to a
+  // successful save rather than the optimistic click.
+  const isResolved = data.chosen !== null
+  const isOpen = !isResolved || expanded
 
   const choose = (name: string) => {
     if (data.chosen !== null || pending !== null || turnRunning) return
@@ -215,33 +227,54 @@ export const CaseOptionsCard: DataMessagePartComponent<CaseOptionsData> = (
   }
 
   return (
-    <div className="my-2 flex w-full max-w-(--thread-max-width) flex-col gap-2">
-      <div>
-        <p className="text-sm font-medium">
-          {data.chosen === null ? "Pick your case" : "Case options"}
-        </p>
-        <p className="text-muted-foreground text-xs">
-          {data.chosen === null
-            ? "All three fit your parts — this one's about looks and space. Your build finishes once you choose."
-            : "The build was finished with the selected case."}
-        </p>
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setExpanded}
+      className="my-2 flex w-full max-w-(--thread-max-width) flex-col gap-2"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">
+            {isResolved ? "Case options" : "Pick your case"}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {isResolved
+              ? `Selected: ${data.chosen}`
+              : "All three fit your parts — this one's about looks and space. Your build finishes once you choose."}
+          </p>
+        </div>
+        {isResolved && (
+          <CollapsibleTrigger asChild>
+            <Button type="button" size="sm" variant="outline">
+              {isOpen ? "Hide options" : "View options"}
+              <ChevronDownIcon
+                className={cn(
+                  "size-4 transition-transform",
+                  isOpen && "rotate-180",
+                )}
+              />
+            </Button>
+          </CollapsibleTrigger>
+        )}
       </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {data.options.map((option, rank) => (
-          <CaseCard
-            key={option.part_id || option.name}
-            option={option}
-            rank={rank}
-            chosen={data.chosen}
-            pending={pending}
-            locked={turnRunning}
-            onChoose={choose}
-          />
-        ))}
-      </div>
-      <p className="text-muted-foreground px-1 text-xs">
-        *Approximate street prices
-      </p>
-    </div>
+      <CollapsibleContent className="flex flex-col gap-2 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {data.options.map((option, rank) => (
+            <CaseCard
+              key={option.part_id || option.name}
+              option={option}
+              rank={rank}
+              chosen={data.chosen}
+              pending={pending}
+              locked={turnRunning}
+              onChoose={choose}
+            />
+          ))}
+        </div>
+        <p className="text-muted-foreground px-1 text-xs">
+          *Approximate street prices
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
