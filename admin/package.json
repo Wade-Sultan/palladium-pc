@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "node --import tsx --test tests/*.test.ts",
     "lint": "eslint .",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
@@ -46,6 +47,7 @@
     "eslint-config-next": "^16.2.9",
     "prisma": "^5.22.0",
     "tailwindcss": "^4.1.17",
+    "tsx": "^4.23.13",
     "typescript": "^5"
   }
 }
