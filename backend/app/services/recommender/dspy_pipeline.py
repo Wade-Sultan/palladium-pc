@@ -49,6 +49,7 @@ from app.crud import components as crud_components
 from app.models.build_session import BuildSessionStatus
 from app.schemas.chat import NO_BUDGET_CEILING, BuildRequest
 from app.services.discovery import queue
+from app.services.recommender import locked_parts
 from app.services.recommender.catalog_match import (
     CatalogRequirements,
     resolve_requirements,
@@ -419,6 +420,86 @@ def _try_dominance(
         return None
 
 
+# Slots where a pre-selected part IS the answer, so the step can be skipped.
+#
+# storage and fans are deliberately absent. Both are multi-part roles where
+# naming one item means "include this", not "this is the whole answer" — a user
+# who already owns a 2TB drive still wants us to decide whether the build needs
+# a second one. Their locks are resolved and put in front of the step as
+# context (see locked_parts.summary) rather than replacing it.
+_GATED_ROLES = frozenset({"cpu", "cooler", "mobo", "ram", "gpu", "psu"})
+
+
+def _locked_result(
+    state: DSPyBuildState,
+    recorder: BuildRecorder | None,
+    program: dspy.Module,
+    *,
+    role: str,
+    output_field: str,
+    extra_outputs: dict[str, Any] | None = None,
+) -> dspy.Prediction | None:
+    """Resolve a step from the user's own pre-selected part, with no LLM call.
+
+    Returns a Prediction shaped exactly like the one the Decide* module would
+    have produced — so every call site's state-population code is unchanged — or
+    None when this slot has no honoured lock and the step should run normally.
+    Whether a lock is honoured was settled before the first step ran; see
+    locked_parts.resolve. By here it is a dictionary lookup.
+
+    DELIBERATELY CALLED BEFORE THE CANDIDATE QUERY, unlike the dominance gate,
+    which needs a candidate set to be dominant over. A locked slot's budget
+    entry holds what the part cost rather than a ceiling to shop under, and for
+    a part the user already owns that figure is zero — so querying candidates
+    against it would come back empty and _ensure_candidates would fail a build
+    that is in fact perfectly well specified.
+    """
+    if role not in _GATED_ROLES:
+        return None
+    lock = (state.locked or {}).get(role)
+    if not lock or not lock.get("honored"):
+        return None
+    name = lock.get("group_name")
+    if not name:
+        return None
+
+    outputs: dict[str, Any] = {
+        output_field: name,
+        "reason": lock.get("reason") or "",
+        # There is no price at which we would talk the user out of a part they
+        # picked themselves, which is what this field would otherwise be
+        # claiming. Say the true thing instead.
+        "reconsideration_threshold": (
+            f"You chose this {role} yourself, so we kept it and built around it. "
+            f"Say the word if you would rather we picked one."
+        ),
+        **(extra_outputs or {}),
+    }
+    category = getattr(program, "category", role)
+    logger.info(
+        "locked %s step resolved without an LLM call: %s (%s)",
+        category,
+        name,
+        "user-owned" if lock.get("owned") else "user-requested",
+    )
+    if recorder is not None:
+        recorder.record_deterministic_decision(
+            category=category,
+            sequence_order=_SEQUENCE_ORDER.get(category, -1),
+            signature_name=getattr(program, "signature_name", category),
+            signature_version=getattr(program, "signature_version", 1),
+            # None, not "[]": no candidate set was fetched, so nothing was
+            # chosen from anything. An empty list would record as "we looked and
+            # found nothing available", which is a different and alarming claim.
+            candidates_json=None,
+            input_state={"locked_part": lock},
+            output_decision=dict(outputs),
+            chosen_name=name,
+            latency_ms=0,
+        )
+    return dspy.Prediction(**outputs)
+
+
 async def _run_step(
     recorder: BuildRecorder | None,
     program: dspy.Module,
@@ -590,8 +671,20 @@ _BUDGET_CEILINGS: dict[str, dict[str, float]] = {
 }
 
 
-def _allocate_budget(budget_usd: int, use_cases: list[str]) -> dict[str, int]:
+def _allocate_budget(
+    budget_usd: int,
+    use_cases: list[str],
+    locked_costs: dict[str, int] | None = None,
+) -> dict[str, int]:
     """Return per-slot budget ceilings in USD.
+
+    `locked_costs` is what the user's own pre-selected parts take out of the
+    pot, by slot (see locked_parts.slot_costs). A locked slot is not for sale:
+    its money leaves the total and its ceiling leaves the proportional split, so
+    the slots still to be chosen are sized against what is actually left rather
+    than against a budget that is already partly spent. Without this, locking a
+    card priced at the whole budget would still hand the CPU step its usual
+    share of a total that no longer exists.
 
     Under the 'custom' tier (budget_usd is NO_BUDGET_CEILING) every slot gets
     the sentinel rather than a share of a total, because there is no total to
@@ -608,7 +701,29 @@ def _allocate_budget(budget_usd: int, use_cases: list[str]) -> dict[str, int]:
         "default",
     )
     ceilings = _BUDGET_CEILINGS[profile_key]
-    return {slot: int(budget_usd * pct) for slot, pct in ceilings.items()}
+    locked_costs = locked_costs or {}
+    if not locked_costs:
+        return {slot: int(budget_usd * pct) for slot, pct in ceilings.items()}
+
+    # Scaled, not renormalized. These fractions deliberately do not sum to 1.0
+    # (see _BUDGET_CEILINGS), so dividing the survivors by their own total would
+    # silently inflate every remaining ceiling and undo the generosity the
+    # ram/storage shares were given on purpose. Shrinking them all by the
+    # fraction of the budget that survives keeps their relationship intact.
+    remaining = max(0, budget_usd - sum(locked_costs.values()))
+    scale = remaining / budget_usd if budget_usd > 0 else 0.0
+    allocation = {
+        slot: int(budget_usd * pct * scale)
+        for slot, pct in ceilings.items()
+        if slot not in locked_costs
+    }
+    # Locked slots keep an entry holding what they actually cost. Recorded
+    # rather than dropped because the telemetry and the appropriateness metrics
+    # both read a per-slot figure, and for a slot nobody chose, what it cost is
+    # the only honest one. Nothing queries candidates against it — a locked
+    # step returns before it would.
+    allocation.update(locked_costs)
+    return allocation
 
 
 def _request_summary(request: BuildRequest) -> str:
@@ -838,6 +953,12 @@ class DSPyBuildState:
     # input to every Decide* module. Set once by run_pipeline.
     use_case_summary: str = ""
 
+    # Every pre-selected part the user brought, resolved and judged, keyed by
+    # budget slot. Plain JSON dicts rather than the Lock dataclass so the pause
+    # snapshot carries them without special-casing: see locked_parts.py and
+    # to_dict below. An honoured entry makes its step skip the LLM entirely.
+    locked: dict[str, dict] = field(default_factory=dict)
+
     # Requirements resolved from the games / software / ai_models catalogs for
     # the titles the user named. Already folded into use_case_summary; kept on
     # state so later steps can read the structured floors (min_vram_gb and
@@ -1047,33 +1168,37 @@ async def _step_cpu(
     recorder: BuildRecorder | None,
 ) -> None:
     _emit(state, "cpu", "Choosing your CPU…")
-    candidates = await get_cpu_candidates(
-        session,
-        budget["cpu"],
-        state.request.preferences,
-        state.request.use_cases,
-        state.request.answers,
+    result = _locked_result(
+        state, recorder, program, role="cpu", output_field="cpu_name"
     )
-    _ensure_candidates("cpu", candidates)
-    step_inputs: dict[str, Any] = {
-        "use_cases": state.use_case_summary or str(state.request.use_cases),
-        "budget_total": state.request.budget_usd,
-        "cpu_budget_ceiling": budget["cpu"],
-    }
-    result = _try_dominance(
-        recorder,
-        program,
-        candidates,
-        candidate_name_key="name",
-        output_field="cpu_name",
-        **step_inputs,
-    ) or await _run_step(
-        recorder,
-        program,
-        status_fn=_noop_status,
-        candidates=candidates,
-        **step_inputs,
-    )
+    if result is None:
+        candidates = await get_cpu_candidates(
+            session,
+            budget["cpu"],
+            state.request.preferences,
+            state.request.use_cases,
+            state.request.answers,
+        )
+        _ensure_candidates("cpu", candidates)
+        step_inputs: dict[str, Any] = {
+            "use_cases": state.use_case_summary or str(state.request.use_cases),
+            "budget_total": state.request.budget_usd,
+            "cpu_budget_ceiling": budget["cpu"],
+        }
+        result = _try_dominance(
+            recorder,
+            program,
+            candidates,
+            candidate_name_key="name",
+            output_field="cpu_name",
+            **step_inputs,
+        ) or await _run_step(
+            recorder,
+            program,
+            status_fn=_noop_status,
+            candidates=candidates,
+            **step_inputs,
+        )
     state.cpu_name = result.cpu_name
     state.thresholds["cpu"] = result.reconsideration_threshold
     cpu = await crud_components.get_cpu_by_name(session, result.cpu_name)
@@ -1104,27 +1229,32 @@ async def _step_cooler(
     recorder: BuildRecorder | None,
 ) -> None:
     _emit(state, "cooler", "Picking a cooler…")
-    candidates = await get_cooler_candidates(
-        session,
-        state.cpu_tdp_w,
-        state.cpu_socket,
-        budget["cooler"],
-        # Concrete size, never "no_preference" — the cooler path needs something
-        # to size clearance against. The motherboard step below deliberately does
-        # NOT do this; there "no_preference" means "do not filter".
-        _effective_form_factor(state.request.preferences.form_factor),
+    result = _locked_result(
+        state, recorder, program, role="cooler", output_field="cooler_name"
     )
-    _ensure_candidates("cooler", candidates)
-    result = await _run_step(
-        recorder,
-        program,
-        status_fn=_noop_status,
-        use_cases=state.use_case_summary or str(state.request.use_cases),
-        cpu_name=state.cpu_name,
-        cpu_tdp_w=state.cpu_tdp_w,
-        budget_ceiling=budget["cooler"],
-        candidates=candidates,
-    )
+    if result is None:
+        candidates = await get_cooler_candidates(
+            session,
+            state.cpu_tdp_w,
+            state.cpu_socket,
+            budget["cooler"],
+            # Concrete size, never "no_preference" — the cooler path needs
+            # something to size clearance against. The motherboard step below
+            # deliberately does NOT do this; there "no_preference" means "do not
+            # filter".
+            _effective_form_factor(state.request.preferences.form_factor),
+        )
+        _ensure_candidates("cooler", candidates)
+        result = await _run_step(
+            recorder,
+            program,
+            status_fn=_noop_status,
+            use_cases=state.use_case_summary or str(state.request.use_cases),
+            cpu_name=state.cpu_name,
+            cpu_tdp_w=state.cpu_tdp_w,
+            budget_ceiling=budget["cooler"],
+            candidates=candidates,
+        )
     state.cooler_name = result.cooler_name
     state.thresholds["cooler"] = result.reconsideration_threshold
 
@@ -1137,25 +1267,29 @@ async def _step_motherboard(
     recorder: BuildRecorder | None,
 ) -> None:
     _emit(state, "motherboard", "Selecting a motherboard…")
-    candidates = await get_motherboard_candidates(
-        session,
-        cpu_socket=state.cpu_socket,
-        ddr_gens=state.cpu_ddr_gens,
-        budget_ceiling_usd=budget["mobo"],
-        form_factor=state.request.preferences.form_factor,
-        wifi_required=state.request.preferences.wifi_required,
+    result = _locked_result(
+        state, recorder, program, role="mobo", output_field="motherboard_name"
     )
-    _ensure_candidates("motherboard", candidates)
-    result = await _run_step(
-        recorder,
-        program,
-        status_fn=_noop_status,
-        use_cases=state.use_case_summary or str(state.request.use_cases),
-        cpu_name=state.cpu_name,
-        ddr_gen=", ".join(state.cpu_ddr_gens),
-        budget_ceiling=budget["mobo"],
-        candidates=candidates,
-    )
+    if result is None:
+        candidates = await get_motherboard_candidates(
+            session,
+            cpu_socket=state.cpu_socket,
+            ddr_gens=state.cpu_ddr_gens,
+            budget_ceiling_usd=budget["mobo"],
+            form_factor=state.request.preferences.form_factor,
+            wifi_required=state.request.preferences.wifi_required,
+        )
+        _ensure_candidates("motherboard", candidates)
+        result = await _run_step(
+            recorder,
+            program,
+            status_fn=_noop_status,
+            use_cases=state.use_case_summary or str(state.request.use_cases),
+            cpu_name=state.cpu_name,
+            ddr_gen=", ".join(state.cpu_ddr_gens),
+            budget_ceiling=budget["mobo"],
+            candidates=candidates,
+        )
     state.mobo_name = result.motherboard_name
     state.thresholds["motherboard"] = result.reconsideration_threshold
     mobo = await crud_components.get_motherboard_by_name(
@@ -1184,24 +1318,28 @@ async def _step_ram(
     # the CPU's whole supported set; fall back to the platform pick if the board
     # lookup missed.
     ddr_for_ram = state.mobo_ddr_gen or state.cpu_ddr_gen
-    candidates = await get_ram_candidates(
-        session,
-        ddr_for_ram,
-        budget["ram"],
-        # Registered vs unbuffered is a wall, not a preference — the chosen
-        # board decides it, same as it decides the generation.
-        state.mobo_module_types,
+    result = _locked_result(
+        state, recorder, program, role="ram", output_field="ram_group"
     )
-    _ensure_candidates("ram", candidates)
-    result = await _run_step(
-        recorder,
-        program,
-        status_fn=_noop_status,
-        use_cases=state.use_case_summary or str(state.request.use_cases),
-        ddr_gen=ddr_for_ram,
-        budget_ceiling=budget["ram"],
-        candidates=candidates,
-    )
+    if result is None:
+        candidates = await get_ram_candidates(
+            session,
+            ddr_for_ram,
+            budget["ram"],
+            # Registered vs unbuffered is a wall, not a preference — the chosen
+            # board decides it, same as it decides the generation.
+            state.mobo_module_types,
+        )
+        _ensure_candidates("ram", candidates)
+        result = await _run_step(
+            recorder,
+            program,
+            status_fn=_noop_status,
+            use_cases=state.use_case_summary or str(state.request.use_cases),
+            ddr_gen=ddr_for_ram,
+            budget_ceiling=budget["ram"],
+            candidates=candidates,
+        )
     state.ram_group = result.ram_group
     state.thresholds["ram"] = result.reconsideration_threshold
     # Resolve the cheapest kit in the chosen group (deterministic; no LLM call).
@@ -1338,57 +1476,75 @@ async def _step_gpu(
     recorder: BuildRecorder | None,
 ) -> None:
     _emit(state, "gpu", "Choosing GPU…")
-    # The main step chooses a chipset; the exact board is resolved later, once
-    # the case (length) and PSU (power) are known — see _resolve_gpu_variant.
-    candidates = await get_gpu_chipset_candidates(
-        session,
-        budget["gpu"],
-        state.request.preferences,
-        state.request.use_cases,
-        state.request.answers,
-    )
-    _ensure_candidates("gpu", candidates)
     # The board was chosen three steps ago and its x16 slot count is now the
     # hard ceiling on how many cards this build can host — there is no going
     # back to a wider board from here. That asymmetry is why the motherboard
     # step is told to favour multi-slot boards for GPU-heavy use cases.
     max_gpu_slots = min(state.mobo_pcie_x16_slots, _MAX_GPUS)
-    step_inputs: dict[str, Any] = {
-        "use_cases": state.use_case_summary or str(state.request.use_cases),
-        "budget_total": state.request.budget_usd,
-        "gpu_budget_ceiling": budget["gpu"],
-        "max_gpu_slots": max_gpu_slots,
-        "cpu_pcie_lanes": state.cpu_pcie_lanes,
-    }
-    # The gate ranks chipsets against each other; it cannot answer the GPU
-    # step's other two questions. So it only runs when both are already settled:
-    # a single-x16 board removes the gpu_count decision, and a use case in
-    # _DISCRETE_GPU_USE_CASES removes the gpu_required one. For productivity,
-    # dev, audio and NAS builds, "no discrete GPU at all" is a live and often
-    # correct answer that no amount of benchmark leadership can rule out —
-    # those always go to the model.
-    dominance_eligible = max_gpu_slots == 1 and all(
-        uc in _DISCRETE_GPU_USE_CASES for uc in state.request.use_cases
-    )
-    result = (
-        _try_dominance(
-            recorder,
-            program,
-            candidates,
-            candidate_name_key="chipset",
-            output_field="gpu_chipset",
-            extra_outputs={"gpu_count": 1, "gpu_required": True},
-            **step_inputs,
-        )
-        if dominance_eligible
-        else None
-    ) or await _run_step(
+
+    # A card the user chose themselves settles all three of this step's
+    # questions at once: which chipset, how many, and whether a discrete GPU is
+    # wanted at all. Asking for a card is the answer to the last one.
+    locked = (state.locked or {}).get("gpu") or {}
+    result = _locked_result(
+        state,
         recorder,
         program,
-        status_fn=_noop_status,
-        candidates=candidates,
-        **step_inputs,
+        role="gpu",
+        output_field="gpu_chipset",
+        extra_outputs={
+            "gpu_count": locked.get("quantity") or 1,
+            "gpu_required": True,
+        },
     )
+    if result is None:
+        # The main step chooses a chipset; the exact board is resolved later,
+        # once the case (length) and PSU (power) are known — see
+        # _resolve_gpu_variant.
+        candidates = await get_gpu_chipset_candidates(
+            session,
+            budget["gpu"],
+            state.request.preferences,
+            state.request.use_cases,
+            state.request.answers,
+        )
+        _ensure_candidates("gpu", candidates)
+        step_inputs: dict[str, Any] = {
+            "use_cases": state.use_case_summary or str(state.request.use_cases),
+            "budget_total": state.request.budget_usd,
+            "gpu_budget_ceiling": budget["gpu"],
+            "max_gpu_slots": max_gpu_slots,
+            "cpu_pcie_lanes": state.cpu_pcie_lanes,
+        }
+        # The gate ranks chipsets against each other; it cannot answer the GPU
+        # step's other two questions. So it only runs when both are already
+        # settled: a single-x16 board removes the gpu_count decision, and a use
+        # case in _DISCRETE_GPU_USE_CASES removes the gpu_required one. For
+        # productivity, dev, audio and NAS builds, "no discrete GPU at all" is a
+        # live and often correct answer that no amount of benchmark leadership
+        # can rule out — those always go to the model.
+        dominance_eligible = max_gpu_slots == 1 and all(
+            uc in _DISCRETE_GPU_USE_CASES for uc in state.request.use_cases
+        )
+        result = (
+            _try_dominance(
+                recorder,
+                program,
+                candidates,
+                candidate_name_key="chipset",
+                output_field="gpu_chipset",
+                extra_outputs={"gpu_count": 1, "gpu_required": True},
+                **step_inputs,
+            )
+            if dominance_eligible
+            else None
+        ) or await _run_step(
+            recorder,
+            program,
+            status_fn=_noop_status,
+            candidates=candidates,
+            **step_inputs,
+        )
     state.gpu_required = result.gpu_required
     if state.gpu_required:
         state.gpu_chipset = result.gpu_chipset
@@ -1436,6 +1592,29 @@ async def _resolve_gpu_variant(state: DSPyBuildState, session: AsyncSession) -> 
     if not variants:
         logger.warning("no GPU boards found for chosen chipset %r", state.gpu_chipset)
         return
+
+    # A user who named a specific board gets that board. Everything below exists
+    # to choose among boards nobody expressed a view on, and overruling a named
+    # one on clearance grounds would ship a different card than the one they
+    # asked for — the case and the supply were both sized around this card, not
+    # the other way round.
+    locked = (state.locked or {}).get("gpu") or {}
+    if locked.get("honored") and locked.get("pinned_exact"):
+        wanted = crud_components._normalize(locked.get("exact_name") or "")
+        pinned = next(
+            (v for v in variants if crud_components._normalize(v.name) == wanted), None
+        )
+        if pinned is not None:
+            state.gpu_name = pinned.name
+            tdp = pinned.chipset.tdp_watts if pinned.chipset else None
+            if tdp:
+                state.gpu_tdp_w = tdp
+            return
+        logger.warning(
+            "locked GPU board %r is no longer a variant of %r; resolving by fit",
+            locked.get("exact_name"),
+            state.gpu_chipset,
+        )
 
     psu = (
         await crud_components.get_psu_by_name(session, state.psu_name)
@@ -1532,18 +1711,22 @@ async def _step_psu(
         min_wattage = max(min_wattage, state.gpu_recommended_psu_w * state.gpu_count)
     # Determine PSU form factor from case
     psu_form_factor = state.psu_form_factor  # updated after case step if ITX
-    candidates = await get_psu_candidates(
-        session, min_wattage, budget["psu"], psu_form_factor
+    result = _locked_result(
+        state, recorder, program, role="psu", output_field="psu_group"
     )
-    _ensure_candidates("psu", candidates)
-    result = await _run_step(
-        recorder,
-        program,
-        status_fn=_noop_status,
-        required_wattage=min_wattage,
-        budget_ceiling=budget["psu"],
-        candidates=candidates,
-    )
+    if result is None:
+        candidates = await get_psu_candidates(
+            session, min_wattage, budget["psu"], psu_form_factor
+        )
+        _ensure_candidates("psu", candidates)
+        result = await _run_step(
+            recorder,
+            program,
+            status_fn=_noop_status,
+            required_wattage=min_wattage,
+            budget_ceiling=budget["psu"],
+            candidates=candidates,
+        )
     state.psu_group = result.psu_group
     unit = _pick_exact(
         await crud_components.get_psus_for_group(session, result.psu_group)
@@ -1559,6 +1742,34 @@ async def _step_case(
     program: DecideCase,
     recorder: BuildRecorder | None,
 ) -> None:
+    # A case the user named is not a shortlist to choose from, so this step
+    # produces it alone rather than padding it out with two alternatives nobody
+    # asked for. The pause still happens: the picker becomes a one-click
+    # confirmation, which keeps the whole resume path — token, claim, post-case
+    # steps — working exactly as it does for a build that had three options.
+    locked_case = (state.locked or {}).get("case") or {}
+    if locked_case.get("honored") and locked_case.get("group_name"):
+        _emit(state, "case", "Using the case you picked…")
+        state.case_options = [
+            {
+                "name": locked_case["group_name"],
+                "reason": locked_case.get("reason") or "",
+            }
+        ]
+        if recorder is not None:
+            recorder.record_deterministic_decision(
+                category="case",
+                sequence_order=_SEQUENCE_ORDER.get("case", -1),
+                signature_name=getattr(program, "signature_name", "case"),
+                signature_version=getattr(program, "signature_version", 1),
+                candidates_json=None,
+                input_state={"locked_part": locked_case},
+                output_decision={"option_1": locked_case["group_name"]},
+                chosen_name=locked_case["group_name"],
+                latency_ms=0,
+            )
+        return
+
     _emit(state, "case", "Picking case options for you…")
     candidates = await get_case_candidates(
         session,
@@ -1674,7 +1885,31 @@ async def run_pipeline(
     state.session_id = (
         str(recorder.session_id) if recorder is not None else str(uuid.uuid4())
     )
-    budget = _allocate_budget(request.budget_usd, request.use_cases)
+
+    # Parts the user brought, resolved and judged BEFORE the first step, because
+    # both of the things they change happen before it: budget allocation, and
+    # the shared summary every Decide* module reads. A graphics card is used at
+    # step seven but has to be known at step zero.
+    #
+    # Judged against the allocation this build WOULD have had with no locks at
+    # all. That is the yardstick the overspec test wants — how far past a slot's
+    # natural share the user's choice goes — and it sidesteps the circularity of
+    # needing the locked allocation in order to decide what to lock.
+    state.locked = await locked_parts.resolve(
+        session,
+        request,
+        _allocate_budget(request.budget_usd, request.use_cases),
+        state.catalog_requirements,
+    )
+    locked_summary = locked_parts.summary(state.locked)
+    if locked_summary:
+        state.use_case_summary = f"{state.use_case_summary}\n{locked_summary}"
+
+    budget = _allocate_budget(
+        request.budget_usd,
+        request.use_cases,
+        locked_parts.slot_costs(state.locked),
+    )
 
     try:
         with dspy.context(lm=session_lm(state.session_id)):
@@ -1722,7 +1957,14 @@ async def run_pipeline_post_case(
         slot_size = 120  # default; cases don't store per-slot sizes separately
         total_slots = (case.max_fan_slots or 0) - state.case_included_fans
         state.case_fan_slots = [slot_size] * max(total_slots, 0)
-    budget = _allocate_budget(state.request.budget_usd, state.request.use_cases)
+    # Same locked slots as the first half: they were resolved before step one
+    # and rode across the pause on state, so the fans step is sized against the
+    # money that is actually left rather than against a total already spent.
+    budget = _allocate_budget(
+        state.request.budget_usd,
+        state.request.use_cases,
+        locked_parts.slot_costs(state.locked),
+    )
     session_id = state.session_id or str(uuid.uuid4())
     try:
         # Case + PSU are both known now, so pin the exact GPU board for the

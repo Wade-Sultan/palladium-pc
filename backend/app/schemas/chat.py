@@ -87,6 +87,47 @@ class ProfileUpdate(BaseModel):
     evidence: str = Field(description="Exact quote from the latest user message")
 
 
+# The build slots a user can pre-select a part for. These are deliberately the
+# budget-slot keys from dspy_pipeline._BUDGET_CEILINGS rather than a prettier
+# vocabulary of their own: a pre-selected part has to come out of its slot's
+# allocation before the rest of the build is sized, and a second naming
+# convention between here and there would only be a mapping layer to keep in
+# sync.
+LockableRole = Literal[
+    "cpu", "cooler", "mobo", "ram", "storage", "gpu", "psu", "case", "fans"
+]
+
+
+class LockedPart(BaseModel):
+    """A part the user brought to the build rather than asked us to choose.
+
+    `owned` is the load-bearing field. A part already sitting on the user's desk
+    costs this build nothing and must not be charged against the budget; one
+    they have decided to buy must be, or every other slot is sized against money
+    that is already spent. The two read almost identically in conversation ("I'm
+    reusing my 3080" against "I want a 5090"), so the extractor is asked for the
+    distinction outright rather than left to infer it — getting it backwards is
+    worth hundreds of dollars in either direction.
+
+    The name is kept as the user said it. Resolution to a catalog row happens in
+    the pipeline, where there is a database session, and its result is not
+    written back here: this schema records what the user asked for, which stays
+    true whether or not our catalog happens to carry it.
+    """
+
+    role: LockableRole
+    name: str = Field(description="The part as the user named it, verbatim")
+    owned: bool = Field(
+        default=False,
+        description="True when the user already has this part in hand, so it "
+        "costs the build nothing",
+    )
+    quantity: int = Field(default=1, ge=1, le=8)
+    evidence: str = Field(
+        default="", description="Exact quote from the message that named it"
+    )
+
+
 class BuildProfile(BaseModel):
     # "gaming" | "streaming" | "video_editing" | "3d_rendering" | "ai"
     # | "server" | "software_dev" | "music_production" | "general"
@@ -156,6 +197,11 @@ class BuildProfile(BaseModel):
     games: list[str] = []
     workloads: list[str] = []
     notes: str = ""
+    # Parts the user chose for themselves. Once validated against the rest of
+    # the profile these skip their step's DSPy call entirely (see
+    # app/services/recommender/locked_parts.py), so the model is never asked to
+    # re-decide something the user has already decided.
+    locked_parts: list[LockedPart] = Field(default_factory=list)
     profile_updates: list[ProfileUpdate] = Field(default_factory=list, exclude=True)
 
 
@@ -202,6 +248,16 @@ class BuildRequest(BaseModel):
     answers: dict[str, str | list[str]] = Field(
         default_factory=dict,
         description="Flat map of '<useCase>.<questionId>' → answer(s)",
+    )
+    # Carried on the request rather than passed alongside it so locks survive
+    # everywhere the request already goes: the recorder's telemetry snapshot and
+    # the paused-build payload both serialize this model whole, which means a
+    # build that pauses at the case step comes back with its locks intact and
+    # nothing had to be taught about them.
+    locked_parts: list[LockedPart] = Field(
+        default_factory=list,
+        description="Parts the user pre-selected, to be honoured in place of "
+        "the corresponding pipeline step",
     )
 
 

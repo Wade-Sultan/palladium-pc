@@ -4,7 +4,7 @@ from pathlib import Path
 
 import dspy
 
-from app.schemas.chat import ProfileUpdate
+from app.schemas.chat import LockedPart, ProfileUpdate
 from app.services.recommender.artifacts import load_artifact
 from app.services.recommender.optimizing import run_gepa
 
@@ -25,6 +25,10 @@ class ProfileExtraction(dspy.Signature):
     is not a retraction. If a numeric budget replaces an unlimited budget, set
     both stated_budget_usd and budget_tier. If money is no longer a constraint,
     clear stated_budget_usd and set budget_tier to custom.
+    Report any specific component the user names for their own build as a
+    locked_parts entry, with owned=true when they already have it and
+    owned=false when they want us to buy it. A part they merely ask about,
+    compare, or reject is not a locked part.
     Pick the most demanding use case when multiple are mentioned.
     Infer budget tier from context clues even when no dollar figure is given.
     Every use-case-specific field must be 'none' (or empty, for rendering_software)
@@ -181,6 +185,23 @@ class ProfileExtraction(dspy.Signature):
         desc="Any remaining constraints or preferences not captured above, or empty string"
     )
 
+    locked_parts: list[LockedPart] = dspy.OutputField(
+        desc="Specific components the user has chosen for THIS build, one entry "
+        "per slot, or [] if none. role is one of cpu, cooler, mobo, ram, "
+        "storage, gpu, psu, case, fans. name is the part exactly as they said "
+        "it ('RTX 5090', 'my old 3080', '7800X3D'). owned is true only when "
+        "they already have the part in hand ('I'm reusing my 3080', 'I already "
+        "bought the case') and false when they want it bought for this build "
+        "('I want a 5090', 'get me a 9800X3D') — the two sound alike and the "
+        "difference decides whether the part is charged against their budget, "
+        "so read the tense carefully and default to false when genuinely "
+        "unclear. quantity is how many of that part, normally 1. evidence is "
+        "an exact quote. A part the user asks ABOUT, compares, or turns down "
+        "is NOT a locked part; only one they have settled on for this build. "
+        "Do not invent a part from a use case or a budget, and never turn a "
+        "part the ASSISTANT suggested into a locked part"
+    )
+
     profile_updates: list[ProfileUpdate] = dspy.OutputField(
         desc="Explicit set/clear/add/remove operations grounded in the latest user message; [] if none"
     )
@@ -220,6 +241,8 @@ def optimize(
                                   ← gold labels, 'none' if the user never said
         - form_factor (str)       ← gold label, 'no_preference' if the user never said
         - color_theme (str)       ← gold label, empty string if N/A
+        - locked_parts (list)     ← gold LockedPart entries, [] if the user
+                                    named no component of their own
         - games (str)             ← comma-separated, or empty string
         - workloads (str)         ← comma-separated, or empty string
         - notes (str)

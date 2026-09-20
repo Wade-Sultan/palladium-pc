@@ -155,6 +155,29 @@ def merge_profile(
                 combined.append(item)
         merged[field] = combined
 
+    # Pre-selected parts accumulate by SLOT, which is the one thing that makes
+    # them different from games. Naming a CPU on turn five does not retract the
+    # graphics card named on turn two, so old slots carry forward; but a second
+    # graphics card named on turn five is a change of mind, not a request for
+    # two, so within a slot the fresh answer wins. Neither rule falls out of
+    # list accumulation, which is why this is not folded in with games above.
+    #
+    # Carried across a change of primary_use as well: a card the user owns is
+    # still a card they own once they decide to edit video on it instead.
+    locked = {
+        entry["role"]: entry
+        for entry in (previous.get("locked_parts") or [])
+        if isinstance(entry, dict) and entry.get("role")
+    }
+    locked.update(
+        {
+            entry["role"]: entry
+            for entry in (merged.get("locked_parts") or [])
+            if isinstance(entry, dict) and entry.get("role")
+        }
+    )
+    merged["locked_parts"] = list(locked.values())
+
     if not (merged.get("notes") or "").strip() and previous.get("notes"):
         merged["notes"] = previous["notes"]
 
@@ -188,11 +211,15 @@ def apply_profile_updates(
                 "unknown"
                 if field in ("primary_use", "budget_tier")
                 else []
-                if field in ("games", "workloads")
+                if field in ("games", "workloads", "locked_parts")
                 else ""
                 if field == "notes"
                 else None
             )
+        elif update.operation == "remove" and field == "locked_parts":
+            value = _drop_locked_part(result, update.value)
+            if value is None:
+                continue
         elif update.operation in ("add", "remove"):
             if field not in ("games", "workloads") or not isinstance(value, str):
                 continue
@@ -221,6 +248,31 @@ def apply_profile_updates(
             }
         )
     return result, applied
+
+
+def _drop_locked_part(profile: dict, target) -> list | None:
+    """The locked-parts list with one entry removed, or None if nothing matched.
+
+    A user retracting a pre-selected part names either the slot ("forget the
+    graphics card") or the part ("not the 5090 after all"), and the extractor
+    reports whichever they said. Both have to resolve or half the retractions
+    silently do nothing. Slot is tried first: a slot holds at most one lock, so
+    naming it is unambiguous, while a part name has to be matched loosely and
+    could in principle hit the wrong row.
+
+    Returning None rather than the unchanged list matters. The caller skips an
+    operation that produced nothing, which keeps it out of profile_operations —
+    and a no-op recorded there would be replayed against every future turn for
+    the life of the conversation.
+    """
+    entries = [e for e in (profile.get("locked_parts") or []) if isinstance(e, dict)]
+    if not entries or not isinstance(target, str) or not target.strip():
+        return None
+    wanted = target.strip().casefold()
+    kept = [e for e in entries if (e.get("role") or "").casefold() != wanted]
+    if len(kept) == len(entries):
+        kept = [e for e in entries if wanted not in (e.get("name") or "").casefold()]
+    return kept if len(kept) != len(entries) else None
 
 
 def replay_retractions(profile: dict, history: list[dict]) -> dict:

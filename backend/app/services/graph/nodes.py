@@ -427,6 +427,19 @@ _CASE_PROMPT = (
     "all fit your build. Choose one and I'll finish up."
 )
 
+# What the same moment says when the user already named their case. The picker
+# is still shown, so the sentence has to describe a confirmation rather than a
+# choice: telling someone to pick one of three when they are looking at one
+# reads as a bug in the page they are looking at.
+_LOCKED_CASE_PROMPT = (
+    "Your parts are picked out, and I kept the case you asked for. Confirm it "
+    "below and I'll finish up."
+)
+
+
+def _case_prompt(options: list) -> str:
+    return _CASE_PROMPT if len(options or []) > 1 else _LOCKED_CASE_PROMPT
+
 
 async def _pause_for_case(
     writer: Any,
@@ -458,7 +471,7 @@ async def _pause_for_case(
         "options": paused.options,
     }
     writer({"type": "case_options", "data": case_options})
-    for chunk in _CASE_PROMPT.split(" "):
+    for chunk in _case_prompt(paused.options).split(" "):
         # Word by word so the line arrives the way every other assistant
         # message does; the client renders tokens, not whole messages.
         writer({"type": "token", "text": chunk + " "})

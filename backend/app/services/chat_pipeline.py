@@ -547,6 +547,11 @@ async def extract_profile(
         games=games,
         workloads=workloads,
         notes=result.notes,
+        # Straight through, unlike every scalar above: these are already
+        # structured and there is no 'none' sentinel to unmap. An artifact
+        # optimized before this field existed simply returns nothing for it,
+        # which is the same as a user who named no parts.
+        locked_parts=getattr(result, "locked_parts", None) or [],
         profile_updates=getattr(result, "profile_updates", []),
     )
 
@@ -1313,6 +1318,12 @@ def _profile_to_build_request(
         budget_usd=_budget_for(profile) if budget_usd is None else budget_usd,
         preferences=_profile_to_preferences(profile),
         answers=answers,
+        # Passed through untouched rather than flattened into `answers` like
+        # everything else here. These are not prompt context: the pipeline
+        # resolves each one against the catalog and decides whether to honour
+        # it, and that needs the structure (which slot, owned or wanted, how
+        # many) that a Q&A string would throw away.
+        locked_parts=list(profile.locked_parts),
     )
 
 
