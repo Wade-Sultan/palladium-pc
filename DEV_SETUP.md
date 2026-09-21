@@ -46,7 +46,6 @@ Your existing `.env` should already have most of these from production. Verify i
 | `SECRET_KEY` | Backend signing | Same as production |
 | `FIRST_SUPERUSER` | Admin account | Same as production |
 | `FIRST_SUPERUSER_PASSWORD` | Admin password | Same as production |
-| `ANTHROPIC_API_KEY` | LLM features | Same as production |
 | `OPENROUTER_API_KEY` | LLM features | Same as production |
 
 ### 2. Start the Docker stack

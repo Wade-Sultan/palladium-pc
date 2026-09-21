@@ -10,9 +10,9 @@ Tell Palladium what you want to do with your PC and it'll handle the rest. Avail
 
 - Frontend: Next.js, React, Tailwind CSS, shadcn/ui
 - Backend: FastAPI, SQLAlchemy, Alembic
-- Admin: Elixir, Phoenix, Backpex
+- Admin: Next.js, Prisma
 - Database: PostgreSQL
-- LLM: Claude (Haiku)
+- LLM: Gemma via OpenRouter, orchestrated with DSPy and LangGraph
 - Cloud: GCP, Vercel
 
 ## Upcoming Features

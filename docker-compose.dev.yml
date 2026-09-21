@@ -56,7 +56,6 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_DB_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cloud-sql-proxy:5432/${POSTGRES_DB}
       # API keys (same as production)
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # Supabase auth (if you use Supabase Auth in production)
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
@@ -97,7 +96,6 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_DB_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@cloud-sql-proxy:5432/${POSTGRES_DB}
       # API keys (same as production)
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       # Supabase auth
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
