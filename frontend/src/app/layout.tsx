@@ -4,6 +4,7 @@ import type { Metadata } from "next"
 import { DM_Sans, Raleway } from "next/font/google"
 import type React from "react"
 import GoogleAnalytics from "@/components/Common/GoogleAnalytics"
+import PostHogAnalytics from "@/components/Common/PostHogAnalytics"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import "@/index.css"
@@ -75,6 +76,7 @@ export default function RootLayout({
         <Analytics />
         <SpeedInsights />
         <GoogleAnalytics />
+        <PostHogAnalytics />
       </body>
     </html>
   )

@@ -1,3 +1,8 @@
+/*
+ * Shadowed by the `/newbuild` redirect in next.config.mjs, which answers before
+ * routing reaches this file. Kept as the fallback if that entry is ever
+ * removed — see the comment there.
+ */
 import { redirect } from "next/navigation"
 
 export default function Page() {

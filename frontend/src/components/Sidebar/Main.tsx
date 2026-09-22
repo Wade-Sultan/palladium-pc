@@ -8,6 +8,7 @@ import {
   Info,
   MessagesSquare,
   Newspaper,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react"
 import Link from "next/link"
@@ -65,6 +66,7 @@ const moreItems: MoreItem[] = [
     href: "https://github.com/Wade-Sultan/palladium-pc",
   },
   { icon: Newspaper, title: "Blog", path: "/blog" },
+  { icon: ShieldCheck, title: "Privacy", path: "/privacy" },
 ]
 
 export function Main() {

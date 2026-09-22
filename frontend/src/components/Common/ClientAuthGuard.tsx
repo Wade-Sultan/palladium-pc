@@ -6,11 +6,16 @@ import { useEffect } from "react"
 import useAuth from "@/hooks/useAuth"
 
 // Routes that render their own auth-aware UI instead of redirecting guests
+// /about and /privacy are disclosure pages: the affiliate disclosure and the
+// privacy policy both have to be readable by someone who has not signed up,
+// which is the entire audience they exist for.
 const GUEST_ALLOWED_PATHS = [
   "/build/new",
   "/buildhistory",
   "/guides",
   "/findbuilder",
+  "/about",
+  "/privacy",
 ]
 
 // Guest-allowed route trees, matched by prefix. The blog is public marketing
