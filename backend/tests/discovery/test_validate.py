@@ -224,7 +224,7 @@ def test_air_cooler_with_a_radiator_is_rejected():
 
 def test_server_cpu_specs_are_inside_the_plausibility_ranges():
     """The desktop-sized bounds these replaced would have failed a 96-core
-    Threadripper outright — exactly the discovery the catalog now wants."""
+    Threadripper outright: exactly the discovery the catalog now wants."""
     cpu = _valid_cpu() | {
         "name": "AMD Ryzen Threadripper PRO 7995WX",
         "cores": 96,

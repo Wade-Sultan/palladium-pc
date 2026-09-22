@@ -4,7 +4,7 @@ Unit tests for app.services.embeddings.text.
 The property that matters most here is what is NOT in the source text. Every
 builder feeds a SHA-256 that decides whether a row gets re-embedded, so any
 volatile field leaking into one turns the nightly pricing ETL into a recurring
-embedding bill — every part re-embedded every night, for vectors that come back
+embedding bill: every part re-embedded every night, for vectors that come back
 semantically identical.
 
 The rest of these check that nulls are dropped rather than rendered as the
@@ -89,7 +89,7 @@ def test_price_change_does_not_change_the_hash():
 
 
 def test_spec_change_does_change_the_hash():
-    """The converse — a real edit must trigger a re-embed."""
+    """The converse. A real edit must trigger a re-embed."""
     before = t.content_hash(t.cpu_text(_cpu(cores=8)))
     after = t.content_hash(t.cpu_text(_cpu(cores=16)))
     assert before != after
@@ -114,7 +114,7 @@ def test_empty_lists_are_dropped():
 
 
 def test_cpu_text_reads_as_natural_language():
-    """Matched against user prose, so it must be prose — not key=value pairs."""
+    """Matched against user prose, so it must be prose, not key=value pairs."""
     out = t.cpu_text(_cpu())
     assert "AMD Ryzen 7 9800X3D" in out
     assert "8 cores and 16 threads" in out
@@ -125,7 +125,7 @@ def test_cpu_text_reads_as_natural_language():
 def test_game_text_includes_title_genre_and_notes():
     out = t.game_text(_game())
     assert "Cyberpunk 2077" in out
-    # Underscores are expanded — "aaa_open_world" is not how anyone speaks.
+    # Underscores are expanded. "aaa_open_world" is not how anyone speaks.
     assert "aaa open world" in out
     assert "_" not in out.split(".")[1]
 
@@ -166,7 +166,7 @@ def test_case_text_includes_colour_and_glass():
 
 def test_every_entity_type_has_a_builder():
     """A type without a builder embeds as empty string and is silently skipped
-    by the reconcile sweep — so the mapping must stay exhaustive."""
+    by the reconcile sweep, so the mapping must stay exhaustive."""
     missing = [e for e in EmbeddedEntity if e not in t.BUILDERS]
     assert missing == []
 

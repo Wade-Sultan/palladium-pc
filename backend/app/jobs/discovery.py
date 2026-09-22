@@ -11,7 +11,7 @@ exactly like app.jobs.pricing_etl.
 
 Bounded by DISCOVERY_MAX_ITEMS because every item costs LLM calls: three
 sources fetched and extracted per item, billed through OpenRouter. Items are
-processed one at a time — _run already fans out across sources internally, and
+processed one at a time. _run already fans out across sources internally, and
 serialising at this level keeps search-API rate limits and spend predictable.
 """
 

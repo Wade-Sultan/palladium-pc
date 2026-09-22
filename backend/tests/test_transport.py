@@ -3,7 +3,7 @@
 WHY REPLAY-FROM-ZERO IS THE THING UNDER TEST. The old SSE adapter streamed
 deltas and had the browser accumulate them, so resuming meant Last-Event-ID
 bookkeeping on both sides. assistant-transport streams state snapshots instead,
-which means a reconnect is just "replay the whole stream and rebuild" — and the
+which means a reconnect is just "replay the whole stream and rebuild", and the
 tests below exist to keep that property true. If the reader ever starts
 depending on what a client already saw, resume quietly stops working for exactly
 the case it exists for: a phone that locked during a three-minute build.
@@ -11,15 +11,15 @@ the case it exists for: a phone that locked during a three-minute build.
 WHY THE USER'S OWN MESSAGE IS TESTED AT ALL. It looks like the client's job, and
 it is not: the runtime drops its optimistic echo of the message the moment the
 first state operation lands, and renders only what state says. A run that never
-adds the message leaves the thread empty — which is the condition assistant-ui
-puts the welcome screen back on screen for — and the next turn round-trips a
+adds the message leaves the thread empty, which is the condition assistant-ui
+puts the welcome screen back on screen for, and the next turn round-trips a
 history with no user turns in it, a silent degradation of every elicitation
 answer rather than a visible error.
 
 WHY ONE TEST USES THE REAL `create_run`. Operations are deltas against the state
 the *client* POSTed; nothing transmits the server's own copy. A fake controller
 mutating a plain dict cannot see that distinction, and both real bugs here lived
-in it — an index computed against the wrong base, and a `StateProxy` mistaken for
+in it: an index computed against the wrong base, and a `StateProxy` mistaken for
 a plain `list`. See `test_the_browser_rebuilds_exactly_what_the_server_holds`.
 
 The event vocabulary these assert against is the one `run_chat_turn` has always
@@ -114,7 +114,7 @@ def test_the_users_own_message_is_put_into_state_by_the_run(monkeypatch):
 
 def test_a_second_turn_still_carries_the_first_turns_question_and_answer():
     """The silent half of the same bug. With user turns missing from state, the
-    extraction model never sees what the user actually said — it just answers
+    extraction model never sees what the user actually said: it just answers
     worse, with nothing in any log to say why."""
     state = transport.ensure_shape(
         {
@@ -267,7 +267,7 @@ def test_case_options_land_on_the_streaming_message(monkeypatch):
 
 def test_a_resolved_picker_updates_the_message_that_showed_it(monkeypatch):
     """The pick is a separate turn, and its `chosen` belongs to the EARLIER
-    message — the one holding the cards being clicked — not to the new message
+    message, the one holding the cards being clicked, not to the new message
     the finished build streams into. Targeting the current message instead
     would render a second picker under the build."""
     options = [{"name": "NZXT H5"}, {"name": "Fractal North"}]
@@ -315,7 +315,7 @@ def test_a_picker_for_an_unknown_token_lands_on_the_current_message(monkeypatch)
 
 def test_resuming_clears_stale_case_options_before_the_replay(monkeypatch):
     """The replay rebuilds from zero into the reused trailing message, so
-    whatever picker the client already had must be wiped first — same contract
+    whatever picker the client already had must be wiped first: same contract
     as `content` and `build`."""
     stale = {
         "role": "assistant",
@@ -380,7 +380,7 @@ def test_a_replay_rebuilds_the_same_state_as_the_original_run(monkeypatch):
     )
 
     first = _drive(monkeypatch, *events)
-    # A reconnecting client sends back whatever state it had — including none.
+    # A reconnecting client sends back whatever state it had, including none.
     resumed = _drive(monkeypatch, *events, state=transport.initial_state())
 
     assert first == resumed
@@ -392,7 +392,7 @@ def test_resuming_rebuilds_the_partial_reply_instead_of_stacking_a_second_one(
     monkeypatch,
 ):
     """The client reconnects holding the half-finished text it already saw.
-    Replay is from zero, so that text must be replaced, not appended to — and it
+    Replay is from zero, so that text must be replaced, not appended to, and it
     must not be left behind above the finished reply."""
     partial = transport.initial_state()
     partial["messages"].append(
@@ -417,7 +417,7 @@ def test_resuming_rebuilds_the_partial_reply_instead_of_stacking_a_second_one(
 
 
 def test_a_cancelled_reader_stops_without_touching_the_turn(monkeypatch):
-    """The browser going away must not end the turn — it keeps running on its
+    """The browser going away must not end the turn. It keeps running on its
     worker and stays resumable."""
 
     async def _tail(turn_id, last_id="0", **kwargs):
@@ -453,7 +453,7 @@ def test_an_empty_stream_says_so_rather_than_hanging(monkeypatch):
 def _apply_ops(base, operations):
     """Apply wire operations the way the browser does.
 
-    The client's own state is the base — `create_run` does not transmit the
+    The client's own state is the base. `create_run` does not transmit the
     state it was given, so anything the server fails to emit an operation for
     simply is not there as far as the browser is concerned.
     """
@@ -541,7 +541,7 @@ def test_the_browser_rebuilds_exactly_what_the_server_holds(monkeypatch):
 
 def test_a_part_card_lands_on_the_streaming_message(monkeypatch):
     """The post-build lookup's card hangs off the reply that showed it, like a
-    build does — and only that reply. The proposed build stays where it was."""
+    build does, and only that reply. The proposed build stays where it was."""
     state = _drive(
         monkeypatch,
         {"type": "build", "key": "custom_dspy", "data": {"label": "Custom Build"}},

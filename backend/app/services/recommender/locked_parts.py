@@ -4,8 +4,8 @@ THE DECISION THIS MODULE OWNS. A user who says "I want a build around the RTX
 5090" has already made the most consequential choice in the build. Asking a
 model to make it again is worse than pointless: it costs an LLM call to either
 rubber-stamp an answer we already had or to silently contradict the user. So a
-pre-selected part short-circuits its own Decide* step entirely — see
-`_locked_result` in dspy_pipeline — and this module decides which
+pre-selected part short-circuits its own Decide* step entirely, see
+`_locked_result` in dspy_pipeline, and this module decides which
 pre-selections earn that.
 
 THREE WAYS A LOCK IS REFUSED, and nothing else:
@@ -91,7 +91,7 @@ _GROUPED = frozenset({"gpu", "ram", "psu", "storage"})
 # A GUARDRAIL, NOT A COMPUTATION, and the distinction is worth stating because
 # the honest version is tempting. Summing the cheapest viable candidate in every
 # remaining slot would be exact, but those queries need a socket, a DDR
-# generation and a form factor that have not been chosen yet — locks must be
+# generation and a form factor that have not been chosen yet. Locks must be
 # judged BEFORE budget allocation, because allocation depends on their outcome.
 # A flat reserve is the approximation that does not require the answer it is
 # trying to produce.
@@ -115,7 +115,7 @@ class Lock:
     # is just the part's catalog name.
     group_name: str | None = None
     exact_name: str | None = None
-    # True when the user named something more specific than the group — a
+    # True when the user named something more specific than the group: a
     # particular board partner's card rather than just "RTX 5090". Only the GPU
     # path reads it, because only the GPU has a later step that would otherwise
     # pick a different member of the group on its own (see _resolve_gpu_variant).
@@ -373,8 +373,8 @@ async def resolve(
     """Resolve and judge every pre-selected part. Returns one entry per slot.
 
     `slot_budgets` is the allocation the build would have had with no locks at
-    all. That is the right yardstick for the overspec test — "how far past this
-    slot's natural share does the user's choice go" — and using it avoids the
+    all. That is the right yardstick for the overspec test, "how far past this
+    slot's natural share does the user's choice go", and using it avoids the
     circularity of needing the locked allocation to decide what to lock.
     """
     locks: dict[str, Lock] = {}
@@ -462,7 +462,7 @@ def summary(locked: dict[str, dict]) -> str:
     """Prose for the shared use-case summary every Decide* step reads.
 
     Honoured locks are stated as settled facts, because to the remaining steps
-    that is what they are — the PSU step sizing against a card the user already
+    that is what they are. The PSU step sizing against a card the user already
     owns needs to know it is fixed, not that it was requested. Overridden locks
     are named too, with their reason, so a step does not re-propose the very
     part another check just rejected.

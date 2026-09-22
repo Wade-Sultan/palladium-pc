@@ -38,8 +38,8 @@ var (
 )
 
 // MetricsHandler serves the default registry, which promauto registers into.
-// That default also carries the Go runtime and process collectors — goroutine
-// count, GC pauses, heap and open FDs — at no extra wiring cost.
+// That default also carries the Go runtime and process collectors, goroutine
+// count, GC pauses, heap and open FDs, at no extra wiring cost.
 func MetricsHandler() http.Handler {
 	return promhttp.Handler()
 }
@@ -49,7 +49,7 @@ func MetricsHandler() http.Handler {
 //
 // It takes the mux, which is the whole subtlety here. Go 1.22+ records the
 // matched pattern on the request, but the mux sets it on a clone it passes
-// down, so a middleware wrapping the mux from the outside never sees it —
+// down, so a middleware wrapping the mux from the outside never sees it,
 // r.Pattern is empty at this level, both before and after next.ServeHTTP.
 // Reading r.URL.Path instead would mint one time series per listing UUID and
 // blow up cardinality in GMP. mux.Handler(r) re-resolves the pattern without
@@ -64,7 +64,7 @@ func requestMetrics(mux *http.ServeMux) middleware {
 			_, pattern := mux.Handler(r)
 			// mux.Handler returns the *whole* registered pattern, which for a
 			// Go 1.22+ method pattern includes the verb: "GET /api/v1/listings/{id}".
-			// Strip it — method is already its own label, and leaving it in
+			// Strip it. Method is already its own label, and leaving it in
 			// would both duplicate that and stop these series lining up with
 			// the builder's, whose handler label is the bare path.
 			if i := strings.LastIndex(pattern, " "); i >= 0 {

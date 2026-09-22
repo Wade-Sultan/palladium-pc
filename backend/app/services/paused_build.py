@@ -3,22 +3,22 @@
 THE PROBLEM THIS SOLVES. The pipeline makes nine LLM-backed decisions before it
 reaches the case step, then has to stop and ask a human which of three cases
 they want. Holding the turn open across that wait costs a blocked worker thread
-and a Pub/Sub lease for as long as the user takes to answer — and still fails
+and a Pub/Sub lease for as long as the user takes to answer, and still fails
 whoever answers after the timeout. So the turn ends instead: everything decided
 so far is written here, and the pick starts a fresh turn that picks the
 pipeline back up exactly where it stopped.
 
 TWO STORES, ONE ANSWER. Valkey is the read path and answers essentially every
 resume within its TTL. Postgres is the durable copy, because eviction or expiry
-here does not cost a cache miss — it costs the whole build. `load_and_claim`
+here does not cost a cache miss. It costs the whole build. `load_and_claim`
 tries them in that order and each store's claim is atomic on its own terms:
 GETDEL on Valkey, a conditional UPDATE on Postgres. Whichever answers first,
 the resume happens at most once, so a double-click or a redelivered message
 cannot produce two builds.
 
 WHAT IS NOT HERE. A never-resumed pause leaves a row behind with `resumed_at`
-still null. Sweeping those — and recording them as ABANDONED build_sessions,
-which is what that status was defined for — wants a periodic job rather than a
+still null. Sweeping those, and recording them as ABANDONED build_sessions,
+which is what that status was defined for, wants a periodic job rather than a
 request path, so `created_at` is indexed for it and nothing here deletes them.
 """
 
@@ -92,7 +92,7 @@ async def load_and_claim(token: str, conversation_id: str | None) -> dict | None
     wherever the resuming turn says.
 
     Returns None when the token is unknown, already resumed, aimed at the wrong
-    conversation, or lost from both stores — all of which the caller handles
+    conversation, or lost from both stores. All of which the caller handles
     identically, because from the user's side they are the same event: this
     pick cannot be acted on.
     """
@@ -102,7 +102,7 @@ async def load_and_claim(token: str, conversation_id: str | None) -> dict | None
     if client is not None:
         try:
             # Read before claiming so a pick from the wrong conversation is
-            # turned away without consuming the pause — a claim-then-reject
+            # turned away without consuming the pause. A claim-then-reject
             # would let anyone holding a token burn a build they cannot resume.
             raw = await client.get(_key(token))
             if raw is not None:
@@ -137,7 +137,7 @@ async def _claim_in_postgres(token: str, conversation_id: str | None) -> dict | 
     The check reads the conversation out of the PAYLOAD rather than off the
     column. They agree for real conversations, but `conversation_id` is a UUID
     column and a guest's thread id is the synthetic string "turn:<uuid>",
-    which `_as_uuid` stores as NULL — so every guest pause has the same column
+    which `_as_uuid` stores as NULL, so every guest pause has the same column
     value and matching on it would let any guest pause satisfy any other. The
     payload keeps the id verbatim, which is what makes the check exact.
     """
@@ -179,7 +179,7 @@ def _same_conversation(payload: dict, conversation_id: str | None) -> bool:
 
     A resumed build is appended to whatever conversation the resuming turn
     names, so without this a pick could graft a build onto a different thread
-    than the one whose picker was clicked — putting the parts, the share link
+    than the one whose picker was clicked: putting the parts, the share link
     and the telemetry somewhere the user never saw them offered.
 
     Compared as raw strings rather than coerced to UUIDs, because a guest's
@@ -201,7 +201,7 @@ def _log_mismatch(token: str, payload: dict, conversation_id: str | None) -> Non
 async def _mark_resumed(token: str) -> None:
     """Best-effort: stamp the durable row after a Valkey claim already won.
 
-    Not the claim itself — Valkey's GETDEL was — so a failure here costs
+    Not the claim itself, Valkey's GETDEL was, so a failure here costs
     nothing a user can see. It only keeps the table honest for the sweeper.
     """
     try:

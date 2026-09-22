@@ -25,7 +25,7 @@ from app.models.pcparts import (
 from app.models.pricing_etl import PriceCheck, PricingRun, SerpApiQuota
 
 # part_type -> model, for the types whose street_price_cents lives directly on
-# the pc_parts row. gpu/psu/ramkit/storagedrive are deliberately absent — their
+# the pc_parts row. gpu/psu/ramkit/storagedrive are deliberately absent. Their
 # price lives on the group (see GROUP_SPECS).
 NON_GROUPED_MODELS: dict[str, type[PCPart]] = {
     "cpu": CPU,
@@ -36,7 +36,7 @@ NON_GROUPED_MODELS: dict[str, type[PCPart]] = {
 }
 
 # target_kind -> (group model, relationship to its exact/variant model). The
-# variant relationship is what supplies real, searchable product names — the
+# variant relationship is what supplies real, searchable product names. The
 # group's own `name` is a spec label, not a marketed product.
 GROUP_SPECS: dict[str, tuple[type, Any]] = {
     "gpu_chipset": (GPUChipset, GPUChipset.variants),
@@ -173,7 +173,7 @@ async def record_check_outcome(
     again next run), and additionally writes street_price_cents/price_source
     when the check produced a usable price.
 
-    Returns (name, previous street_price_cents) read before the write — the
+    Returns (name, previous street_price_cents) read before the write. The
     price-alert evaluation needs both, and after this commit the old price is
     gone. (None, None) if the row has vanished since the batch was built.
     """
@@ -197,7 +197,7 @@ async def get_quota_used(db: AsyncSession, month: Any) -> int:
 
 
 async def record_search(db: AsyncSession, month: Any) -> None:
-    """Atomic upsert increment — safe even if a future run parallelizes."""
+    """Atomic upsert increment: safe even if a future run parallelizes."""
     stmt = (
         insert(SerpApiQuota)
         .values(month=month, search_count=1)

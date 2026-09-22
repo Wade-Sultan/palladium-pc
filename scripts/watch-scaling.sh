@@ -5,7 +5,7 @@
 # There is no integration between Locust and KEDA, and there should not be:
 # Locust drives /chat, builder publishes a turn per request, and the backlog on
 # the Pub/Sub subscription is what KEDA reads. The chain is already complete.
-# What is missing is a way to see all of it at once — the four things below live
+# What is missing is a way to see all of it at once. The four things below live
 # in four different commands, and the interesting moments are the ones where
 # they disagree.
 #
@@ -14,7 +14,7 @@
 #
 # BACKLOG is read from the HPA rather than from Cloud Monitoring directly. That
 # is deliberate: it is the number KEDA actually acted on, so if it disagrees
-# with what the monitoring API reports, the gap between them IS the bug — and
+# with what the monitoring API reports, the gap between them IS the bug, and
 # polling it here costs no API quota and needs no access token.
 #
 #   NAMESPACE  default palladium

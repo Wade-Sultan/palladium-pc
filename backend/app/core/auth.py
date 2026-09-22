@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 if not firebase_admin._apps:
     project_id = os.environ.get("FIREBASE_PROJECT_ID")
     # Logged because this must be the *frontend* Firebase project (the token
-    # audience), not the GCP project — a mismatch here surfaces as opaque
+    # audience), not the GCP project: a mismatch here surfaces as opaque
     # invalid-credential errors on every authenticated request.
     logger.info(
         "initializing firebase admin",

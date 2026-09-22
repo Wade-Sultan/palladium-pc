@@ -58,7 +58,7 @@ export default function RootLayout({
           The XSS the rule guards against needs attacker-controlled input in the
           string. This one is a build-time constant: nothing is interpolated,
           and the only value it reads (localStorage) is used in string
-          comparisons, never written to the DOM. Keep it that way — the moment
+          comparisons, never written to the DOM. Keep it that way. The moment
           this template gains a `${...}`, the suppression stops being true.
         */}
         <script

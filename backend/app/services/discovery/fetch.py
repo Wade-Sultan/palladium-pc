@@ -33,7 +33,7 @@ class FetchedDoc:
 def _extract_markdown(html: str) -> str | None:
     import trafilatura  # lazy: discovery job only
 
-    # include_tables is load-bearing — TechPowerUp and manufacturer spec pages
+    # include_tables is load-bearing: TechPowerUp and manufacturer spec pages
     # keep the numbers we want in tables.
     return trafilatura.extract(html, output_format="markdown", include_tables=True)
 
@@ -71,7 +71,7 @@ def _pdf_text(data: bytes) -> str:
 
 async def fetch_document(url: str) -> FetchedDoc | None:
     """Fetch a source page as extraction input: markdown for HTML, rasterized
-    page images for PDF spec sheets. Returns None on any failure — the caller
+    page images for PDF spec sheets. Returns None on any failure: the caller
     skips the source rather than failing the run."""
     try:
         async with httpx.AsyncClient(

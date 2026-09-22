@@ -8,7 +8,7 @@ import { asRecord, requireConfirmation } from '@/lib/discovery-review';
 import { approveDiscoveredGame } from '@/lib/game-discovery';
 
 // Unlike the other pages' actions, everything here returns { error?: string }
-// instead of throwing — thrown server-action messages are masked in
+// instead of throwing. Thrown server-action messages are masked in
 // production, and approval failures (duplicate name, already reviewed) need
 // to reach the reviewer verbatim.
 
@@ -34,7 +34,7 @@ async function postDiscovery(
   const key = process.env.DISCOVERY_API_KEY;
   if (!base || !key) {
     // In the cluster these come from the admin-config ConfigMap and the
-    // palladium-secrets Secret, not this file — check the pod's env first.
+    // palladium-secrets Secret, not this file. Check the pod's env first.
     return { error: 'BACKEND_API_URL and DISCOVERY_API_KEY must be set in admin/.env.local' };
   }
 
@@ -47,7 +47,7 @@ async function postDiscovery(
       cache: 'no-store',
     });
   } catch {
-    return { error: `Cannot reach backend at ${base} — is it running?` };
+    return { error: `Cannot reach backend at ${base}. Is it running?` };
   }
 
   if (res.status === 202) {
@@ -66,7 +66,7 @@ async function postDiscovery(
     return { error: `Backend not configured for discovery: ${detail || 'missing API keys'}` };
   }
   if (res.status === 403) {
-    return { error: 'Backend rejected DISCOVERY_API_KEY — make sure admin and backend use the same value' };
+    return { error: 'Backend rejected DISCOVERY_API_KEY. Make sure admin and backend use the same value' };
   }
   return { error: `Discovery trigger failed (${res.status}): ${detail || res.statusText}` };
 }
@@ -80,7 +80,7 @@ export async function triggerDiscovery(
 }
 
 /** Enumerate what's new in a category and discover each candidate. One run
- * row, up to DISCOVERY_SWEEP_MAX_CANDIDATES items — costs that many times a
+ * row, up to DISCOVERY_SWEEP_MAX_CANDIDATES items. Costs that many times a
  * single-part run, so the UI warns before firing it. */
 export async function triggerSweep(
   hint: string,
@@ -194,7 +194,7 @@ export interface ApproveCpuCoolerFormData {
 
 /** RAM/storage/PSU approvals write two rows: the pc_parts SKU and the
  * *_groups row carrying the spec every SKU with that spec shares. `groupId`
- * is the reviewer's answer to "which group is this?" — set when they picked an
+ * is the reviewer's answer to "which group is this?". Set when they picked an
  * existing one, empty to create a new group from the fields below it. */
 export interface ApproveRamKitFormData {
   name: string;
@@ -317,8 +317,8 @@ export interface ApproveAiModelFormData {
 }
 
 /** Flip the pending item to approved inside the same transaction that created
- * the catalog row; count 0 means someone else reviewed it first — throw so the
- * created row rolls back. Takes the item and the approved name directly —
+ * the catalog row; count 0 means someone else reviewed it first: throw so the
+ * created row rolls back. Takes the item and the approved name directly,
  * every caller already has both in hand, so re-fetching either here would
  * just be a second round trip for data already loaded. */
 async function markApproved(
@@ -354,7 +354,7 @@ export async function approveCpu(
         select: { id: true },
       });
       if (existing) {
-        throw new Error(`A CPU named "${data.name}" already exists — use Mark duplicate instead`);
+        throw new Error(`A CPU named "${data.name}" already exists. Use Mark duplicate instead`);
       }
       const part = await tx.pcPart.create({
         data: {
@@ -407,7 +407,7 @@ export async function approveGpuChipset(
         select: { id: true },
       });
       if (existing) {
-        throw new Error(`A chipset named "${data.name}" already exists — use Mark duplicate instead`);
+        throw new Error(`A chipset named "${data.name}" already exists. Use Mark duplicate instead`);
       }
       const chipset = await tx.gpuChipset.create({
         data: {
@@ -449,7 +449,7 @@ export async function approveGpuVariant(
         select: { id: true },
       });
       if (existing) {
-        throw new Error(`A GPU named "${data.name}" already exists — use Mark duplicate instead`);
+        throw new Error(`A GPU named "${data.name}" already exists. Use Mark duplicate instead`);
       }
       const part = await tx.pcPart.create({
         data: {
@@ -509,7 +509,7 @@ async function approvePart(
       });
       if (existing) {
         throw new Error(
-          `A ${label} named "${name}" already exists — use Mark duplicate instead`,
+          `A ${label} named "${name}" already exists. Use Mark duplicate instead`,
         );
       }
       const part = await tx.pcPart.create({ data: await build(tx) });
@@ -775,7 +775,7 @@ export async function approveAiModel(
       });
       if (existing) {
         throw new Error(
-          `An AI model matching "${existing.name}" already exists — use Mark duplicate instead`,
+          `An AI model matching "${existing.name}" already exists. Use Mark duplicate instead`,
         );
       }
       const model = await tx.aiModel.create({

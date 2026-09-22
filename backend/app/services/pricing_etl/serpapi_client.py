@@ -25,7 +25,7 @@ class ShoppingResult:
 
 
 async def search_shopping(query: str) -> list[ShoppingResult]:
-    """One SerpAPI call — the caller is responsible for quota accounting
+    """One SerpAPI call. The caller is responsible for quota accounting
     (quota.record_search) since that has to happen regardless of whether the
     call succeeds, and exactly once per call, not once per result."""
     if not settings.SERPAPI_KEY:

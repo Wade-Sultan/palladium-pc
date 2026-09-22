@@ -2,7 +2,7 @@
 
 The pricing columns were introduced in 1d9f3b7c2a44, but some databases have
 that revision marked applied in alembic_version without the columns actually
-present (schema drift) — the polymorphic PCPart load then fails with
+present (schema drift). The polymorphic PCPart load then fails with
 'column pc_parts.msrp_cents does not exist'. Because Alembic considers
 1d9f3b7c2a44 applied, it won't re-run it, so this migration idempotently
 re-adds any missing pricing column. It's a no-op on a correctly-migrated DB.

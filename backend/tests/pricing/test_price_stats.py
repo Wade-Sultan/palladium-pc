@@ -1,6 +1,6 @@
 """How a bag of shopping prices becomes one street price.
 
-Pure-logic tests — no DB, no SerpAPI. The case that motivated all of this is
+Pure-logic tests: no DB, no SerpAPI. The case that motivated all of this is
 `test_prebuilt_does_not_drag_the_price_up`: a search for a GPU returns whole
 gaming PCs containing it, and averaging them in is what produced the wildly
 overestimated prices this module now exists to prevent.
@@ -26,7 +26,7 @@ def test_prebuilt_does_not_drag_the_price_up():
     result = stats.compute_stats(prices)
 
     assert result is not None
-    # The old behaviour — the mean of everything — lands near $1400.
+    # The old behaviour, the mean of everything, lands near $1400.
     assert sum(prices) / len(prices) > 1350
     # The new one stays where the actual cards are.
     assert 97000 <= result.applied_cents <= 103000

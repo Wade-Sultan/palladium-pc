@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 _TAVILY_URL = "https://api.tavily.com/search"
 
-# Domains that never carry authoritative spec sheets — video, forums, and
+# Domains that never carry authoritative spec sheets. Video, forums, and
 # aggregators whose numbers are user-submitted. PCPartPicker is additionally
 # off-limits by ToS.
 _BLOCKED_DOMAINS = frozenset(
@@ -42,7 +42,7 @@ _BLOCKED_DOMAINS = frozenset(
 # "officially launched" is load-bearing: bare "new GPU releases" ranks leak and
 # rumor coverage highly, and an unreleased part has no authoritative spec page
 # for the per-candidate run to extract from. The enumeration prompt rejects
-# rumors too — this just stops paying to fetch them.
+# rumors too. This just stops paying to fetch them.
 _CATEGORY_SWEEP_TERMS = {
     "game": "new PC games official published minimum recommended system requirements",
     "cpu": "officially launched new desktop and workstation CPUs",
@@ -59,7 +59,7 @@ _CATEGORY_SWEEP_TERMS = {
 
 # Suffix appended to a part name when searching for its authoritative spec
 # page. Most categories want a vendor spec sheet; ai_model wants a model card.
-# Cases are the outlier — "specifications" on a case name ranks retailer
+# Cases are the outlier. "specifications" on a case name ranks retailer
 # listings, whose dimension tables are frequently wrong or truncated, while
 # "review" ranks the outlets that actually measure clearances.
 _CATEGORY_SPEC_SUFFIX = {
@@ -67,7 +67,7 @@ _CATEGORY_SPEC_SUFFIX = {
     "ai_model": "model card",
     "case": "specifications clearance dimensions",
     # Benchmark backfill wants review outlets and results databases, not vendor
-    # spec sheets — a manufacturer page never publishes a competitor-comparable
+    # spec sheets: a manufacturer page never publishes a competitor-comparable
     # Cinebench or TimeSpy number. Naming the suites in the query is what ranks
     # those pages above general reviews.
     "cpu_benchmark": "Cinebench R24 Geekbench 6 benchmark scores review",
@@ -94,7 +94,7 @@ def _is_blocked(url: str) -> bool:
 async def _tavily_search(query: str, fetch_count: int) -> list[SearchResult]:
     """One Tavily call, blocked domains removed, in Tavily rank order.
 
-    fetch_count is what we ask Tavily for, not what the caller gets — blocked
+    fetch_count is what we ask Tavily for, not what the caller gets. Blocked
     domains are dropped after the fact, so callers over-request and slice."""
     if not settings.TAVILY_API_KEY:
         raise DiscoveryConfigError("TAVILY_API_KEY is not configured")
@@ -141,12 +141,12 @@ async def search_spec_pages(
 async def search_launch_pages(
     category: str, hint: str | None, max_results: int = 3
 ) -> list[SearchResult]:
-    """Roundup/launch-coverage pages for a whole category — the sweep's input.
+    """Roundup/launch-coverage pages for a whole category: the sweep's input.
 
     The opposite end of search_spec_pages: that one wants the authoritative
     page for a part you can already name, this one wants editorial pages that
     *enumerate* parts, so the model has names to work from. Recency is the
-    whole point, so an unhinted sweep pins the current year — "new GPUs"
+    whole point, so an unhinted sweep pins the current year: "new GPUs"
     unqualified surfaces roundups from whichever year ranks best.
     """
     term = _CATEGORY_SWEEP_TERMS.get(category, "new releases")

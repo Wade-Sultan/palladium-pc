@@ -31,7 +31,7 @@ def get_client() -> openai.AsyncOpenAI:
     """The shared OpenRouter client.
 
     The load-test check comes before the cached client so a stubbed request
-    cannot fall through to the real one, and is deliberately not itself cached —
+    cannot fall through to the real one, and is deliberately not itself cached,
     the decision is per-request, not per-process.
     """
     global _client
@@ -66,7 +66,7 @@ def extra_body(session_id: str | None) -> dict[str, Any]:
     OpenRouter's dashboard.
 
     Both fields are OpenRouter extensions, so they are omitted entirely when
-    LLM_BASE_URL points somewhere else — extra_body is sent verbatim in the
+    LLM_BASE_URL points somewhere else. Extra_body is sent verbatim in the
     request, and a stricter OpenAI-compatible server rejects the whole call over
     a field it does not recognise.
     """
@@ -75,7 +75,7 @@ def extra_body(session_id: str | None) -> dict[str, Any]:
 
     body: dict[str, Any] = {"usage": {"include": True}}
     # Same provider pin the chat path uses. Applied here too so that pinning
-    # away from a bad upstream is not silently partial — a knob that covered
+    # away from a bad upstream is not silently partial. A knob that covered
     # only some of the calls to a model would be worse than none.
     if settings.OPENROUTER_PROVIDER:
         body["provider"] = settings.OPENROUTER_PROVIDER

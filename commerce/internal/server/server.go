@@ -19,7 +19,7 @@ import (
 
 // dataStore is the slice of *store.Store the handlers actually call. It exists
 // so tests can substitute a fake without a live Postgres; *store.Store is the
-// only production implementation. Close() is deliberately absent — lifecycle
+// only production implementation. Close() is deliberately absent. Lifecycle
 // belongs to New, which holds the concrete value.
 type dataStore interface {
 	Ping(ctx context.Context) error
@@ -103,7 +103,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (http.Han
 	mux.HandleFunc("GET /healthz", handleHealthz)
 	mux.HandleFunc("GET /readyz", h.handleReadyz)
 
-	// Listings — reads are public today (no auth dependency in the Python
+	// Listings. Reads are public today (no auth dependency in the Python
 	// route either), writes require a valid Firebase user. Kept path-identical
 	// to backend/app/api/routes/listings.py so the frontend only swaps a base
 	// URL, not the paths themselves.
@@ -114,13 +114,13 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (http.Han
 	mux.Handle("PATCH /api/v1/listings/{id}", requireFirebaseAuth(fbAuth)(http.HandlerFunc(h.updateListing)))
 	mux.Handle("DELETE /api/v1/listings/{id}", requireFirebaseAuth(fbAuth)(http.HandlerFunc(h.deleteListing)))
 
-	// Account — new surface replacing the retired bcrypt/JWT users.py routes.
+	// Account: new surface replacing the retired bcrypt/JWT users.py routes.
 	// Paths deliberately differ from the old /users/* surface since this is a
 	// Firebase-account-sync model, not generic user CRUD.
 	mux.Handle("POST /api/v1/account/sync", requireFirebaseAuth(fbAuth)(http.HandlerFunc(h.syncAccount)))
 	mux.Handle("DELETE /api/v1/account", requireFirebaseAuth(fbAuth)(http.HandlerFunc(h.deleteAccount)))
 
-	// Internal — called by the builder's pricing ETL, not by a browser, and
+	// Internal: called by the builder's pricing ETL, not by a browser, and
 	// authenticated with a shared secret rather than a Firebase token. Under
 	// /internal/ rather than /api/ so the boundary is visible in the path (and
 	// in access logs) instead of only in this file.
@@ -145,14 +145,14 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (http.Han
 }
 
 // handleHealthz is a liveness probe. Cloud Run and uptime checks hit this.
-// It deliberately touches nothing external — a database hiccup must not get
+// It deliberately touches nothing external. A database hiccup must not get
 // an otherwise-healthy instance restarted.
 func handleHealthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // handleReadyz is the readiness probe: can this instance actually serve? The
-// short timeout matters — the probe's own period is the budget, so a hung
+// short timeout matters. The probe's own period is the budget, so a hung
 // pool should fail fast rather than pile probe goroutines up behind it.
 func (h *handlers) handleReadyz(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)

@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class BlogPostSummary(BaseModel):
-    """A post as it appears in the index listing — no body, to keep it light."""
+    """A post as it appears in the index listing: no body, to keep it light."""
 
     model_config = ConfigDict(from_attributes=True)
 

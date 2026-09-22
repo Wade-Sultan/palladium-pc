@@ -1,7 +1,7 @@
 name: Lint Backend
 
 # `main`, not `master`. The repo's default branch is main, so the previous
-# `branches: [master]` meant this job had never once run on a push — only on
+# `branches: [master]` meant this job had never once run on a push: only on
 # pull requests. Worth checking whenever a workflow looks healthy but has no
 # history.
 on:
@@ -25,7 +25,7 @@ jobs:
           # in the container.
           python-version: "3.12"
       # See the note in test-backend.yml: uv 0.4.15 does not sync
-      # `[dependency-groups]`, and ruff lives in the dev group — so
+      # `[dependency-groups]`, and ruff lives in the dev group, so
       # scripts/lint.sh would fail with `ruff: command not found` for the same
       # reason the test job could not find coverage. Keep the two in step.
       - name: Install uv

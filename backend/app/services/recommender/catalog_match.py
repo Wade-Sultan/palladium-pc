@@ -1,7 +1,7 @@
 """
 catalog_match.py
 ================
-Resolves the free text a user gives us — game titles, app names, model names —
+Resolves the free text a user gives us, game titles, app names, model names,
 to rows in the games / software / ai_models catalogs, and pulls the hardware
 requirements those rows carry into the build pipeline.
 
@@ -9,7 +9,7 @@ THE GAP THIS CLOSES. `BuildProfile.games` and `.workloads` are captured as free
 text and, until now, reached the recommender only as prose inside
 `use_case_summary`. Meanwhile `game_minimum_parts`, `software_tiers` and
 `ai_workloads` sat in the database holding exactly the numbers those titles
-imply — minimum VRAM, recommended RAM, storage floors — and nothing read them.
+imply, minimum VRAM, recommended RAM, storage floors, and nothing read them.
 So a user who said "I want to run Llama 3.1 70B" got a build chosen by a model
 reasoning about the words "Llama 70B", when the catalog knew the workload needs
 40GB+ of VRAM and multi-GPU sharding.
@@ -19,11 +19,11 @@ TWO-TIER MATCHING, and the order matters.
   1. Exact name or curated alias (`_match_by_alias`). A synonym someone typed
      into the admin panel is a *fact*: "R6" IS Rainbow Six Siege. Resolving a
      known fact by approximate nearest neighbour is both slower (an embedding
-     API call) and less reliable — a two-character query has to out-compete
+     API call) and less reliable. A two-character query has to out-compete
      every other row's prose to clear the distance cutoff, and often will not.
   2. Vector search, for everything aliases do not cover: misspellings, loose
      sequel names, phrasings nobody thought to curate. This is the unbounded
-     tail, and it is the retrieval problem embeddings are genuinely good at —
+     tail, and it is the retrieval problem embeddings are genuinely good at,
      unlike ranking parts by price and performance, which is arithmetic and
      lives in scoring.py.
 
@@ -32,7 +32,7 @@ too: "r6 siege" misses the exact match but lands much closer to a row whose
 text now contains "Also known as R6, Siege".
 
 EVERYTHING HERE DEGRADES TO EMPTY. No API key, no vectors backfilled, no match
-above threshold — all produce `CatalogRequirements()` with nothing set, and the
+above threshold. All produce `CatalogRequirements()` with nothing set, and the
 pipeline runs exactly as it did before. Requirements are additive context, never
 a precondition.
 """
@@ -72,18 +72,18 @@ _MAX_TERMS = 6
 # Handed to the build steps whenever an LLM the catalog has no row for comes up.
 #
 # WHY THIS IS PROSE AND NOT A LOOKUP. ai_workloads already stores exactly these
-# numbers, curated, for every model we know — and the whole problem is the
+# numbers, curated, for every model we know, and the whole problem is the
 # models we don't. A name is all we have there, and the parameter count inside
 # it is enough to do the arithmetic, so the arithmetic is what gets shipped.
 #
 # The failure this exists to stop: a user asked for a single-GPU box serving a
 # 31B model and got a $15,000 96GB workstation card, because nothing in the
 # pipeline said that weights shrink with precision. At q4 that model is ~19GB
-# and runs on a 24GB consumer card — a difference between two builds an order
+# and runs on a 24GB consumer card: a difference between two builds an order
 # of magnitude apart in price, turning entirely on a fact no step was told.
 _QUANTIZATION_PRIMER = """\
   Quantization decides how much VRAM an LLM needs, and it is not optional
-  context — the same model spans a ~4x VRAM range across the formats people
+  context: the same model spans a ~4x VRAM range across the formats people
   actually run, so a VRAM figure quoted without a precision is meaningless.
   Estimate weights as: VRAM_GB ~= params_billions * bytes_per_weight * 1.2
   (the 1.2 covers KV cache and runtime overhead at typical context lengths).
@@ -93,7 +93,7 @@ _QUANTIZATION_PRIMER = """\
   is the default assumption for a single-GPU box unless the user asked for full
   precision. Quote the precision alongside the card, and prefer the cheapest
   card that fits the model at a sane quantization over a larger card that fits
-  it at fp16 — the quality cost of q4 vs fp16 is small and the price
+  it at fp16. The quality cost of q4 vs fp16 is small and the price
   difference is not. Only size for fp16 when the user asked for it, when the
   workload is training rather than serving, or when no quantized format exists
   for that architecture."""
@@ -115,7 +115,7 @@ class CatalogRequirements:
 
     Floors are maxima across matches: a build that must run both Cyberpunk and
     Resolve needs the larger of the two RAM figures, not their average. Every
-    field is optional — an absent floor means the catalog had nothing to say,
+    field is optional. An absent floor means the catalog had nothing to say,
     which is different from a floor of zero.
     """
 
@@ -190,8 +190,8 @@ class CatalogRequirements:
 
         # NAMING SOMETHING WE HAVE NO ROW FOR IS INFORMATION, not an absence of
         # it, and dropping it silently is how a build gets sized for a model
-        # nobody reasoned about. The catalog is always behind — a model released
-        # last week has no row and still has to be built for — so an unmatched
+        # nobody reasoned about. The catalog is always behind, a model released
+        # last week has no row and still has to be built for, so an unmatched
         # term is the normal case for exactly the workloads that most need the
         # VRAM arithmetic spelled out. Say what we don't know, and say what to
         # do about it, rather than letting the step infer from silence that the
@@ -199,7 +199,7 @@ class CatalogRequirements:
         if self.unmatched_terms:
             lines.append(
                 "The user also named the following, which are NOT in our catalog "
-                f"— we have no measured requirements for them: "
+                f". We have no measured requirements for them: "
                 f"{', '.join(self.unmatched_terms)}."
             )
             lines.append(
@@ -249,7 +249,7 @@ class CatalogRequirements:
 
         WHY THIS IS PERSISTED AT ALL. The appropriateness metrics measure
         sufficiency against these floors, and they are recomputed per build from
-        catalogs and embeddings that keep changing — so a metric run months
+        catalogs and embeddings that keep changing, so a metric run months
         later against today's catalog would be scoring the decision by a
         yardstick the model never saw. Snapshotting them alongside the candidate
         set is what makes the score reproducible, for exactly the reason
@@ -565,7 +565,7 @@ async def _apply_game(
             # Deliberately NOT raising min_vram_gb from the published GPU. The
             # VRAM floor is a hard requirement in validation (a model that does
             # not fit does not run), whereas a game's recommended GPU is a
-            # publisher's claim about an unstated resolution and frame rate —
+            # publisher's claim about an unstated resolution and frame rate,
             # the benchmark comparison in validation.check_game_requirements
             # already turns a shortfall into a caveat, and a hard VRAM floor
             # from the same row would reject what that check only warns about.
@@ -671,7 +671,7 @@ async def _apply_ai_model(
     # THE CHOSEN ROW IS ONE CELL OF A MATRIX, and quoting it alone reads as
     # "this model needs N GB" when the truth is "this model needs N GB at this
     # precision". ai_workloads is keyed on (model, task, precision) precisely
-    # because the range is wide — so when the catalog holds other precisions for
+    # because the range is wide, so when the catalog holds other precisions for
     # the same task, show them. A step that can see 70B costs 140GB at fp16 and
     # 42GB at q4 can pick a card; a step shown only the first number buys for
     # the worst case, every time.
@@ -692,7 +692,7 @@ async def _apply_ai_model(
         )
         req.notes.append(
             f"  {model.name} at other quantizations ({workload.task}): {spread}. "
-            "The VRAM floor below assumes the default precision — a lower "
+            "The VRAM floor below assumes the default precision. A lower "
             "quantization fits a smaller card and is usually the better buy."
         )
         req.quantization_alternatives = True

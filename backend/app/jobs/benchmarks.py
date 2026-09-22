@@ -5,7 +5,7 @@ recommender's scorer has real numbers to rank candidates on.
 
 WHY COVERAGE MATTERS MORE THAN IT LOOKS. services/recommender/scoring.py injects
 a workload-weighted perf_score into every CPU and GPU candidate list, and its
-dominance gate — the thing that lets a step skip its LLM call — refuses to fire
+dominance gate, the thing that lets a step skip its LLM call, refuses to fire
 unless *every* candidate in the set is scored. One unmeasured chipset inside a
 budget band therefore disables the bypass for every build that lands in that
 band. Chasing coverage to 100% is what switches the saving on.
@@ -15,7 +15,7 @@ calls. DISCOVERY_BENCHMARK_LIMIT caps how many parts one run will attempt, and
 the run is recorded in discovery_runs like any other, so the spend is visible
 next to the sweeps rather than hidden in a cron log.
 
-Idempotent by construction — it only ever selects rows whose benchmark_scores
+Idempotent by construction. It only ever selects rows whose benchmark_scores
 is NULL or {}, so re-running costs nothing once coverage is complete.
 """
 
@@ -39,7 +39,7 @@ _CATEGORIES = [
     if c.strip()
 ]
 
-# Parts attempted per category per run — the spend dial, same role as
+# Parts attempted per category per run: the spend dial, same role as
 # DISCOVERY_SWEEP_MAX_CANDIDATES on the discovery side.
 _LIMIT = int(os.getenv("DISCOVERY_BENCHMARK_LIMIT", "25"))
 
@@ -64,7 +64,7 @@ async def run() -> int:
             )
     except DiscoveryConfigError:
         # A missing TAVILY_API_KEY is a deployment error, and every run will
-        # fail identically until it is fixed — worth a red CronJob.
+        # fail identically until it is fixed: worth a red CronJob.
         logger.exception("benchmark backfill: search is not configured")
         return 1
     except ValueError:

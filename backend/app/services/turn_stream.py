@@ -3,19 +3,19 @@
 WHY A STREAM AND NOT PUB/SUB (either Valkey's or Google's). Both are fire-and-
 forget: a subscriber only sees what is published while it is attached. The
 browser attaches *after* POST /chat returns, so with pub/sub every event the
-worker emitted in between is simply gone — and that gap is exactly the "Building
+worker emitted in between is simply gone, and that gap is exactly the "Building
 your PC…" progress the user is waiting to see. A stream is a durable log with
 monotonic IDs, so a reader can start at 0 and replay from the beginning, or
 resume from the last ID it saw. That is what makes both the initial attach and a
 mid-build reconnect work, and it is why the frontend can send Last-Event-ID.
 
-KEY LAYOUT. `chat:evt:{<turn_id>}` — the braces are a real cluster hash tag, not
+KEY LAYOUT. `chat:evt:{<turn_id>}`. The braces are a real cluster hash tag, not
 formatting. Everything for one turn hashes to one slot, so the stream and the
 chat buffer (app/services/chat_buffer.py) would live on the same shard and could
 be touched together without a cross-slot error.
 
 That is deliberately future-proofing rather than a present requirement: prod runs
-a Cluster Mode Disabled instance (forced by the `custom-pico` node type — see
+a Cluster Mode Disabled instance (forced by the `custom-pico` node type. See
 app/core/valkey.py), where there is one shard and slots are irrelevant. The tags
 cost nothing there and mean a later move to a clustered instance is a config flip
 instead of a key-naming migration. Keep them.
@@ -62,7 +62,7 @@ async def emit(turn_id: str, event: dict) -> bool:
     """Append one event. Returns False if Valkey is unavailable.
 
     Never raises: a failed emit must not kill the pipeline that produced the
-    event. The turn still completes and still persists — the client just stops
+    event. The turn still completes and still persists. The client just stops
     seeing live updates for it.
     """
     client = await get_client()
@@ -111,7 +111,7 @@ async def tail(
 
     `last_id` is exclusive, matching XREAD semantics, so passing back the last ID
     a client received resumes exactly after it with no duplicate and no gap.
-    Default "0" replays the stream from the beginning — correct for a first
+    Default "0" replays the stream from the beginning. Correct for a first
     attach, which must not miss events the worker emitted before the browser got
     here.
 
@@ -124,7 +124,7 @@ async def tail(
     ordinary pool's 5s socket timeout is shorter than the block below, and
     redis-py applies the socket timeout to a parked read like any other: the
     XREAD is aborted at 5s, retried, and finally raised as a TimeoutError. The
-    caller sees that as "no worker wrote to this stream" — which is how a cold
+    caller sees that as "no worker wrote to this stream", which is how a cold
     worker pool turned into "That build didn't start. Please try again." on
     every /chat. See app/core/valkey.py's BLOCKING_READ_TIMEOUT_S.
     """
@@ -193,7 +193,7 @@ async def set_active_turn(conversation_id: str, turn_id: str) -> bool:
     """Record which turn is currently running for a conversation.
 
     THIS IS WHAT MAKES RESUME POSSIBLE. assistant-transport's resume request
-    carries the thread id and its own last state, but no run id — so the server
+    carries the thread id and its own last state, but no run id, so the server
     is the only party that can say which turn a reconnecting browser should be
     reattached to. Without this pointer a reload mid-build has no way back to a
     turn that is still running, which is the case the whole dispatch
@@ -228,7 +228,7 @@ async def set_active_turn(conversation_id: str, turn_id: str) -> bool:
 async def get_active_turn(conversation_id: str) -> str | None:
     """The turn currently running for a conversation, if any.
 
-    A returned id is not a promise the turn is still running — it may have
+    A returned id is not a promise the turn is still running. It may have
     finished, in which case its stream replays to completion and terminates
     immediately, which is exactly what a reconnecting client wants anyway.
     """
@@ -248,7 +248,7 @@ async def claim(turn_id: str, owner: str, ttl_s: int) -> bool:
     """Take exclusive ownership of a turn. False means someone else has it.
 
     Pub/Sub is at-least-once, so a worker must expect to be handed a turn that
-    another worker is already running — most often because the first worker took
+    another worker is already running: most often because the first worker took
     longer than the ack deadline, not because anything failed. Without this
     guard, redelivery would run the pipeline a second time: the user would watch
     duplicated text interleave into their stream, and the turn would be billed to
@@ -259,7 +259,7 @@ async def claim(turn_id: str, owner: str, ttl_s: int) -> bool:
     claim; it must exceed the longest plausible turn or a slow build could be
     picked up concurrently by a redelivery.
 
-    Returns True when Valkey is unavailable — an unclaimed run is strictly better
+    Returns True when Valkey is unavailable. An unclaimed run is strictly better
     than refusing to run the turn at all, and the inline fallback has no
     redelivery to protect against anyway.
     """
@@ -296,7 +296,7 @@ async def release_claim(turn_id: str) -> None:
 # ------------------------------------------------------------ wake queue --
 #
 # A list of turn ids that have been published to Pub/Sub but not yet picked up
-# by a worker. It exists for exactly one reader — KEDA's `redis` scaler, which
+# by a worker. It exists for exactly one reader. KEDA's `redis` scaler, which
 # polls LLEN to decide whether the worker pool needs to exist at all
 # (deploy/overlays/prod/keda-worker.yaml).
 #
@@ -315,7 +315,7 @@ async def release_claim(turn_id: str) -> None:
 # about how many pods the work deserves and differ only in how fast they say so.
 #
 # REMOVED AT PICKUP, NOT AT COMPLETION. The question this answers is "does a
-# worker exist to take this turn", which is settled the moment one has it — so a
+# worker exist to take this turn", which is settled the moment one has it, so a
 # worker that crashes mid-turn leaks nothing here, and Pub/Sub redelivery (which
 # never goes back through /chat) needs no second push. The only way an entry
 # outlives its turn is a turn that no worker ever receives, which is a real
@@ -332,7 +332,7 @@ async def push_wake(turn_id: str) -> bool:
 
     Never raises, and a False return is not worth failing the request over: the
     turn is already on Pub/Sub, so the worst case is that the pool wakes on the
-    slower Cloud Monitoring trigger instead — which is exactly the behaviour
+    slower Cloud Monitoring trigger instead, which is exactly the behaviour
     this system had before the fast trigger existed.
     """
     client = await get_client()
@@ -342,7 +342,7 @@ async def push_wake(turn_id: str) -> bool:
         pipe = client.pipeline()
         pipe.rpush(WAKE_KEY, turn_id)
         # A backstop against the one leak this design allows. If entries stop
-        # being drained — a broken subscription, a dead-lettered turn — the list
+        # being drained, a broken subscription, a dead-lettered turn, the list
         # would otherwise hold one pod up forever, which is precisely the cost
         # scale-to-zero exists to avoid. Refreshed on every push, so it only
         # expires after a genuine lull, by which point an undrained entry is
@@ -376,7 +376,7 @@ async def clear_wake(turn_id: str) -> None:
 async def wake_depth() -> int | None:
     """Turns waiting for a worker, or None if Valkey is unavailable.
 
-    Not used by the application — this is what KEDA reads with LLEN, exposed
+    Not used by the application. This is what KEDA reads with LLEN, exposed
     here so the number is inspectable from the API rather than only from a
     redis-cli against a private VPC address.
     """

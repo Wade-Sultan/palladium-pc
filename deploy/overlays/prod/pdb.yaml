@@ -2,7 +2,7 @@
 #
 # There is deliberately NO PDB for commerce or admin. At 1 replica
 # minAvailable: 1 permits zero voluntary disruptions, which does not protect
-# them — it blocks node drains, stalls Autopilot's node upgrades, and ends with
+# them: it blocks node drains, stalls Autopilot's node upgrades, and ends with
 # the pod force-evicted after the grace window anyway. The outage still happens,
 # it just arrives with a jammed upgrade attached.
 apiVersion: policy/v1
@@ -15,8 +15,8 @@ spec:
     matchLabels:
       app: builder
 ---
-# The worker matters slightly less than builder — a drained worker's in-flight
-# turns are redelivered rather than lost — but "redelivered" still means the
+# The worker matters slightly less than builder, a drained worker's in-flight
+# turns are redelivered rather than lost, but "redelivered" still means the
 # user watches their build stall for the redelivery backoff, so keeping pods
 # pulling through a node drain is worth protecting.
 #
@@ -27,7 +27,7 @@ spec:
 #
 #   minAvailable: 1 at 1 replica    allowed disruptions = 1 - 1 = 0. Nothing can
 #                                   ever be evicted. Node drains block and
-#                                   Autopilot upgrades stall — the failure this
+#                                   Autopilot upgrades stall: the failure this
 #                                   file's header describes for commerce/admin.
 #   minAvailable: 1 at 8 replicas   allows 7 of 8 to go at once, which is not a
 #                                   meaningful budget for a pool that size.

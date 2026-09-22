@@ -1,7 +1,7 @@
 """
 Budget-tier behaviour: the 'custom' (no ceiling) tier and the server ladder.
 
-Pure-logic tests — no DB, no network. The point of interest is the guard that
+Pure-logic tests: no DB, no network. The point of interest is the guard that
 stops 'custom' from being reachable by inference alone: it removes every price
 ceiling in the pipeline, so it is the one tier where a hallucination is
 expensive rather than merely wrong.
@@ -20,12 +20,12 @@ from app.services.recommender import dspy_pipeline as dp
 
 def _msgs(*user_turns: str) -> list[ChatMessage]:
     """Conversation with the given user turns, each followed by an assistant
-    reply that repeats it — the assistant echo is deliberate, so the tests also
+    reply that repeats it. The assistant echo is deliberate, so the tests also
     cover the model's own words not being allowed to confirm the tier."""
     out: list[ChatMessage] = []
     for turn in user_turns:
         out.append(ChatMessage(role="user", content=turn))
-        out.append(ChatMessage(role="assistant", content=f"Got it — {turn}"))
+        out.append(ChatMessage(role="assistant", content=f"Got it. {turn}"))
     return out
 
 
@@ -74,11 +74,11 @@ def test_custom_rejected_without_explicit_statement(statement):
 
 
 def test_custom_not_confirmed_by_the_assistant_alone():
-    """The assistant proposing 'unlimited budget' must not confirm it — that is
+    """The assistant proposing 'unlimited budget' must not confirm it. That is
     the model's own words coming back around, not a second signal."""
     messages = [
         ChatMessage(role="user", content="I need a fast machine for AI work"),
-        ChatMessage(role="assistant", content="Sure — is your budget unlimited?"),
+        ChatMessage(role="assistant", content="Sure. Is your budget unlimited?"),
     ]
     assert cp._resolve_budget("custom", None, messages)[0] == "elite"
 
@@ -97,7 +97,7 @@ def test_downgraded_custom_gets_a_price_sensitivity():
     """The downgrade must not leave the profile one un-askable question short.
 
     A downgraded 'custom' is a known tier, so is_profile_complete demands a
-    price_sensitivity — but the only question that fills it is the one
+    price_sensitivity, but the only question that fills it is the one
     _ELICIT_SYSTEM forbids asking someone who just said cost is no object. With
     no sensitivity supplied here the turn asks forever and never builds.
     """
@@ -108,7 +108,7 @@ def test_downgraded_custom_gets_a_price_sensitivity():
 
 
 def test_downgraded_custom_keeps_an_extracted_sensitivity():
-    """'stretch' only ever fills an absence — the extractor's answer still wins."""
+    """'stretch' only ever fills an absence. The extractor's answer still wins."""
     assert cp._resolve_budget(
         "custom", "firm", _msgs("honestly the budget isn't really a concern")
     ) == ("elite", "firm")
@@ -180,7 +180,7 @@ def test_a_stated_figure_is_spent_as_given():
 
 def test_a_stated_figure_survives_the_server_ladder():
     """THE REGRESSION. 'A $5000 LLM server' extracted as server + elite, and the
-    server ladder turned it into $25000 — which cleared an $18750 GPU ceiling and
+    server ladder turned it into $25000, which cleared an $18750 GPU ceiling and
     put a $15000 workstation card in a build the chat text still called $5000."""
     profile = _profile(
         primary_use="server", budget_tier="elite", stated_budget_usd=5000
@@ -196,7 +196,7 @@ def test_a_stated_figure_is_not_rounded_to_its_tier():
 
 def test_price_sensitivity_still_scales_a_stated_figure():
     """Firmness applies to the user's own number the same way it applied to the
-    tier's — it says where in the band to aim, not which band."""
+    tier's: it says where in the band to aim, not which band."""
     firm = _profile(
         budget_tier="elite", stated_budget_usd=4000, price_sensitivity="firm"
     )
@@ -240,7 +240,7 @@ def test_stated_budget_parsing(raw, expected):
 
 
 def test_no_ceiling_propagates_to_every_slot():
-    """Not a large share of a large number — every slot gets the sentinel, so
+    """Not a large share of a large number. Every slot gets the sentinel, so
     the CRUD layer drops its price filter rather than raising it."""
     budget = dp._allocate_budget(NO_BUDGET_CEILING, ["server"])
     assert set(budget) == {
@@ -378,7 +378,7 @@ def test_drift_preserves_the_server_ladder_gap(monkeypatch):
 
 
 def test_an_unmeasurable_market_leaves_the_ladder_alone(monkeypatch):
-    """No active builds, no prices backfilled — today's behaviour exactly."""
+    """No active builds, no prices backfilled: today's behaviour exactly."""
 
     async def _none(_db):
         return None
@@ -424,7 +424,7 @@ def test_custom_is_never_scaled_by_drift(monkeypatch):
 
 
 def test_drift_is_measured_once_and_reused(monkeypatch):
-    """A per-build catalog scan would be pure waste — drift moves on the
+    """A per-build catalog scan would be pure waste: drift moves on the
     timescale of a pricing ETL run, not a chat turn."""
     calls = 0
 

@@ -29,8 +29,8 @@ import type { CaseOption, CaseOptionsData } from "@/types/build"
 /**
  * Whether a turn is in flight right now.
  *
- * Read off the backend's own state — a running turn always has a `pipeline`
- * step set, and the transport clears it when the turn ends — rather than from
+ * Read off the backend's own state, a running turn always has a `pipeline`
+ * step set, and the transport clears it when the turn ends, rather than from
  * local component state, which a remount would lose. That distinction has
  * teeth here: the picker sits on a message that stays on screen while the
  * resumed turn streams a new one in below it, and a second pick would be
@@ -49,12 +49,12 @@ const formatPrice = (cents: number) =>
 
 /**
  * The case photo, with a Skeleton standing in until the browser has actually
- * painted it. `loaded` starts false even for cached images — onLoad still
+ * painted it. `loaded` starts false even for cached images. OnLoad still
  * fires for those, just synchronously enough that the skeleton never shows.
  *
  * The credit line is not decoration: images are sourced from manufacturer
  * press/product pages, and displaying them under an attribution (linked to the
- * source when known) is the licensing basis for having them at all — see the
+ * source when known) is the licensing basis for having them at all. See the
  * image_* columns on pc_parts.
  */
 function CaseImage({ option }: { option: CaseOption }) {
@@ -188,13 +188,13 @@ function CaseCard({
 }
 
 /**
- * The mid-build case picker — three CaseCards for the options the pipeline
+ * The mid-build case picker: three CaseCards for the options the pipeline
  * paused on. Rendered by makeAssistantDataUI({name: "case_options"}).
  *
  * PICKING STARTS A TURN. The click sends a `select-case` command, which the
  * runtime delivers on an ordinary /chat request; the server resumes the saved
  * pipeline and streams the finished build back as a new assistant message.
- * That is why this is a command rather than a side-channel POST — a resumed
+ * That is why this is a command rather than a side-channel POST. A resumed
  * build gets the same worker dispatch, the same event stream and the same
  * reattach-after-reload as any other turn, for free.
  *
@@ -240,7 +240,7 @@ export const CaseOptionsCard: DataMessagePartComponent<CaseOptionsData> = (
           <p className="text-muted-foreground text-xs">
             {isResolved
               ? `Selected: ${data.chosen}`
-              : "All three fit your parts — this one's about looks and space. Your build finishes once you choose."}
+              : "All three fit your parts: this one's about looks and space. Your build finishes once you choose."}
           </p>
         </div>
         {isResolved && (

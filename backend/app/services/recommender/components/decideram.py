@@ -16,15 +16,15 @@ class RAMSelection(dspy.Signature):
     Select the best RAM *group* (spec) for this build from the given candidates.
 
     Each candidate is a RAM spec (capacity / speed / timings), not a specific
-    product — the exact branded kit is resolved deterministically afterwards.
+    product. The exact branded kit is resolved deterministically afterwards.
     Choose at the spec level here. Candidates already match the required DDR
     generation. Focus on capacity vs. speed vs. price tradeoffs. For gaming,
     32GB DDR5-5600 is rarely meaningfully better than 32GB DDR5-6000 at $40
-    more — call that out.
+    more. Call that out.
 
     Candidates are also already filtered to module types the chosen board
     accepts, so registered/unbuffered compatibility is settled before you see
-    them — never reject a candidate on that basis. What is still yours to
+    them, never reject a candidate on that basis. What is still yours to
     decide: server builds want capacity and enough modules to populate every
     memory channel ahead of raw speed, since bandwidth on those platforms comes
     from channel count, and a kit that leaves half the channels empty wastes
@@ -36,7 +36,7 @@ class RAMSelection(dspy.Signature):
     # Add ddr6 to the desc when DDR6 parts exist.
     ddr_gen: str = dspy.InputField(desc="Required DDR generation (ddr4 or ddr5)")
     budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on RAM in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on RAM in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     candidates: str = dspy.InputField(
         desc="JSON list of RAM groups with the group's street price. Fields: "
@@ -56,7 +56,7 @@ class RAMSelection(dspy.Signature):
 
 
 class DecideRAM(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideRAM"
     # v2: chooses a RAM group (spec), not an exact kit name; the branded kit is

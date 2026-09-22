@@ -1,11 +1,11 @@
 """Write-behind buffer on Valkey for build telemetry.
 
 THE INVARIANT THIS EXISTS TO KEEP. The LangGraph turn may write to Valkey and
-read from Postgres, but it must never write to Postgres — persistence belongs to
+read from Postgres, but it must never write to Postgres. Persistence belongs to
 `save_turn`, which runs after the graph stream has drained. Build telemetry was
 the one violation: `BuildRecorder.finish()` opened its own session from inside
 the `build` node and committed a `build_sessions` row plus every
-`module_decisions` row. This moves that write off the graph path — the recorder
+`module_decisions` row. This moves that write off the graph path. The recorder
 pushes here, and `drain_pending` (called outside the graph) does the insert.
 
 WHY A LIST AND NOT A STREAM. Streams with consumer groups are the textbook
@@ -15,7 +15,7 @@ with ON CONFLICT DO NOTHING, so a payload processed twice is a no-op rather than
 a duplicate row. That reduces the requirement from "exactly-once delivery" to
 "at-least-once delivery plus an idempotent write", which a plain list satisfies.
 
-PEEK, COMMIT, THEN TRIM — never LPOP. Same discipline as chat_buffer's eviction:
+PEEK, COMMIT, THEN TRIM, never LPOP. Same discipline as chat_buffer's eviction:
 entries leave the buffer only once Postgres has confirmed the write. LPOP would
 remove them first, and a failure between the pop and the commit would lose
 telemetry that had already been paid for in tokens.
@@ -23,7 +23,7 @@ telemetry that had already been paid for in tokens.
 NO TTL, A LENGTH CAP INSTEAD. Unlike a chat buffer this key is not per
 conversation, so an expiry would silently drop pending work rather than reclaim
 an abandoned key. A permanently failing drain is bounded by _MAX_PENDING, which
-discards the OLDEST entries — telemetry ages into irrelevance, so under overflow
+discards the OLDEST entries. Telemetry ages into irrelevance, so under overflow
 the recent runs are the ones worth keeping.
 """
 
@@ -106,7 +106,7 @@ async def peek(limit: int) -> list[dict]:
 async def ack(count: int) -> bool:
     """Drop the first `count` entries. Call only after Postgres confirms.
 
-    `count` is how many were READ, not how many parsed — see peek. Trimming by
+    `count` is how many were READ, not how many parsed. See peek. Trimming by
     the read count is what keeps a poison entry from wedging the head of the
     queue behind entries that would persist fine.
     """
@@ -126,7 +126,7 @@ async def ack(count: int) -> bool:
 async def count_pending() -> int | None:
     """Depth of the buffer, or None if Valkey is unavailable.
 
-    Steady state is near zero — entries are drained after each turn. A number
+    Steady state is near zero. Entries are drained after each turn. A number
     that climbs means the drain is failing, which is exactly the condition where
     the telemetry feeding GEPA is quietly going missing.
     """

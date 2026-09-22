@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 #
 # The chat calls go through LangChain's ChatOpenRouter (app/services/llm/), so
 # LangSmith sees real LLM runs with token counts rather than opaque HTTP spans.
-# Dollar cost is a separate lookup on the streaming paths — see that module's
+# Dollar cost is a separate lookup on the streaming paths. See that module's
 # header for why the two numbers are gathered differently.
 
 
@@ -73,7 +73,7 @@ def _to_langchain_messages(
     """Render the conversation for a chat model call.
 
     Anything that is not already an assistant turn is sent as a user turn, which
-    is what the previous OpenAI-shaped call did — the pipeline only ever stores
+    is what the previous OpenAI-shaped call did: the pipeline only ever stores
     'user' and 'assistant', and a third role reaching here would be a bug
     upstream rather than something to represent faithfully.
     """
@@ -117,8 +117,8 @@ def _warn_if_runaway(model: BaseChatModel, usage: dict[str, Any]) -> None:
     """Log a streamed prose call that was cut off by its own token cap.
 
     THIS IS A DEGENERATION SIGNAL, NOT A BUDGET COMPLAINT. Both callers of
-    `_stream_text` ask for something short — the elicitation prompt says "under
-    80 words", the recommendation prompt "under 50 words" — against caps of 256
+    `_stream_text` ask for something short, the elicitation prompt says "under
+    80 words", the recommendation prompt "under 50 words", against caps of 256
     and 128. Finishing on `length` therefore means the model did not stop when
     it should have, which in production has surfaced as a single token repeated
     until the cap cut it off. Raising the cap would only make that longer.
@@ -132,7 +132,7 @@ def _warn_if_runaway(model: BaseChatModel, usage: dict[str, Any]) -> None:
 
     RESOLVING THE UPSTREAM. The generation id is in the message because the
     thing worth correlating across occurrences is which provider OpenRouter
-    routed to, and that is not in the response — see the note in
+    routed to, and that is not in the response. See the note in
     app/services/llm/openrouter.py. Read it off the generation record:
 
         curl -H "Authorization: Bearer $OPENROUTER_API_KEY" \
@@ -140,12 +140,12 @@ def _warn_if_runaway(model: BaseChatModel, usage: dict[str, Any]) -> None:
 
     and take `provider_name`. Allow ten seconds or so after the call; before
     that the record 404s. If one name keeps coming up, OPENROUTER_PROVIDER is
-    the lever — see the note on it in app/core/config.py.
+    the lever. See the note on it in app/core/config.py.
     """
     if usage.get("finish_reason") != "length":
         return
     logger.warning(
-        "chat: %s hit its %s-token cap instead of stopping (generation=%s) — "
+        "chat: %s hit its %s-token cap instead of stopping (generation=%s). "
         "the reply was truncated mid-flow and may be degenerate. This is a "
         "runaway, not a budget to raise: resolve the generation id to a "
         "provider_name before changing anything",
@@ -155,7 +155,7 @@ def _warn_if_runaway(model: BaseChatModel, usage: dict[str, Any]) -> None:
     )
 
 
-# --- Stage 1 — Extract BuildProfile -------------------------------------------
+# --- Stage 1: Extract BuildProfile -------------------------------------------
 
 _extract_program = None
 _extract_program_lock = threading.Lock()
@@ -199,7 +199,7 @@ def warm_dspy_pipeline() -> None:
 
     # The langgraph import chain is a second multi-second cost on a cold start,
     # and it lands on whichever request happens to arrive first. Paid here
-    # instead. Import only — compiling needs the event loop this runs beside,
+    # instead. Import only. Compiling needs the event loop this runs beside,
     # and get_graph() caches on first use.
     import app.services.graph.graph  # noqa: F401
 
@@ -239,7 +239,7 @@ def _log_extraction_runaway(lm: Any) -> None:
     a wall of one repeated token in production.
 
     `finish_reason == "length"` distinguishes the two ways a parse can fail. The
-    model filled its entire budget and was cut off — degeneration, retry it —
+    model filled its entire budget and was cut off, degeneration, retry it,
     versus it stopped on its own and simply did not emit the field markers the
     signature asked for, which is a prompt or model-capability problem that
     retrying will not fix. Both are logged; only the reason tells them apart.
@@ -257,7 +257,7 @@ def _log_extraction_runaway(lm: Any) -> None:
 
     logger.warning(
         "chat: profile extraction produced an unparseable response "
-        "(finish_reason=%s, generation=%s) — retrying once with the cache off. "
+        "(finish_reason=%s, generation=%s): retrying once with the cache off. "
         "finish_reason='length' means the model ran to its cap instead of "
         "answering; resolve the generation id to a provider_name before "
         "concluding anything about the model itself",
@@ -280,7 +280,7 @@ def _format_conversation(messages: list[ChatMessage]) -> str:
 # Deliberately narrow. A false negative costs the user one clarifying exchange
 # and an 'elite' build; a false positive silently removes every price ceiling
 # from a build the user never said that about, and they find out at checkout.
-# So bare "no budget" is NOT here — "I have no budget" far more often means
+# So bare "no budget" is NOT here. "I have no budget" far more often means
 # "I have no money" than "I have unlimited money".
 _UNLIMITED_BUDGET_PATTERNS = (
     r"\b(?:money|cost|price|budget)\s+(?:is|are)\s+no\s+(?:object|issue|concern)\b",
@@ -293,7 +293,7 @@ _UNLIMITED_BUDGET_PATTERNS = (
     r"\b(?:don'?t|do\s+not)\s+care\s+(?:about|what)\s+(?:the\s+)?(?:cost|price|money|it\s+costs)\b",
     r"\bregardless\s+of\s+(?:the\s+)?(?:cost|price)\b",
     r"\b(?:spare\s+no\s+expense|no\s+expense\s+spared)\b",
-    # "the sky's the limit" and "the sky is the limit" — the possessive form
+    # "the sky's the limit" and "the sky is the limit". The possessive form
     # drops the verb, so the "is" has to be optional rather than required.
     r"\bsky(?:'?s|\s+is)\s+the\s+limit\b",
 )
@@ -305,7 +305,7 @@ _UNLIMITED_BUDGET_RE = re.compile("|".join(_UNLIMITED_BUDGET_PATTERNS), re.IGNOR
 # complete machine exists in the catalog, and above the ceiling the figure is
 # far more likely to be a parse artifact (a model number, a token count, cents
 # read as dollars) than a budget anyone is spending. Out-of-range values fall
-# back to the tier ladder rather than failing the turn — a wrong-by-1000x
+# back to the tier ladder rather than failing the turn. A wrong-by-1000x
 # ceiling would sail past every candidate filter.
 _STATED_BUDGET_MIN_USD = 300
 _STATED_BUDGET_MAX_USD = 200_000
@@ -346,7 +346,7 @@ def _resolve_budget(
 
     Accept a 'custom' budget tier only if the user actually said so. 'custom'
     removes every price ceiling in the pipeline, which makes it the one tier
-    where a hallucination is expensive rather than merely wrong — so it needs
+    where a hallucination is expensive rather than merely wrong, so it needs
     two independent signals to agree, not one. The extraction model proposes it
     from the conversation as a whole; this checks the user's own turns for an
     explicit statement, deterministically. An unconfirmed 'custom' falls back to
@@ -361,13 +361,13 @@ def _resolve_budget(
     settles both fields rather than the tier alone. The two are read by
     different rules that used to deadlock against each other here: a downgraded
     'elite' is a known tier, so is_profile_complete demands a sensitivity, and
-    the only way to get one is to ask whether the budget is a hard ceiling — the
+    the only way to get one is to ask whether the budget is a hard ceiling. The
     one question _ELICIT_SYSTEM forbids asking someone who has just said cost is
     no object. The elicitation model obeyed the prompt, declared it had
     everything it needed, and the turn routed back to `ask` forever without ever
     reaching the build pipeline. 'stretch' is the honest reading of a user whose
     budget talk was permissive enough for the extractor to call it unlimited:
-    they will go higher for the right part. It only ever fills an absence — an
+    they will go higher for the right part. It only ever fills an absence. An
     explicit sensitivity from the extractor still wins.
     """
     if budget_tier != "custom":
@@ -461,7 +461,7 @@ async def extract_profile(
     """Extract a BuildProfile from the conversation using the DSPy module.
 
     session_id, when given, tags this call with OpenRouter's session_id (via
-    dspy.context, which — unlike dspy.configure — is safe to use from any
+    dspy.context, which, unlike dspy.configure, is safe to use from any
     thread/task) so it groups with the rest of the turn's calls.
     """
     import dspy
@@ -479,7 +479,7 @@ async def extract_profile(
             _log_extraction_runaway(lm)
             # RETRY WITH THE CACHE OFF, and the flag is the whole point.
             # dspy.LM caches on by default, and the retry sends byte-identical
-            # inputs — so a plain second attempt is served the same unparseable
+            # inputs, so a plain second attempt is served the same unparseable
             # response out of the cache and fails exactly the same way, for
             # free, forever. `copy` leaves the configured LM untouched.
             #
@@ -506,7 +506,7 @@ async def extract_profile(
         """Same as _opt, but 'no_preference' is also an absence of an answer.
 
         form_factor's sentinel differs from the others because it feeds
-        UserPreferences, where "no_preference" is the real literal — see
+        UserPreferences, where "no_preference" is the real literal. See
         _effective_form_factor in dspy_pipeline for why that distinction has
         teeth (defaulting it to 'atx' silently narrows every motherboard query).
         """
@@ -556,10 +556,10 @@ async def extract_profile(
     )
 
 
-# --- Stage 2 — Stream Recommendation ------------------------------------------
+# --- Stage 2. Stream Recommendation ------------------------------------------
 
 _RECOMMEND_SYSTEM = """\
-You are Palladium's build advisor — friendly, knowledgeable, concise.
+You are Palladium's build advisor: friendly, knowledgeable, concise.
 
 The user is about to see a BuildCard with the full parts list, pricing, and
 description, so you do NOT need to repeat any of that. Your job is just a
@@ -567,8 +567,8 @@ short, warm lead-in message:
  - Briefly acknowledge what the user is looking for.
  - In one or two sentences, say you've picked out a build for them and why
    it fits at a high level (no need to name individual parts).
- - Do NOT list components, specs, or prices — that's all in the BuildCard.
- - Do NOT suggest alternatives — this is the recommended build.
+ - Do NOT list components, specs, or prices: that's all in the BuildCard.
+ - Do NOT suggest alternatives. This is the recommended build.
  - Keep the response under 50 words. No filler phrases.
 """
 
@@ -671,7 +671,7 @@ async def stream_recommendation(
 ) -> AsyncIterator[str]:
     """
     Stream the recommendation response token-by-token.
-    Yields raw text chunks (not SSE-formatted — the route handles that).
+    Yields raw text chunks (not SSE-formatted: the route handles that).
 
     If usage_sink is provided, it's filled with this call's tokens and the
     generation id its dollar cost is read back from. session_id groups this call
@@ -709,7 +709,7 @@ Determine:
    and roughly how large the models are
 5. For a server: what it will run (AI training, AI serving, HPC/simulation,
    virtualization or a homelab, storage, a render farm node) AND how many GPUs
-   it has to host — the GPU count is what decides whether this needs a
+   it has to host. The GPU count is what decides whether this needs a
    workstation platform like Threadripper rather than a desktop one
 5b. For any build that runs or trains LLMs: whether they're willing to run
    models QUANTIZED, and what CONTEXT WINDOW they need. Ask these only after
@@ -723,16 +723,16 @@ Determine:
    little for the right part
 
 On budget, take the user at their word in both directions. A vague answer is
-enough — don't push for a figure. If they say there is no limit, accept that and
+enough. Don't push for a figure. If they say there is no limit, accept that and
 move on; don't talk them into naming one. But never put "unlimited" in their
 mouth either: if they haven't said it, don't offer it as an option.
 
-Item 10 is about how firm the number is, not how big — ask it only after they
+Item 10 is about how firm the number is, not how big. Ask it only after they
 have given one, and never of someone who has said cost is no object.
 
 ON QUANTIZATION (item 5b), you are expected to teach, not just collect. Most
 people running a model locally have no idea what it means, and the question
-decides whether they need an $800 card or a $15,000 one — so it is worth a
+decides whether they need an $800 card or a $15,000 one, so it is worth a
 sentence of explanation rather than a bare ask. Quantization compresses a
 model's weights so it needs far less VRAM: a 31B model is roughly 74GB at full
 precision and roughly 19GB at 4-bit, which is the difference between a
@@ -744,18 +744,18 @@ are closer to the original model and need about twice the memory of 4-bit;
 4-bit (q4) is the usual sweet spot; 3-bit and below start to degrade
 noticeably. Give them the tradeoff and let them choose.
 
-"I don't know" is a perfectly good answer to item 5b — accept it, say you'll
+"I don't know" is a perfectly good answer to item 5b: accept it, say you'll
 assume a sensible default, and move on. Never make someone feel they should
 have known.
 
-On context window: ask it in plain terms — how much text the model needs to
+On context window: ask it in plain terms. How much text the model needs to
 consider at once (a short chat, a long document, a whole codebase). Long context
 costs real VRAM on top of the model itself, which is why it is worth asking.
 
 Ask ONE focused follow-up question at a time. Be conversational. Keep responses under 80 words.
 
 Do not describe or recommend a build yourself. Do not say the build is ready, that you have
-enough information, or that a recommendation is coming — the handoff to the build recommender
+enough information, or that a recommendation is coming. The handoff to the build recommender
 happens automatically and silently once every required item is filled in; you will be told
 exactly what's still missing below, so just ask about that.
 """
@@ -764,7 +764,7 @@ exactly what's still missing below, so just ask about that.
 def _is_llm_build(profile: BuildProfile) -> bool:
     """Whether this build exists to run or train language models.
 
-    The quantization and context-window questions are only coherent for these —
+    The quantization and context-window questions are only coherent for these,
     asking someone building a Stable Diffusion box what context length they
     want is noise. image_gen is deliberately excluded: diffusion models do
     quantize, but their VRAM is dominated by resolution and batch rather than
@@ -780,7 +780,7 @@ def _is_llm_build(profile: BuildProfile) -> bool:
 def _missing_llm_serving_fields(profile: BuildProfile) -> list[str]:
     """The LLM-shape gaps, in the order they make sense to ask about.
 
-    Deliberately empty until the workload itself is known — these are follow-ups
+    Deliberately empty until the workload itself is known. These are follow-ups
     to "you're running LLMs", not opening questions, and the router picking
     "what context window?" before the user has said what they want to run would
     be incoherent.
@@ -791,7 +791,7 @@ def _missing_llm_serving_fields(profile: BuildProfile) -> list[str]:
     if profile.llm_quantization is None:
         missing.append(
             "whether they're willing to run models quantized (compressed weights) "
-            "or need full precision — this is the single biggest factor in how "
+            "or need full precision. This is the single biggest factor in how "
             "much GPU the build needs"
         )
     if profile.llm_context_tokens is None:
@@ -885,14 +885,14 @@ async def stream_elicitation(
     """
     Stream a conversational response that gathers more info from the user.
     Readiness to recommend is decided deterministically by `is_profile_complete()`,
-    not by the model — this function only ever asks follow-up questions.
+    not by the model: this function only ever asks follow-up questions.
 
     missing_fields (from _missing_fields(), computed off the same profile
     is_profile_complete() just checked) tells the model exactly what's still
     blocking, so it doesn't have to re-judge "enough info" from raw text.
 
     price_estimate, when given (budget is the only missing field), is a
-    reference build's total already rounded to the nearest $100 — the model
+    reference build's total already rounded to the nearest $100. The model
     is told to mention this figure, not invent its own.
 
     If usage_sink is provided, it's filled with this call's tokens and the
@@ -910,7 +910,7 @@ async def stream_elicitation(
         system_content += (
             f"\n\nBased on everything they've described so far, a build like this would run "
             f"about ${price_estimate:,}. Mention that figure naturally while asking about "
-            f"their budget — don't invent a different number."
+            f"their budget. Don't invent a different number."
         )
 
     model = get_chat_model(
@@ -929,7 +929,7 @@ async def stream_elicitation(
 
 # Checks if the extracted profile actually carries enough signal to recommend.
 # This is a hard, code-level decision over structured fields the model
-# populates — the model never decides readiness itself.
+# populates: the model never decides readiness itself.
 
 
 def is_profile_complete(profile: BuildProfile) -> bool:
@@ -945,7 +945,7 @@ def is_profile_complete(profile: BuildProfile) -> bool:
 
     A known budget also needs a price_sensitivity, because the tier alone does
     not say where in its band to aim (see _budget_for). The exception is the
-    'custom' tier, where there is no figure for sensitivity to qualify — asking
+    'custom' tier, where there is no figure for sensitivity to qualify. Asking
     a user who just said cost is no object whether that is a hard ceiling would
     be answering a question they already answered.
 
@@ -994,7 +994,7 @@ def is_profile_complete(profile: BuildProfile) -> bool:
     return True
 
 
-# --- Build resolution cache — profile → build mapping is deterministic --------
+# --- Build resolution cache. Profile → build mapping is deterministic --------
 
 _resolve_cache: dict[str, tuple[str, Build]] = {}
 
@@ -1066,7 +1066,7 @@ async def _market_drift(db) -> float:
 
     1.0 is the honest fallback: it means "spend the ladder as written", which is
     the behaviour that existed before drift was measured at all. This must never
-    fail a build — a budget is not worth an exception.
+    fail a build. A budget is not worth an exception.
     """
     global _drift_cache
 
@@ -1087,7 +1087,7 @@ async def _market_drift(db) -> float:
     factor = 1.0 if measured is None else max(_DRIFT_MIN, min(measured, _DRIFT_MAX))
     if measured is not None and factor != measured:
         logger.warning(
-            "market drift %.3f outside [%.1f, %.1f]; clamped to %.3f — check the "
+            "market drift %.3f outside [%.1f, %.1f]; clamped to %.3f. Check the "
             "parts catalog and pricing ETL",
             measured,
             _DRIFT_MIN,
@@ -1103,7 +1103,7 @@ async def _budget_for_async(profile: BuildProfile, db) -> int:
 
     Only the ladder is scaled. A stated figure is the user's own money and means
     the same thing whatever the market did; 'custom' has no figure to scale. So
-    drift applies to exactly the case it was built for — the user who never named
+    drift applies to exactly the case it was built for. The user who never named
     a number and is being sized by constants somebody typed months ago.
     """
     if profile.budget_tier == "custom" or profile.stated_budget_usd is not None:
@@ -1123,14 +1123,14 @@ def _budget_for(profile: BuildProfile) -> int:
     'custom' short-circuits everything below: it is not a bigger tier, it is the
     absence of one. By the time a profile reaches here that tier has already
     been confirmed against the user's own words (_confirm_custom_budget), so
-    this can take it at face value — and price_sensitivity cannot apply to it,
+    this can take it at face value, and price_sensitivity cannot apply to it,
     because there is no figure to scale.
 
     A STATED FIGURE ALWAYS WINS OVER THE LADDER, and it has to. The tiers are
     coarse buckets mapped to one constant each, so routing a stated number
     through them destroys it: $2200 and $1500 are both 'mid' and both came back
     out as $1500. Worse, the ladder is picked by use case, and the server ladder
-    is a different scale entirely — a user who said $5000 and the word "server"
+    is a different scale entirely. A user who said $5000 and the word "server"
     was handed $25000 and shown a $15000 GPU, while the chat text still quoted
     them their own $5000. The ladder's job is to answer "roughly what should
     this cost?" for someone who never named a number, not to overrule someone
@@ -1166,8 +1166,8 @@ _PRIMARY_USE_TO_USE_CASE = {
 # Display order + labels for the assembled BuildCard parts list.
 #
 # Each entry is (label, state attribute, quantity attribute). The attribute
-# holds either one name or a list of them, and the quantity attribute — None
-# for the single-instance roles — says how many of each. The two shapes mirror
+# holds either one name or a list of them, and the quantity attribute, None
+# for the single-instance roles, says how many of each. The two shapes mirror
 # BuildPart: distinct parts in a role are separate rows (storage), identical
 # ones are one row with a quantity (GPUs, fans).
 _DSPY_COMPONENT_SLOTS: list[tuple[str, str, str | None]] = [
@@ -1210,15 +1210,15 @@ def _profile_to_preferences(profile: BuildProfile) -> UserPreferences:
 # reintroduce the original failure by way of politeness.
 _QUANTIZATION_GUIDANCE = {
     "yes": (
-        "willing to run quantized — size VRAM for 4-bit (q4) weights, "
+        "willing to run quantized: size VRAM for 4-bit (q4) weights, "
         "roughly 0.5 bytes per parameter"
     ),
     "no": (
-        "wants FULL PRECISION — size VRAM for fp16/bf16 weights, 2 bytes per "
+        "wants FULL PRECISION. Size VRAM for fp16/bf16 weights, 2 bytes per "
         "parameter, and do not assume quantization to make a smaller card fit"
     ),
     "unsure": (
-        "no preference stated on quantization — assume 4-bit (q4), the format "
+        "no preference stated on quantization. Assume 4-bit (q4), the format "
         "self-hosters normally run, and size VRAM at roughly 0.5 bytes per "
         "parameter"
     ),
@@ -1228,18 +1228,18 @@ _QUANTIZATION_GUIDANCE = {
 # is charged on top of the weights, which is why a model that "fits in 24GB" at
 # 8k may not at 128k.
 _CONTEXT_GUIDANCE = {
-    "4k": "short context (~4k tokens) — KV cache overhead is minimal",
-    "8k": "standard context (~8k tokens) — modest KV cache overhead",
+    "4k": "short context (~4k tokens). KV cache overhead is minimal",
+    "8k": "standard context (~8k tokens): modest KV cache overhead",
     "32k": (
-        "long context (~32k tokens) — budget meaningful extra VRAM for KV cache "
+        "long context (~32k tokens): budget meaningful extra VRAM for KV cache "
         "on top of the weights"
     ),
     "128k": (
-        "very long context (~128k tokens) — KV cache can rival the weights "
+        "very long context (~128k tokens). KV cache can rival the weights "
         "themselves; prefer a card with clear VRAM headroom over one that only "
         "just fits the model"
     ),
-    "unsure": "no context length stated — assume a standard ~8k window",
+    "unsure": "no context length stated. Assume a standard ~8k window",
 }
 
 
@@ -1274,10 +1274,10 @@ def _profile_to_build_request(
         answers["ai.model_scale"] = profile.ai_model_scale
     # Rendered as an instruction rather than as the raw enum. These land in the
     # `use_cases` string every Decide* step reads, and "llm.quantization: unsure"
-    # tells the GPU step nothing it can act on — "size for 4-bit" does. The
+    # tells the GPU step nothing it can act on. "size for 4-bit" does. The
     # translation is here rather than in the prompt because the default for
     # 'unsure' is a product decision, not something to re-litigate per call.
-    # .get, not [] — these values come from a language model, and an off-menu
+    # .get, not []. These values come from a language model, and an off-menu
     # string must degrade to the default rather than take the build down.
     if profile.llm_quantization:
         answers["llm.quantization"] = _QUANTIZATION_GUIDANCE.get(
@@ -1301,7 +1301,7 @@ def _profile_to_build_request(
     # Q&A flattening. price_sensitivity is already applied numerically in
     # _budget_for; saying it in words too lets a step tell "$1350 of a firm
     # $1500" apart from "$1350 of a flexible $1350", which the number alone
-    # cannot express. noise_tolerance has no numeric analogue at all — the
+    # cannot express. noise_tolerance has no numeric analogue at all. The
     # cooler and fan steps are the only place it can land.
     if profile.price_sensitivity:
         answers["general.price_sensitivity"] = profile.price_sensitivity
@@ -1332,11 +1332,11 @@ async def _assemble_dspy_build(state: Any, db) -> dict:
     build SSE event and the recommendation prompt work unchanged.
 
     Includes part_id + amazon_url per part, same as the reference-build path
-    (crud/reference_builds.py._to_build) — BuildCard's Amazon button is gated
+    (crud/reference_builds.py._to_build). BuildCard's Amazon button is gated
     on amazon_url and part_id doubles as its React list key, so both need to
     be resolved here rather than left off like the rest of the payload.
 
-    total_approx (and approx_price) are in cents, not dollars — BuildCard
+    total_approx (and approx_price) are in cents, not dollars: BuildCard
     renders `data.total_approx / 100` directly, same convention as every other
     *_cents column in this codebase (street_price_cents, etc).
     """
@@ -1353,7 +1353,7 @@ async def _assemble_dspy_build(state: Any, db) -> dict:
         for name in names:
             part = await get_part_by_name(db, name)
             # Grouped parts (GPU/PSU/RAM/Storage) carry price on their group, not
-            # the exact pc_parts row — resolve_part_price_cents handles both.
+            # the exact pc_parts row: resolve_part_price_cents handles both.
             price_cents = (
                 await resolve_part_price_cents(db, part) if part is not None else None
             )
@@ -1372,7 +1372,7 @@ async def _assemble_dspy_build(state: Any, db) -> dict:
             "component": component,
             "brand": (part.manufacturer if part else None) or "",
             "model": name,
-            # Per unit, like pc_build_parts.price_at_build — the card multiplies
+            # Per unit, like pc_build_parts.price_at_build: the card multiplies
             # by quantity for display rather than being handed a line total it
             # can't decompose.
             "approx_price": price_cents,
@@ -1435,7 +1435,7 @@ async def _resolve_drift_scaled_budget(profile: BuildProfile) -> int:
 
     Takes its own short session rather than reusing the pipeline's, so the
     request (and the recorder built from it) can still be constructed before the
-    try block that owns the pipeline session — the cancellation handler there
+    try block that owns the pipeline session. The cancellation handler there
     reads `recorder`, so it has to exist first. The drift factor is cached for
     _DRIFT_TTL_S, so in the steady state this opens a session and runs no query.
 
@@ -1456,7 +1456,7 @@ async def _resolve_drift_scaled_budget(profile: BuildProfile) -> int:
 async def _enrich_case_options(options: list[dict], db) -> list[dict]:
     """Resolve the 3 chosen case names against the catalog for the picker cards.
 
-    The pipeline's options carry only {name, reason} — what the LLM decided.
+    The pipeline's options carry only {name, reason}: what the LLM decided.
     The cards additionally need identity (part_id), the street price, the size
     and the image with its attribution, all of which live on the Case row. A
     name the catalog can't resolve (the model does occasionally paraphrase)
@@ -1491,8 +1491,8 @@ def resolve_case_choice(submitted: str | None, options: list[dict]) -> str:
 
     A name outside the offered three is refused and the best-value option used
     instead. The endpoint that accepts picks cannot know which three cases a
-    given build proposed — the options live in the paused payload, not in the
-    request — so validating happens here, against what was actually generated.
+    given build proposed, the options live in the paused payload, not in the
+    request, so validating happens here, against what was actually generated.
     Anything else is a name the picker UI could not have produced (a stale
     token replayed against a newer build, a hand-crafted request), and obeying
     it would let a caller steer a build into a case the pipeline never checked
@@ -1511,7 +1511,7 @@ def resolve_case_choice(submitted: str | None, options: list[dict]) -> str:
 
 # Marks a build that stopped at the case step rather than finishing. Returned
 # by _run_dspy_build in place of a payload, so the `build` node can tell "the
-# pipeline is waiting on the user" apart from "the pipeline failed" — the
+# pipeline is waiting on the user" apart from "the pipeline failed": the
 # first ends the turn with a picker, the second falls back to the reference
 # build.
 class PausedAtCase:
@@ -1540,7 +1540,7 @@ async def _run_dspy_build(
                     turn ends showing the picker; the user's pick resumes it.
       None          something failed. The caller falls back to the reference
                     build, exactly as before.
-      dict          not produced here any more — a completed build now only
+      dict          not produced here any more. A completed build now only
                     ever comes out of the resume (see resume_build below).
 
     Always enqueues _PIPELINE_DONE last. Never raises.
@@ -1556,7 +1556,7 @@ async def _run_dspy_build(
     inline would hold a worker thread and a Pub/Sub lease for as long as the
     user takes, and still strand anyone who answered late. Writing the state to
     Valkey and Postgres instead (services/paused_build.py) makes the wait free
-    and effectively unbounded — the pick simply picks the pipeline back up.
+    and effectively unbounded: the pick simply picks the pipeline back up.
     """
     from app.models.build_session import BuildSessionStatus
     from app.services import paused_build
@@ -1601,7 +1601,7 @@ async def _run_dspy_build(
             # run, already minted, and meaningless outside this build.
             token = state.session_id or str(uuid.uuid4())
 
-            # Awaited before the snapshot, not after — see the docstring.
+            # Awaited before the snapshot, not after. See the docstring.
             await _attach_reference_build(recorder, ref_task)
 
             saved = await paused_build.save(
@@ -1661,14 +1661,14 @@ async def resume_build(
     """Finish a build that stopped at the case step.
 
     Claims the paused payload (at most one caller wins, and only from the
-    conversation that paused it — see paused_build.load_and_claim), restores
+    conversation that paused it. See paused_build.load_and_claim), restores
     the pipeline exactly as it stood, runs the remaining steps with the user's
     case, and assembles the build.
 
     Returns None when the pause cannot be claimed: an unknown token, a pick
     that lost the race with another pick, one aimed at a different
     conversation, or a payload that outlived both stores. The caller tells the
-    user rather than silently building something else — every one of those
+    user rather than silently building something else. Every one of those
     means this particular build is gone, and quietly substituting a different
     one would show parts they never chose a case for.
     """
@@ -1698,7 +1698,7 @@ async def resume_build(
         messages = [ChatMessage(**m) for m in payload.get("messages") or []]
 
         # Validated against the options this build actually generated, which
-        # only exist here — see resolve_case_choice.
+        # only exist here. See resolve_case_choice.
         picked = resolve_case_choice(case_name, state.case_options)
 
         async with AsyncSessionLocal() as db:
@@ -1740,7 +1740,7 @@ async def _load_cached_reference_build(
     """Load the reference build already cached on this conversation, if any.
 
     Returns None when there's no conversation_id, it's not a real UUID (guest
-    turns pass a fresh scratch id — see run_chat_turn), no Conversation row
+    turns pass a fresh scratch id. See run_chat_turn), no Conversation row
     exists yet (first turn, before _save_turn has created it), or nothing has
     been cached onto it yet.
     """
@@ -1781,9 +1781,9 @@ async def _get_reference_build(
     already cached on it from an earlier turn instead of re-resolving.
 
     Once a conversation has a cached reference build it's frozen for the rest
-    of the conversation — including if it was first resolved as a rough
+    of the conversation, including if it was first resolved as a rough
     estimate under assumed_budget_tier before the user's real budget was
-    known — so it stays the exact build the user was already told about.
+    known, so it stays the exact build the user was already told about.
 
     Returns (build_key, build, was_cached).
     """
@@ -1827,8 +1827,8 @@ async def create_shared_build(
 ) -> str | None:
     """Persist a public snapshot of this build and return its share token.
 
-    Called from the build node for every emitted build — DSPy and reference
-    alike — so the card can always offer a link and a PDF. The `profile` key is
+    Called from the build node for every emitted build, DSPy and reference
+    alike, so the card can always offer a link and a PDF. The `profile` key is
     stripped from the stored copy: it paraphrases what the user told the intake
     chat, and a share link should republish the build, not the conversation.
 
@@ -1843,7 +1843,7 @@ async def create_shared_build(
         try:
             conv_uuid = uuid.UUID(conversation_id)
         except ValueError:
-            # Guest turns pass a scratch "turn:<uuid>" id — no row to point at.
+            # Guest turns pass a scratch "turn:<uuid>" id: no row to point at.
             conv_uuid = None
 
     from app.models.shared_build import new_share_token
@@ -1868,7 +1868,7 @@ async def create_shared_build(
         return None
 
 
-# --- Public API — orchestrate the full flow -----------------------------------
+# --- Public API. Orchestrate the full flow -----------------------------------
 
 
 # A real build payload is a few KB. Anything past this is not one, and it
@@ -1923,7 +1923,7 @@ async def run_chat_turn(
 
     "reference_estimate" fires at most once per conversation, the first time
     a reference build is resolved for it (whether that's the budget-still-
-    unknown estimate or the one resolved alongside a completed turn) — the
+    unknown estimate or the one resolved alongside a completed turn): the
     route consumes it internally to cache the build onto the conversation
     row; it is not meant to replace the "build" event on the client.
 
@@ -1935,17 +1935,17 @@ async def run_chat_turn(
     to mirror into Postgres alongside everything else it persists. Also internal;
     it arrives after "done" because it describes a turn that has finished.
 
-    conversation_id (when the caller has one — guests won't) does double duty:
+    conversation_id (when the caller has one. Guests won't) does double duty:
     it is the graph's thread_id, which is what makes the accumulated build
     profile survive from one turn to the next, and it is passed to OpenRouter as
     session_id so every call this turn makes groups into one session in their
     dashboard. Guests fall back to a fresh scratch id, which gives them
-    per-turn grouping and no persistence — the same deal they had before.
+    per-turn grouping and no persistence. The same deal they had before.
 
     THIS FUNCTION IS A PASSTHROUGH BY DESIGN. Every event below is produced by a
     node writing to the graph's custom stream; none is synthesized here. Keeping
-    it that way is what lets the graph be rearranged without the SSE contract —
-    which three callers and the frontend depend on — moving underneath it.
+    it that way is what lets the graph be rearranged without the SSE contract,
+    which three callers and the frontend depend on, moving underneath it.
     """
     from app.services.graph.graph import get_graph
     from app.services.graph.state import new_usage
@@ -1957,7 +1957,7 @@ async def run_chat_turn(
     graph = await get_graph()
 
     # Group this turn's spans into a LangSmith Thread. Set before astream so the
-    # attribute lands on the span every node's work descends from — LangSmith
+    # attribute lands on the span every node's work descends from. LangSmith
     # reads thread metadata off the trace root, and setting it inside a node
     # would tag that node's subtree only.
     #
@@ -2025,14 +2025,14 @@ async def resume_chat_turn(
 ) -> AsyncIterator[dict]:
     """Finish a build the user has just chosen a case for.
 
-    Yields the same event vocabulary as run_chat_turn, so every consumer —
-    the transport adapter, the turn runner's persistence, the Valkey stream —
+    Yields the same event vocabulary as run_chat_turn, so every consumer,
+    the transport adapter, the turn runner's persistence, the Valkey stream,
     works on a resumed turn without knowing it is one.
 
     DELIBERATELY NOT A GRAPH RUN. The graph exists to decide what a turn should
     do from the conversation; that decision was already made and acted on by
     the turn that paused. Re-entering it would re-extract the profile and
-    re-route, spending two LLM calls to arrive back at "build" — and risking a
+    re-route, spending two LLM calls to arrive back at "build", and risking a
     different answer than the pipeline that is already half-finished. So this
     drives the remaining pipeline steps directly. The accumulated graph state
     (`profile`, `asked_fields`) is untouched and stays valid for the next turn.
@@ -2087,7 +2087,7 @@ async def resume_chat_turn(
         yield {"type": "done"}
         return
 
-    # Locks the picker on the message that showed it — matched by token, so it
+    # Locks the picker on the message that showed it: matched by token, so it
     # lands on the earlier turn rather than this one. See transport._apply_event.
     yield {"type": "case_options", "data": resumed.case_options}
 
@@ -2137,7 +2137,7 @@ async def _checkpoint_event(graph, config: dict) -> dict | None:
 
     Read back through the checkpointer rather than assembled from the state we
     just streamed, so what gets mirrored is exactly what the checkpointer would
-    hand back on the next turn — including the parts of the checkpoint (channel
+    hand back on the next turn, including the parts of the checkpoint (channel
     versions, step counters) this module knows nothing about.
 
     Returns None when there is nothing to mirror, which is the normal case for

@@ -10,7 +10,7 @@ export const db = globalForPrisma.prisma ?? new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db;
 
 // Close the pool when the pod is drained. Next's standalone server handles
-// SIGTERM itself, so this only disconnects — calling process.exit() here would
+// SIGTERM itself, so this only disconnects. Calling process.exit() here would
 // cut its own graceful shutdown short. Guarded because this module can be
 // evaluated more than once per process.
 if (!globalForPrisma.prismaShutdownHooked) {

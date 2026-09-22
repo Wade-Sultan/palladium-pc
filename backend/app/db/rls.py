@@ -17,8 +17,8 @@ class RLSPolicy:
         name:       Unique policy name (within the table).
         table:      Table the policy applies to.
         command:    SQL command(s) the policy covers.
-        using:      USING expression — filters which *existing* rows are visible.
-        with_check: WITH CHECK expression — filters which rows can be *written*.
+        using:      USING expression. Filters which *existing* rows are visible.
+        with_check: WITH CHECK expression. Filters which rows can be *written*.
                     Defaults to the USING expression if not specified.
         role:       Postgres role the policy targets. Defaults to 'authenticated'
                     (Supabase's role for logged-in users).

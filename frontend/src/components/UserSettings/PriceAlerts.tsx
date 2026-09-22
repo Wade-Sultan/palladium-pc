@@ -18,7 +18,7 @@ import { formatCents } from "@/lib/utils"
  * one off without finding the build it came from again.
  *
  * Active subscriptions only. A watch is retired the moment its alert is sent
- * (one email per subscription, by design — see the model), so listing sent and
+ * (one email per subscription, by design. See the model), so listing sent and
  * canceled rows here would be a history of things that are no longer running,
  * under a heading that says they are.
  */

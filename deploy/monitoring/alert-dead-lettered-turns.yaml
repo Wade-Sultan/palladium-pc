@@ -11,7 +11,7 @@
 #
 # The 300s duration exists so a message that is dead-lettered and immediately
 # drained by the reader subscription does not page anyone.
-displayName: "Palladium — chat turns dead-lettered"
+displayName: "Palladium. Chat turns dead-lettered"
 documentation:
   mimeType: text/markdown
   content: |
@@ -29,7 +29,7 @@ documentation:
     history, so the turn can be reconstructed or replayed by hand.
 
     **Common causes, in the order worth checking:**
-    - The worker is crashing on a specific input — check
+    - The worker is crashing on a specific input. Check
       `kubectl -n palladium logs -l app=worker --previous` for the turn_id.
     - OpenRouter is returning a persistent error for the model this turn selects.
     - A schema change made an older queued message undecodable. `_decode` in
@@ -37,7 +37,7 @@ documentation:
       here means the failure was later than decode.
 
     **This does NOT mean data was lost.** If the turn ever reached persistence,
-    its buffer is still in Valkey under `chat:buf:{conversation_id}` — see the
+    its buffer is still in Valkey under `chat:buf:{conversation_id}`. See the
     "turns not reaching Postgres" alert.
 combiner: OR
 conditions:

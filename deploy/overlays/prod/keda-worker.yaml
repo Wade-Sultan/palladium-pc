@@ -2,8 +2,8 @@
 #
 # WHY NOT A PLAIN CPU HPA, the way builder has one. hpa.yaml already flags the
 # problem in its closing note: these pods are blocked on OpenRouter, not
-# computing, so a saturated worker looks idle. The load test made that concrete
-# — at 2 replicas x PUBSUB_MAX_CONCURRENCY 8 = 16 concurrent turns, pushing past
+# computing, so a saturated worker looks idle. The load test made that concrete,
+# at 2 replicas x PUBSUB_MAX_CONCURRENCY 8 = 16 concurrent turns, pushing past
 # that ceiling took first-token latency from ~3s to 20s+ while CPU stayed
 # unremarkable. A CPU target would not have scaled out at all. Queue depth is
 # the signal that actually moves when this workload is in trouble.
@@ -16,7 +16,7 @@
 #
 # SETUP IS NOT SELF-CONTAINED. This needs KEDA installed on the cluster and its
 # operator service account granted roles/monitoring.viewer through Workload
-# Identity — note that the grant is a Cloud Monitoring role, not a Pub/Sub one,
+# Identity. Note that the grant is a Cloud Monitoring role, not a Pub/Sub one,
 # because the trigger below reads the metric rather than the subscription.
 # Applying this file without that leaves the ScaledObject permanently in a
 # failed state, and `kubectl describe scaledobject worker` is the only place
@@ -28,7 +28,7 @@ metadata:
 spec:
   # Workload Identity rather than credentialsFromEnv. The alternative is pasting
   # a service account JSON key into a Secret, which is a long-lived credential
-  # for a scaler that only ever reads one metric — strictly worse than the
+  # for a scaler that only ever reads one metric. Strictly worse than the
   # keyless binding the rest of this overlay already uses
   # (patches/workload-identity.yaml).
   #
@@ -47,13 +47,13 @@ spec:
     name: worker
 
   # Matched by the prod overlay's `replicas:` transformer (kustomization.yaml),
-  # so the first apply does not immediately fight KEDA — the same reasoning as
+  # so the first apply does not immediately fight KEDA: the same reasoning as
   # builder's HPA. Change one and you must change the other, or every `kubectl
   # apply` resets the Deployment to a count KEDA then has to undo.
   #
   # ZERO. There is no warm floor: between bursts this Deployment runs no pods at
   # all and the 2Gi of permanently reserved Autopilot memory per replica goes
-  # back to the cluster — which is what left the migration Job unschedulable at
+  # back to the cluster, which is what left the migration Job unschedulable at
   # deploy time on a cluster capped at 4 nodes by SSD_TOTAL_GB quota.
   #
   # SAFE HERE IN A WAY IT WOULD NOT BE FOR BUILDER, and the distinction is worth
@@ -61,7 +61,7 @@ spec:
   # Nothing routes to a worker: it pulls from Pub/Sub, so there is no inbound
   # connection to drop while the pool is empty and no activator needed to hold
   # one. Turns published against zero subscribers are not lost, they sit in the
-  # subscription until a pod exists to pull them. builder is the *publisher* —
+  # subscription until a pod exists to pull them. builder is the *publisher*,
   # scaling it to zero would mean no pod accepts POST /chat, so no message is
   # ever produced, so this scaler would never see a backlog to react to.
   #
@@ -69,7 +69,7 @@ spec:
   # path instead of being picked up immediately. Every turn after it, until the
   # pool scales back down, is unaffected.
   #
-  # That wait used to be ~1.5-2.5 minutes and was almost entirely one term — the
+  # That wait used to be ~1.5-2.5 minutes and was almost entirely one term. The
   # Cloud Monitoring metric behind the Pub/Sub trigger, which is sampled every
   # 60s and then withheld for up to 120s more. The valkey-wake trigger below
   # removed it: the wake signal is now written synchronously by /chat and read
@@ -77,7 +77,7 @@ spec:
   # process start (~10-20s), or roughly 25-35s when a node has room.
   #
   # WHAT IS LEFT IS AUTOPILOT. If no node can fit a 2Gi pod, node provisioning
-  # adds 60-120s and no scaler change can help — the cluster is capped at 4
+  # adds 60-120s and no scaler change can help. The cluster is capped at 4
   # nodes by SSD_TOTAL_GB quota, so this is the term to expect on a genuinely
   # cold cluster. A low-priority balloon pod holding 2Gi would remove it, at the
   # cost of reserving the memory this floor exists to release.
@@ -92,7 +92,7 @@ spec:
   # 10, DOWN FROM 30, and only because the valkey-wake trigger below made it
   # worth anything. The old note here was right at the time: every poll is a
   # Cloud Monitoring API call, and with a single trigger whose metric is already
-  # 60-180s stale, polling faster bought nothing — the interval was rounding
+  # 60-180s stale, polling faster bought nothing. The interval was rounding
   # error against the delay. The wake trigger reads Valkey directly, so the
   # interval is now genuinely the first term in the 0->1 path.
   #
@@ -114,7 +114,7 @@ spec:
   #   N -> 1   advanced.horizontalPodAutoscalerConfig.behavior.scaleDown below.
   #
   # 300 to match that window, so the last pod is not held for a different
-  # duration than every pod before it. They are equal today ON PURPOSE — if you
+  # duration than every pod before it. They are equal today ON PURPOSE, if you
   # change one, decide about the other rather than discovering the split later.
   #
   # Not shorter: this is dead time after the queue empties, and buying back five
@@ -137,8 +137,8 @@ spec:
     # the wrong one. KEDA deprecated all three of its GCP scalers (Pub/Sub,
     # Stackdriver, Cloud Tasks) in September 2025 because they are built on
     # Monitoring Query Language, which Google deprecated in October 2024 in
-    # favour of a PromQL API. Nothing is scheduled for removal — KEDA's notice
-    # says the scalers stay as long as GCP supports MQL — so this is not urgent
+    # favour of a PromQL API. Nothing is scheduled for removal, KEDA's notice
+    # says the scalers stay as long as GCP supports MQL, so this is not urgent
     # maintenance, it is simply not worth adopting a dead code path on day one.
     #
     # This is KEDA's own recommended migration, and it costs nothing extra:
@@ -159,7 +159,7 @@ spec:
         # pubsub.googleapis.com/subscription/num_undelivered_messages becomes
         # <domain with dots as underscores>:<path with slashes as underscores>.
         #
-        # sum() is not decoration — KEDA requires the query to return exactly
+        # sum() is not decoration: KEDA requires the query to return exactly
         # one element, and this series carries per-resource labels that would
         # otherwise return several.
         #
@@ -169,7 +169,7 @@ spec:
 
         # A PER-REPLICA target: KEDA asks for ceil(metric / threshold) replicas.
         # Setting it to PUBSUB_MAX_CONCURRENCY makes this robust to the one
-        # genuinely ambiguous thing about the metric — whether messages a worker
+        # genuinely ambiguous thing about the metric. Whether messages a worker
         # currently holds leased count toward it. If they do, a fully busy pool
         # reads 8 x replicas and this resolves to exactly the replicas already
         # running (stable, and it scales the moment a real queue forms on top).
@@ -181,11 +181,11 @@ spec:
         # THE 0->1 CASE IS NOT AMBIGUOUS EITHER WAY: with no subscriber there is
         # nothing holding a lease, so the metric is exactly the queued turn
         # count and one turn gives ceil(1/8) = 1 pod. That is also why KEDA's
-        # activation is correct here without an activationThreshold — the
+        # activation is correct here without an activationThreshold. The
         # default of 0 means "any message at all wakes the pool", which is what
         # a chat request needs.
         #
-        # THIS TRIGGER NO LONGER DECIDES THE WAKE-UP — the valkey-wake trigger
+        # THIS TRIGGER NO LONGER DECIDES THE WAKE-UP. The valkey-wake trigger
         # below does, because no polling interval can outrun this metric's own
         # 60s sampling plus up-to-120s visibility delay. What stays here is the
         # steady-state answer: Pub/Sub is the real queue, so it remains the
@@ -195,7 +195,7 @@ spec:
         threshold: "8"
 
         # Explicit because the failure mode is silent and confusing. An empty
-        # result — which is what a subscription with no backlog returns — is
+        # result, which is what a subscription with no backlog returns, is
         # read as 0 rather than as an error. With it false, a healthy idle
         # queue would put the scaler into an error state and the HPA would stop
         # being able to compute a target at all.
@@ -208,8 +208,8 @@ spec:
     # THE PROBLEM IT SOLVES. `num_undelivered_messages` is sampled by Cloud
     # Monitoring every 60s and then withheld for up to another 120s, so the
     # metric proving a turn is queued shows up one to three minutes after the
-    # user pressed send. That was invisible at a warm floor — a pod was already
-    # there — and became the entire cold start once minReplicaCount went to 0.
+    # user pressed send. That was invisible at a warm floor, a pod was already
+    # there, and became the entire cold start once minReplicaCount went to 0.
     # No polling interval can outrun it, because the staleness is upstream of
     # KEDA. The only fix is a different signal.
     #
@@ -222,7 +222,7 @@ spec:
     #
     # BOTH TRIGGERS, NOT ONE. KEDA takes the max desired replicas across
     # triggers, so this decides the wake-up and Pub/Sub stays the authority on
-    # depth under sustained load — which is right, because Pub/Sub is the real
+    # depth under sustained load, which is right, because Pub/Sub is the real
     # queue and this list is only ever a claim about the head of it. Deleting
     # the Pub/Sub trigger would leave the pool blind to a backlog that built up
     # while workers were already running, since those turns never enter this
@@ -235,7 +235,7 @@ spec:
     - type: redis
       metadata:
         # RESOLVED FROM THE WORKER'S OWN ENV, which is what keeps the
-        # Memorystore private IP out of git — it lives in
+        # Memorystore private IP out of git. It lives in
         # palladium-secrets-builder, same as POSTGRES_SERVER, and reaches the
         # pod through envFrom (patches/secrets-scoped.yaml). KEDA resolves
         # *FromEnv against the scale target's pod spec, including envFrom
@@ -245,7 +245,7 @@ spec:
         # This needs the KEDA operator to be able to read Secrets in this
         # namespace. It can by default; if that is ever tightened, this trigger
         # fails resolution and `kubectl describe scaledobject worker` is the
-        # only place that says so — same failure shape the file header
+        # only place that says so: same failure shape the file header
         # describes for the Workload Identity grant.
         hostFromEnv: VALKEY_HOST
         portFromEnv: VALKEY_PORT
@@ -268,8 +268,8 @@ spec:
         # The activation threshold is what actually performs the 0->1 wake, and
         # it is a SEPARATE knob from listLength above: listLength decides how
         # many replicas the depth deserves, activation decides whether the
-        # ScaledObject is active at all. Default is 0 — "any element wakes the
-        # pool" — which is exactly right for one user pressing send, and is
+        # ScaledObject is active at all. Default is 0, "any element wakes the
+        # pool", which is exactly right for one user pressing send, and is
         # spelled out here only because leaving it implicit makes the single
         # most important behaviour of this trigger invisible.
         activationListLength: "0"
@@ -277,6 +277,6 @@ spec:
         # Matches VALKEY_TLS in patches/config-prod.yaml. Memorystore only
         # accepts TLS when the instance was created with in-transit encryption,
         # so this must stay in step with how it was provisioned or the scaler
-        # hangs on a handshake that never completes — the same trap the app
+        # hangs on a handshake that never completes. The same trap the app
         # client has.
         enableTLS: "false"

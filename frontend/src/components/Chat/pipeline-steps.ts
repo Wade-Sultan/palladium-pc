@@ -8,7 +8,7 @@
  * strings sit somewhere a translation pass can reach them.
  *
  * `message` remains the fallback for any step added to the pipeline that has not
- * been given an entry here yet — a new step should show slightly-off copy, never
+ * been given an entry here yet. A new step should show slightly-off copy, never
  * nothing at all.
  *
  * Step names come from _emit() in
@@ -16,11 +16,11 @@
  * emits in backend/app/services/chat_pipeline.py.
  */
 export const PIPELINE_STEP_MESSAGES: Record<string, string> = {
-  // chat_pipeline.py — the outer recommendation path
+  // chat_pipeline.py: the outer recommendation path
   resolving: "Building your PC…",
   presenting: "Preparing your recommendation…",
 
-  // dspy_pipeline.py — per-component selection, in pipeline order
+  // dspy_pipeline.py: per-component selection, in pipeline order
   ddr: "Building your PC…",
   cpu: "Choosing your CPU…",
   cooler: "Picking a cooler…",

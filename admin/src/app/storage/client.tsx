@@ -64,7 +64,7 @@ function StorageForm({ item, groups, onSuccess }: { item: StorageWithPart | null
         <FormField control={form.control} name="storageGroupId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Group * (spec — type, interface, capacity, speeds)</FormLabel>
+              <FormLabel>Group * (spec: type, interface, capacity, speeds)</FormLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl><SelectTrigger><SelectValue placeholder="Select a group" /></SelectTrigger></FormControl>
                 <SelectContent>{groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
@@ -157,7 +157,7 @@ export function StorageTable({ data, groups }: { data: StorageWithPart[]; groups
         <div><h1 className="text-2xl font-bold">Storage</h1><p className="text-muted-foreground text-sm mt-1">{data.length} drives</p></div>
         <Button onClick={() => { setSelected(null); setDialogOpen(true); }} disabled={groups.length === 0}>New Storage</Button>
       </div>
-      {groups.length === 0 && <p className="text-sm text-muted-foreground">Create a Storage Group first — every drive belongs to one.</p>}
+      {groups.length === 0 && <p className="text-sm text-muted-foreground">Create a Storage Group first: every drive belongs to one.</p>}
       <DataTable columns={columns} data={data} filterPlaceholder="Filter storage..." />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">

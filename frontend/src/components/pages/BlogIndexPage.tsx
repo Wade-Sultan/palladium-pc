@@ -61,7 +61,7 @@ export default function BlogIndexPage({ posts }: { posts: BlogPostSummary[] }) {
 
         {posts.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No posts yet — check back soon.
+            No posts yet. Check back soon.
           </p>
         ) : (
           <div className="space-y-4">

@@ -116,7 +116,7 @@ def upgrade():
 
     # --- GPU: one chipset per distinct chipset name ---
     # DISTINCT ON picks one representative row per group key, so array/JSONB
-    # columns (supported_features, benchmark_scores) copy through unchanged —
+    # columns (supported_features, benchmark_scores) copy through unchanged,
     # aggregating them (array_agg(...)[1]) collapses an array column to a scalar.
     op.execute(
         """

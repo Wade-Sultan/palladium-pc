@@ -49,7 +49,7 @@ class Software(Base):
     slug = Column(String(255), nullable=False, unique=True)  # e.g. "davinci-resolve"
 
     # Community shorthand users type: "Resolve" for DaVinci Resolve, "PS"
-    # for Photoshop. See the note on Game.aliases — same two jobs.
+    # for Photoshop. See the note on Game.aliases: same two jobs.
     aliases = Column(ARRAY(String), nullable=False, server_default="{}")
 
     category = Column(String(30), nullable=False)

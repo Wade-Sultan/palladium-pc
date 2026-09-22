@@ -8,8 +8,8 @@ WHY THIS EXISTS. The Decide* steps were handed cores, clocks and TDP and left
 to infer performance from them. `CPU.benchmark_scores` and
 `GPUChipset.benchmark_scores` (JSONB, validated by the pydantic models in
 app/models/benchmarks.py) already carry the real numbers and nothing read them.
-This module turns them into two fields on every candidate row — `perf_score`
-and `perf_per_dollar` — so the model is choosing against measurements instead
+This module turns them into two fields on every candidate row, `perf_score`
+and `perf_per_dollar`, so the model is choosing against measurements instead
 of guessing from a spec sheet.
 
 TWO AXES OF DEFENSIVENESS, because benchmark coverage in the catalog is
@@ -24,7 +24,7 @@ partial and will stay that way:
 
 HOW A SCORE IS BUILT.
   Each workload maps to weights over *axes* (single-thread, multi-thread,
-  raster, compute, ...), not over individual benchmarks — because Cinebench
+  raster, compute, ...), not over individual benchmarks, because Cinebench
   and Geekbench measure the same axis, and different rows in the catalog carry
   different ones. Within an axis, every benchmark present is normalized against
   the best value in the candidate set (x / max, so ratios are preserved) and
@@ -33,7 +33,7 @@ HOW A SCORE IS BUILT.
   A candidate must carry data for every axis whose weight is at least
   `_MIN_AXIS_WEIGHT`. Without that rule, renormalizing over "the axes we happen
   to have" lets a part with only single-thread data score 1.00 on a rendering
-  workload that is decided almost entirely on multi-thread — the exact silent
+  workload that is decided almost entirely on multi-thread. The exact silent
   mis-ranking this module exists to remove.
 
   Scores are relative to the candidate set, not absolute. 1.00 means "best in
@@ -56,11 +56,11 @@ _MIN_AXIS_WEIGHT = 0.25
 
 # How much faster the leader must be than the runner-up before the dominance
 # gate will skip the LLM. Only consulted once the leader is already at least as
-# cheap as every other candidate — see find_dominant.
+# cheap as every other candidate. See find_dominant.
 DOMINANCE_MARGIN = float(os.getenv("RECOMMEND_DOMINANCE_MARGIN", "0.05"))
 
 # Master switch for the skip. Scores are still computed and still injected into
-# the candidate JSON when this is off — only the LLM bypass is disabled, which
+# the candidate JSON when this is off. Only the LLM bypass is disabled, which
 # makes it safe to turn off in a hurry without changing what the model sees.
 DOMINANCE_SKIP_ENABLED = os.getenv("RECOMMEND_DOMINANCE_SKIP", "1") not in (
     "0",
@@ -69,7 +69,7 @@ DOMINANCE_SKIP_ENABLED = os.getenv("RECOMMEND_DOMINANCE_SKIP", "1") not in (
 )
 
 
-# --- Axis definitions — which benchmark keys measure the same thing -----------
+# --- Axis definitions, which benchmark keys measure the same thing -----------
 # Keys match the pydantic field names in app/models/benchmarks.py
 # (CPUBenchmarkScores / GPUBenchmarkScores). Both models set extra="allow", so
 # unknown keys may appear in the JSONB; anything not listed here is ignored
@@ -82,12 +82,12 @@ _CPU_AXES: dict[str, tuple[str, ...]] = {
 }
 
 _GPU_AXES: dict[str, tuple[str, ...]] = {
-    # Rasterization — conventional game rendering.
+    # Rasterization: conventional game rendering.
     "raster": ("timespy",),
     # Ray tracing throughput. Also the best available proxy for GPU-accelerated
     # offline renderers (OptiX, Cycles), which lean on the same RT hardware.
     "ray": ("port_royal",),
-    # DX12 Ultimate / mesh shaders — where recent titles actually live.
+    # DX12 Ultimate / mesh shaders: where recent titles actually live.
     "modern": ("speed_way",),
     # General compute: AI/ML, and the GPU half of creative encode/decode work.
     "compute": ("geekbench_6_compute",),
@@ -115,7 +115,7 @@ _CPU_WEIGHTS: dict[str, dict[str, float]] = {
     # Incremental compiles and editor responsiveness are latency-bound; full
     # builds and container fleets are not.
     "dev": {"single": 0.50, "multi": 0.50},
-    # DAWs are famously latency-bound — per-track plugin chains run serially.
+    # DAWs are famously latency-bound: per-track plugin chains run serially.
     "audio": {"single": 0.70, "multi": 0.30},
     "productivity": {"single": 0.65, "multi": 0.35},
     "nas": {"single": 0.30, "multi": 0.70},
@@ -166,7 +166,7 @@ def _resolution_adjusted(
 
     At 4K the frame rate is pinned by the GPU and the CPU's single-thread lead
     stops translating into frames, so ranking CPUs on it overstates the gap. At
-    1080p the reverse holds. GPU weights are untouched — resolution changes how
+    1080p the reverse holds. GPU weights are untouched. Resolution changes how
     much GPU you need, not which GPU characteristic matters.
     """
     if part_type != "cpu":
@@ -273,7 +273,7 @@ def _candidate_axis_values(
     """Normalized 0..1 value per axis for one candidate.
 
     Every benchmark present for an axis is divided by that benchmark's best in
-    the set, then averaged — so a part measured on both Cinebench and Geekbench
+    the set, then averaged, so a part measured on both Cinebench and Geekbench
     is not double-counted relative to one measured on a single suite.
     """
     values: dict[str, float] = {}
@@ -373,7 +373,7 @@ def score_candidates(
 
     `rows` are the dicts the serializers in db/queries.py produce, each expected
     to carry a `benchmark_scores` dict and a `street_price_usd`. Rows that
-    cannot be scored get `perf_score: None` and are left otherwise untouched —
+    cannot be scored get `perf_score: None` and are left otherwise untouched,
     they remain valid candidates the LLM may still choose.
 
     perf_score is rounded to 3 decimals and perf_per_dollar to 5: these land in
@@ -468,7 +468,7 @@ def find_dominant(
 ) -> Dominant | None:
     """Return the candidate that strictly dominates the set, or None.
 
-    "Dominates" is deliberately the strong form — the winner must be
+    "Dominates" is deliberately the strong form. The winner must be
 
       * at least `margin` faster than the runner-up on the weighted score, AND
       * priced at or below every other candidate,
@@ -479,7 +479,7 @@ def find_dominant(
     machine?), and that decision is exactly what the LLM is for.
 
     Requires the whole candidate set to be scored. A dominance claim over a
-    partially-measured set is not a dominance claim — the unmeasured rows are
+    partially-measured set is not a dominance claim. The unmeasured rows are
     precisely where a better part would hide.
 
     Fires rarely by construction. That is intended: it is a bypass for cases
@@ -536,7 +536,7 @@ def find_dominant(
     )
     threshold = (
         f"Reconsider only if {runner_name} drops below ${lead_price:,.0f}, or if a "
-        f"faster part enters the catalog under this build's ceiling — the choice "
+        f"faster part enters the catalog under this build's ceiling: the choice "
         f"here rests on {name} leading on price and performance simultaneously."
     )
 

@@ -9,14 +9,14 @@ spec:
   # module-level cache, _resolve_cache, is keyed by profile attributes rather
   # than conversation_id.
   #
-  # If in-process per-conversation state is ever introduced, put this back to 2
-  # — a single local replica is exactly where that class of bug hides.
+  # If in-process per-conversation state is ever introduced, put this back to 2.
+  # A single local replica is exactly where that class of bug hides.
   replicas: 1
 ---
 # One worker locally, where this used to be zero.
 #
 # It was zero because the worker cannot start without a subscription to pull
-# from — app/worker.py fails fast on an empty PUBSUB_SUBSCRIPTION — and this
+# from, app/worker.py fails fast on an empty PUBSUB_SUBSCRIPTION, and this
 # cluster had neither a Pub/Sub nor a Memorystore to point it at. That is no
 # longer true: the overlay now runs both (valkey.yaml, pubsub-emulator.yaml), so
 # the dispatched path is exercisable here for the first time.
@@ -24,13 +24,13 @@ spec:
 # ONE, NOT TWO. Prod runs a pool because turns arrive concurrently; locally they
 # do not, and a second worker would only compete for the same laptop CPU and the
 # same single LM Studio endpoint. The behaviour a second replica would add that
-# one cannot — a redelivered turn arriving at a DIFFERENT worker than the one
-# holding the claim — is worth testing deliberately (scale to 2 for that), not
+# one cannot, a redelivered turn arriving at a DIFFERENT worker than the one
+# holding the claim, is worth testing deliberately (scale to 2 for that), not
 # worth paying for continuously.
 #
 # This count must stay equal to minReplicaCount in keda-worker.yaml. Every
 # `kubectl apply` writes spec.replicas, so a Deployment that disagrees with its
-# autoscaler's floor is reset on each deploy and dragged back afterwards — a pod
+# autoscaler's floor is reset on each deploy and dragged back afterwards: a pod
 # started and killed for nothing, every time. (Prod has exactly that bug today:
 # its replicas transformer still says 0 while its ScaledObject floor is 1.)
 #

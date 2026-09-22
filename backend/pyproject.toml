@@ -29,17 +29,17 @@ dependencies = [
     # Capped below 8.0: that release requires starlette>=1.0, which cannot be
     # satisfied alongside fastapi<1.0 (it pins starlette<0.42).
     "prometheus-fastapi-instrumentator>=7.1.0,<8.0.0",
-    # Discovery pipeline — lazy-imported inside app/services/discovery/ only,
+    # Discovery pipeline: lazy-imported inside app/services/discovery/ only,
     # so the API's startup path never pays for them.
     "trafilatura>=1.12",
     "pypdfium2>=4.30",
     "Pillow>=10.0",
-    # Shared-build PDF export (app/services/build_pdf.py). Pure-Python — no
+    # Shared-build PDF export (app/services/build_pdf.py). Pure-Python. No
     # pango/cairo system deps, which is what kept WeasyPrint out of the image.
     "fpdf2>=2.8",
     "rapidfuzz>=3.9",
-    # Valkey speaks the Redis wire protocol, so redis-py is the supported client
-    # — there is no separate valkey package to install. 5.0 is the floor for
+    # Valkey speaks the Redis wire protocol, so redis-py is the supported client.
+    # There is no separate valkey package to install. 5.0 is the floor for
     # asyncio RedisCluster, which Memorystore for Valkey requires.
     "redis>=5.0",
     "google-cloud-pubsub>=2.21",
@@ -50,7 +50,7 @@ dependencies = [
     "google-cloud-storage>=3.0",
     # Chat turn harness. langgraph-checkpoint carries BaseCheckpointSaver and
     # JsonPlusSerializer, which app/services/graph/checkpoint.py implements
-    # against directly — langgraph-checkpoint-redis is deliberately NOT here,
+    # against directly. Langgraph-checkpoint-redis is deliberately NOT here,
     # because it requires the RedisJSON and RediSearch modules and Memorystore
     # for Valkey ships no modules at all.
     "langgraph>=0.2.60",
@@ -63,7 +63,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.44.0",
     "opentelemetry-instrumentation-openai-v2>=2.0b0",
     # The non-LLM half of the trace, and the only half Google gets that
-    # LangSmith does not — the scope filter in app/core/tracing.py drops every
+    # LangSmith does not: the scope filter in app/core/tracing.py drops every
     # one of these. Managed OTel for GKE injects a collector endpoint but does
     # NOT auto-instrument Python, so without these packages the Google pipe
     # carries nothing but the same LLM spans LangSmith already has.
@@ -87,7 +87,7 @@ dev = [
     "coverage<8.0.0,>=7.4.3",
 ]
 
-# NO locust GROUP HERE, deliberately — see deploy/loadtest/requirements.txt.
+# NO locust GROUP HERE, deliberately. See deploy/loadtest/requirements.txt.
 # locust >=2.46 requires pytest>=8.3.3 and `dev` above pins pytest<8.0.0, so uv
 # (which locks every group together) cannot satisfy both. The load test is not
 # part of this package and is not imported by it, so it gets its own
@@ -126,7 +126,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Model re-exports. These imports look unused because nothing references the
-# names here — but importing them is the point: it is what registers each model
+# names here, but importing them is the point: it is what registers each model
 # with SQLAlchemy's metadata. Delete them and `alembic revision --autogenerate`
 # quietly stops seeing those tables, which produces an empty migration rather
 # than an error. The same applies to the crud package's aggregator.

@@ -6,8 +6,8 @@
 # Run from the repo root:  ./scripts/dump-prod-db.sh
 #
 # Dumps everything rather than excluding the user tables. The catalog you
-# actually want is entangled with them — reference_builds.pc_build_id ->
-# pc_builds.id, and pc_builds.owner_id -> users.id with no ON DELETE clause —
+# actually want is entangled with them, reference_builds.pc_build_id ->
+# pc_builds.id, and pc_builds.owner_id -> users.id with no ON DELETE clause,
 # so excluding users' data would only fail at the very end of the restore, when
 # pg_restore recreates the foreign keys. seed-local-db.sh strips the PII
 # immediately after loading instead.
@@ -21,7 +21,7 @@ SEED_DIR="${PALLADIUM_SEED_DIR:-$REPO_ROOT/.local-seed}"
 DUMP_FILE="${PALLADIUM_SEED_DUMP:-$SEED_DIR/palladium.dump}"
 PROXY_PORT="${PROXY_PORT:-5434}"
 
-# .env is not sourceable — EMAIL_FROM contains unquoted <> that the shell would
+# .env is not sourceable. EMAIL_FROM contains unquoted <> that the shell would
 # read as redirection. Pull the two values out individually instead.
 env_value() { grep -E "^$1=" .env | head -1 | cut -d= -f2-; }
 

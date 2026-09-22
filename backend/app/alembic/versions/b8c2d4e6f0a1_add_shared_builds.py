@@ -1,4 +1,4 @@
-"""add shared_builds — public snapshots behind share tokens
+"""add shared_builds: public snapshots behind share tokens
 
 One row per generated build, written mid-turn when the build payload is
 assembled. Backs the public build page (/b/{token}) and the PDF export.

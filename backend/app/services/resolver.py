@@ -17,7 +17,7 @@ async def resolve_build(profile: BuildProfile, db: AsyncSession) -> tuple[str, B
     use = profile.primary_use
     resolution = profile.gaming_resolution or "1080p"
     # 'custom' (no budget ceiling) collapses to 'elite' here. The reference
-    # catalog is a fixed set of curated builds with a top entry — there is no
+    # catalog is a fixed set of curated builds with a top entry. There is no
     # "unlimited" one to resolve to, and the branches below are written as an
     # ordered ladder that an unrecognised tier would fall straight through.
     # Only the DSPy path can actually spend an unbounded budget; this is its
@@ -35,7 +35,7 @@ async def resolve_build(profile: BuildProfile, db: AsyncSession) -> tuple[str, B
 
     # Server / workstation builds. Reference builds are the fallback when the
     # DSPy pipeline fails, so a server profile landing on a gaming build would
-    # be a worse failure than most — it would recommend a machine that cannot
+    # be a worse failure than most. It would recommend a machine that cannot
     # do the job at all. Keys follow the same "<resolution>_<name>" convention
     # as the rest of the catalog; a server build's max_resolution is nominal
     # (it exists to pass the resolution filter, not to describe a display).
@@ -60,7 +60,7 @@ async def resolve_build(profile: BuildProfile, db: AsyncSession) -> tuple[str, B
             return _pick(candidates, "2160_creator")
         return _pick(candidates, "1440_creator")
 
-    # Gaming (streaming rides the gaming builds — the CPU-heavier balance is
+    # Gaming (streaming rides the gaming builds. The CPU-heavier balance is
     # handled by the DSPy pipeline's budget split, not the reference catalog)
     if use in ("gaming", "streaming"):
         if floor >= 2160:

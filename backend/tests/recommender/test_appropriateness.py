@@ -116,7 +116,7 @@ def test_gpu_overshoot_is_priced_against_the_cheapest_sufficient_option():
 
 
 def test_gpu_without_a_floor_reports_the_missing_signal():
-    """No requirement to check means sufficiency was not measured — say so."""
+    """No requirement to check means sufficiency was not measured: say so."""
     candidates = [_gpu("A", 300, 8), _gpu("B", 900, 24)]
     result = ap.gpu_appropriateness(candidates, "A", slot_budget_usd=900)
     assert "sufficiency" in result.missing_signals
@@ -180,7 +180,7 @@ def test_cpu_missing_perf_score_is_reported():
     assert "perf_score" in result.missing_signals
 
 
-# --- Motherboard — the asymmetry ----------------------------------------------
+# --- Motherboard: the asymmetry ----------------------------------------------
 
 
 def test_board_with_too_few_slots_scores_zero_for_a_multi_gpu_profile():
@@ -287,7 +287,7 @@ def test_gepa_metric_rejects_an_unknown_module():
         ap.make_gepa_metric("DecideToaster")
 
 
-# --- context_from_requirements — the bridge from stored telemetry to the scorers ---
+# --- context_from_requirements: the bridge from stored telemetry to the scorers ---
 
 
 def test_context_translates_a_stored_requirements_blob():

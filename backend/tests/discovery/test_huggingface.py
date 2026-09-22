@@ -3,7 +3,7 @@ Unit tests for the Hugging Face Hub discovery source
 (app.services.discovery.huggingface). Pure-logic: the network layer is not
 exercised, only the mapping from a Hub API payload onto ai_models columns.
 
-That mapping is the whole value of this path — it exists so the ai_model
+That mapping is the whole value of this path. It exists so the ai_model
 category never pays an LLM to read a model card, so the fields it derives have
 to be right without one.
 """
@@ -47,7 +47,7 @@ def test_parameter_count_comes_from_the_safetensors_index_not_the_name():
 
 
 def test_parameter_count_falls_back_to_the_name_without_an_index():
-    """GGUF-only and older .bin repos publish no safetensors index — the name
+    """GGUF-only and older .bin repos publish no safetensors index. The name
     is where the number came from originally, so it beats nothing."""
     model = _to_hub_model(_payload(safetensors=None, id="unsloth/gpt-oss-120b-GGUF"))
     assert model is not None
@@ -64,7 +64,7 @@ def test_absent_fields_are_omitted_rather_than_nulled():
     """Omitted keys let the approval form fall back to its own defaults; an
     explicit null would overwrite them."""
     # An id with no parameter count in it, so the name fallback has nothing to
-    # find either — otherwise "…-70B-Instruct" would supply one.
+    # find either, otherwise "…-70B-Instruct" would supply one.
     model = _to_hub_model(
         _payload(
             id="openai/whisper-large-v3",

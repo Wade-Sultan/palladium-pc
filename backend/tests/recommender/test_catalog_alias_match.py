@@ -3,7 +3,7 @@ Unit tests for the exact name/alias tier of app.services.recommender.catalog_mat
 
 The normalization is the part worth pinning down. Aliases are typed by hand in
 the admin panel and by users in chat, and neither side will agree on case,
-spacing or punctuation — "Rainbow 6", "rainbow6" and "RAINBOW-6" have to be one
+spacing or punctuation. "Rainbow 6", "rainbow6" and "RAINBOW-6" have to be one
 key, or curating aliases becomes an exercise in guessing how a user will type.
 
 The vector-search tier is not exercised here: it needs a live embedding API and
@@ -74,7 +74,7 @@ def test_an_unmatched_model_is_reported_rather_than_dropped():
 
 
 def test_an_unmatched_model_carries_the_quantization_arithmetic():
-    """Naming the gap is not enough — the step needs the math to close it."""
+    """Naming the gap is not enough. The step needs the math to close it."""
     summary = CatalogRequirements(unmatched_terms=["Gemma 4 31B"]).summary()
 
     assert "bytes_per_weight" in summary

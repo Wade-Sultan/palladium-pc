@@ -274,9 +274,9 @@ function GameForm({
                         field.onChange(isChipset || v === '__none' ? null : v);
                         form.setValue(`minimumParts.${i}.gpuChipsetId`, isChipset ? v.slice(8) : null);
                       }}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="— None —" /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger><SelectValue placeholder=": None: " /></SelectTrigger></FormControl>
                       <SelectContent>
-                        <SelectItem value="__none">— None —</SelectItem>
+                        <SelectItem value="__none">: None: </SelectItem>
                         {partOptions
                           .filter((p) => p.partType === form.watch(`minimumParts.${i}.role`) || (p.partType === 'gpu_chipset' && form.watch(`minimumParts.${i}.role`) === 'gpu'))
                           .map((p) => <SelectItem key={p.id} value={p.partType === 'gpu_chipset' ? `chipset:${p.id}` : p.id}>{p.name}</SelectItem>)}
@@ -463,7 +463,7 @@ export function GamesTable({ games, partOptions }: { games: GameWithParts[]; par
       accessorKey: 'genre', header: 'Genre',
       cell: ({ getValue }) => getValue<string | null>()
         ? <Badge variant="secondary">{getValue<string>()}</Badge>
-        : <span className="text-muted-foreground text-xs">—</span>,
+        : <span className="text-muted-foreground text-xs">-</span>,
     },
     { accessorKey: 'minStorageGb', header: 'Storage (GB)', enableSorting: true },
     {

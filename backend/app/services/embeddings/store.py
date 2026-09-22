@@ -5,15 +5,15 @@ Reads and writes the `embeddings` table: the reconcile sweep that keeps vectors
 in step with the catalog, and the similarity search that reads them back.
 
 THE SWEEP IS THE WHOLE SYNCHRONIZATION STRATEGY. There is deliberately no
-"embed on insert" hook. Parts enter this database from at least three places —
-the discovery pipeline, the admin app's Prisma writes, and hand-run SQL — and
+"embed on insert" hook. Parts enter this database from at least three places,
+the discovery pipeline, the admin app's Prisma writes, and hand-run SQL, and
 only one of them runs through this codebase at all. A creation hook would cover
 that one and silently miss the rest, producing a vector set that is wrong in a
 way nothing detects. Content-addressed reconciliation covers all three by
 construction: anything whose source text does not match its stored hash gets
 re-embedded on the next pass, no matter who wrote it or how.
 
-That also makes the sweep safe to run on a schedule and cheap when idle — a
+That also makes the sweep safe to run on a schedule and cheap when idle: a
 pass over an unchanged catalog issues one SELECT per entity type, hashes in
 process, and makes zero API calls.
 """
@@ -120,7 +120,7 @@ class SearchHit:
 
     @property
     def similarity(self) -> float:
-        """Cosine similarity in -1..1 — the friendlier direction to threshold on."""
+        """Cosine similarity in -1..1: the friendlier direction to threshold on."""
         return 1.0 - self.distance
 
 
@@ -136,7 +136,7 @@ async def _existing_hashes(
         select(Embedding.entity_id, Embedding.source_hash).where(
             Embedding.entity_type == entity_type.value,
             # A vector from a different model is not comparable to a current
-            # one, so a model change makes every row stale by definition — the
+            # one, so a model change makes every row stale by definition. The
             # hash match is irrelevant if the model differs.
             Embedding.model == settings.EMBEDDING_MODEL,
         )
@@ -265,7 +265,7 @@ async def reconcile(
     total = ReconcileStats()
     if not client.is_configured():
         logger.warning(
-            "OPENAI_API_KEY unset — embedding reconcile skipped entirely. No "
+            "OPENAI_API_KEY unset: embedding reconcile skipped entirely. No "
             "database work was done."
         )
         return total
@@ -274,7 +274,7 @@ async def reconcile(
         try:
             total.merge(await reconcile_type(db, entity_type, limit=limit_per_type))
         except Exception:
-            # One bad type must not abort the sweep — the others are
+            # One bad type must not abort the sweep. The others are
             # independent, and a schema drift in (say) fans should not stop
             # games from being embedded.
             logger.exception("embedding reconcile failed for %s", entity_type.value)
@@ -312,7 +312,7 @@ async def search(
     enough to reject prose about something the catalog does not contain.
 
     Returns [] rather than raising when embeddings are unconfigured or the query
-    cannot be embedded — callers treat that as "no matches", the same state as a
+    cannot be embedded: callers treat that as "no matches", the same state as a
     catalog with nothing in it.
     """
     if not entity_types:
@@ -355,7 +355,7 @@ async def search_catalog(
     """Search games, software and AI models together.
 
     One query across all three because the user's phrasing rarely says which it
-    is — "I want to run Flux" could name a game, an app or a model, and the
+    is. "I want to run Flux" could name a game, an app or a model, and the
     right answer is whichever the catalog actually contains.
     """
     return await search(

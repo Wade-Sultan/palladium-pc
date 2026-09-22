@@ -3,8 +3,8 @@ build_session.py
 ================
 Telemetry tables for the DSPy recommender pipeline.
 
-`build_sessions` — one row per pipeline run (one build conversation).
-`module_decisions` — one row per `Decide*` module call. This is the row that
+`build_sessions`: one row per pipeline run (one build conversation).
+`module_decisions`: one row per `Decide*` module call. This is the row that
 later becomes a GEPA training example, so it snapshots *verbatim* what the LLM
 saw at decision time (candidate set, input state, prompt hash). See
 app/services/recommender/recording.py for how these are populated.
@@ -51,7 +51,7 @@ class BuildSession(Base):
         index=True,
     )
 
-    # Nullable — anonymous builds must still be usable as training data.
+    # Nullable. Anonymous builds must still be usable as training data.
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id"),
@@ -59,7 +59,7 @@ class BuildSession(Base):
         index=True,
     )
 
-    # The conversation this build came out of — and the other half of the join
+    # The conversation this build came out of, and the other half of the join
     # to LangSmith, which groups a turn's spans into a Thread keyed on the same
     # id (see app/core/tracing.py::attach_thread).
     #
@@ -165,8 +165,8 @@ class ModuleDecision(Base):
     """
     One row per `Decide*` call. The GEPA training example.
 
-    candidate_set and input_state are stored as raw JSONB snapshots — NOT
-    references — so a replay months later sees exactly what the model saw, even
+    candidate_set and input_state are stored as raw JSONB snapshots, NOT
+    references, so a replay months later sees exactly what the model saw, even
     after pc_parts pricing/inventory drifts.
     """
 
@@ -230,7 +230,7 @@ class ModuleDecision(Base):
         JSONB,
         nullable=True,
         doc="Snapshot of the hardware floors resolved from the games/software/"
-        "ai_models catalogs for what the user named — see "
+        "ai_models catalogs for what the user named. See "
         "services/recommender/catalog_match.py::CatalogRequirements.to_dict. "
         "NULL when nothing was named, nothing matched, or the build predates "
         "catalog matching",
@@ -238,7 +238,7 @@ class ModuleDecision(Base):
     raw_prompt_hash = Column(
         String(64),
         nullable=True,
-        doc="sha256 of the rendered prompt — detects drift without storing text",
+        doc="sha256 of the rendered prompt: detects drift without storing text",
     )
     output_decision = Column(
         JSONB,
@@ -261,7 +261,7 @@ class ModuleDecision(Base):
     model_name = Column(
         String(128),
         nullable=True,
-        doc="Resolved from the active DSPy LM — haiku vs Gemma comparisons",
+        doc="Resolved from the active DSPy LM: haiku vs Gemma comparisons",
     )
 
     outcome_signal = Column(

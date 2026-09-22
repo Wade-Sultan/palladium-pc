@@ -5,7 +5,7 @@ from typing import Any
 
 
 def _key(value: Any) -> str:
-    """Stable comparison key — field values include lists (ddr_generation,
+    """Stable comparison key. Field values include lists (ddr_generation,
     supported_features), which aren't hashable."""
     return json.dumps(value, sort_keys=True)
 
@@ -21,7 +21,7 @@ def reconcile(
     (extracted_fields, field_provenance, extraction_confidence, source_urls).
 
     extraction_confidence records {"agreement", "n_sources"} for every field,
-    plus a {url: value} "values" map only where sources actually disagreed —
+    plus a {url: value} "values" map only where sources actually disagreed,
     that map is what the admin review UI surfaces as a conflict flag."""
     source_urls = [url for url, _, _ in per_source]
 
@@ -45,7 +45,7 @@ def reconcile(
         counts: dict[str, int] = {}
         for _, value, _ in reporting:
             counts[_key(value)] = counts.get(_key(value), 0) + 1
-        # max() keeps the first-seen key on ties — i.e. the highest-ranked source.
+        # max() keeps the first-seen key on ties: i.e. the highest-ranked source.
         modal_key = max(counts, key=counts.get)  # type: ignore[arg-type]
 
         chosen_url, chosen_value, chosen_prov = next(

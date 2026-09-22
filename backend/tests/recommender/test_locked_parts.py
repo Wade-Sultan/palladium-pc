@@ -7,7 +7,7 @@ Two halves, and the second is the one that matters. Honouring a lock is easy to
 get right and cheap to get wrong in only one direction. Refusing one acts
 AGAINST what the user asked for, so every refusal path here also has a
 companion test proving the same code honours the lock when the evidence for
-refusing is missing rather than merely negative — an absent performance floor,
+refusing is missing rather than merely negative: an absent performance floor,
 an unpriced part, a check that raised. Silently shipping a different graphics
 card than the one somebody asked for, on the strength of a measurement we never
 took, is the worst failure this feature can produce.
@@ -576,7 +576,7 @@ def _explode_if_called(monkeypatch, *names):
 def test_a_locked_gpu_skips_both_the_model_and_the_candidate_query(monkeypatch):
     """The candidate query matters as much as the LLM call. A locked slot's
     budget entry holds what the part cost, which for a part the user already
-    owns is zero — querying candidates under a $0 ceiling returns nothing and
+    owns is zero. Querying candidates under a $0 ceiling returns nothing and
     _ensure_candidates would fail a perfectly buildable machine."""
     _explode_if_called(monkeypatch, "_run_step", "get_gpu_chipset_candidates")
 
@@ -700,7 +700,7 @@ def test_a_user_named_board_survives_the_fit_resolver(monkeypatch):
 
 def test_a_chipset_only_lock_lets_the_fit_resolver_choose(monkeypatch):
     """Naming "RTX 5090" expresses no view on which board, so clearance still
-    decides — which is the whole reason pinned_exact exists."""
+    decides, which is the whole reason pinned_exact exists."""
     too_long = SimpleNamespace(
         name="ASUS TUF RTX 5090",
         length_mm=9999,

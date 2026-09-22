@@ -8,7 +8,7 @@ import { db } from '@/lib/prisma';
  *
  * Commerce does this itself when a listing is created through its API
  * (internal/server/listings_handlers.go), but admin writes listings straight
- * through Prisma — which is how they actually get created in practice — so the
+ * through Prisma, which is how they actually get created in practice, so the
  * same close has to happen here or a gap someone just fixed would stay open on
  * the failures page and in tomorrow's digest.
  *
@@ -32,7 +32,7 @@ async function resolveListingFailure(where: { partId: string } | { partId: { in:
  * database (Alembic e5a7c9b1d3f5).
  *
  * A group target exists because an eBay listing is a filtered search URL, and
- * one "RTX 3090" search is right for every partner board of that chipset —
+ * one "RTX 3090" search is right for every partner board of that chipset,
  * entering it per board means re-entering it and missing boards added later.
  */
 export type ListingTarget =
@@ -42,7 +42,7 @@ export type ListingTarget =
   | { kind: 'ramGroup'; id: string }
   | { kind: 'storageGroup'; id: string };
 
-/** The target as Prisma column data — one key set, four left undefined. */
+/** The target as Prisma column data: one key set, four left undefined. */
 function targetData(target: ListingTarget) {
   return {
     partId: target.kind === 'part' ? target.id : null,

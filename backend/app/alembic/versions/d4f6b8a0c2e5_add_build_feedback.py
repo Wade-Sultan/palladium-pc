@@ -3,7 +3,7 @@
 One standing thumbs up/down per user per conversation on the build that was
 recommended to them.
 
-Two foreign keys rather than one because pc_builds rows are shared templates —
+Two foreign keys rather than one because pc_builds rows are shared templates,
 every conversation landing on the same build_key points at the same pc_build id.
 conversation_id is therefore the identity, and build_id is denormalized so the
 "which template scores worst" question is a group-by rather than a join through
@@ -28,12 +28,12 @@ depends_on = None
 # postgresql.ENUM with create_type=False, NOT sa.Enum, and the flag is the whole
 # point. A plain sa.Enum column makes create_table emit its own CREATE TYPE
 # through SQLAlchemy's before_create hook, which passes checkfirst=False no
-# matter what the explicit create below asked for — so the type is created
+# matter what the explicit create below asked for, so the type is created
 # twice in the same migration and the second one fails with
 # `DuplicateObject: type "feedback_rating" already exists`.
 #
 # create_type=False detaches the type's lifecycle from the table's, which means
-# it must be created and dropped by hand — see upgrade/downgrade. That is also
+# it must be created and dropped by hand. See upgrade/downgrade. That is also
 # what makes this rerunnable against a database where a failed earlier attempt
 # left the type behind: checkfirst=True then finds it and moves on.
 _RATING = ENUM("up", "down", name="feedback_rating", create_type=False)

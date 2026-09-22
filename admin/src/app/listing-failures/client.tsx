@@ -94,7 +94,7 @@ export function ListingFailuresTable({ rows }: { rows: FailureRow[] }) {
   const columns = useMemo<ColumnDef<FailureRow>[]>(
     () => [
       {
-        // Named "name" so DataTable's default filterColumn finds it — the
+        // Named "name" so DataTable's default filterColumn finds it. The
         // part name is the only thing anyone searches this table by.
         accessorKey: 'partName',
         id: 'name',

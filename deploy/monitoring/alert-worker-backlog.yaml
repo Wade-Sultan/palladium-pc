@@ -1,7 +1,7 @@
 # Turns are arriving faster than the workers can run them.
 #
-# THE SYMPTOM USERS ACTUALLY FEEL. A backlog does not error — every turn still
-# completes and still persists — it just adds queue time in front of a build
+# THE SYMPTOM USERS ACTUALLY FEEL. A backlog does not error, every turn still
+# completes and still persists, it just adds queue time in front of a build
 # that already takes up to 180 seconds. The user experiences it as the app
 # getting slow, with nothing in the API's own latency metrics to show for it,
 # because builder answers POST /chat immediately either way.
@@ -10,7 +10,7 @@
 # queued turns is fine if they drain in a minute and terrible if they do not.
 # Oldest-unacked-age measures the wait directly, which is why it gets the
 # tighter threshold.
-displayName: "Palladium — chat turn backlog"
+displayName: "Palladium. Chat turn backlog"
 documentation:
   mimeType: text/markdown
   content: |
@@ -29,16 +29,16 @@ documentation:
     idle. Doubling the setting in
     `deploy/overlays/prod/patches/config-prod.yaml` costs nothing on Autopilot;
     doubling replicas costs a pod. The ceiling is memory (each in-flight turn
-    holds a DSPy state) and OpenRouter's own rate limits — not cores.
+    holds a DSPy state) and OpenRouter's own rate limits, not cores.
 
-    **If concurrency is already high**, the answer is more replicas — which KEDA
+    **If concurrency is already high**, the answer is more replicas, which KEDA
     is already doing, up to `maxReplicaCount: 8`
     (`deploy/overlays/prod/keda-worker.yaml`). A backlog that persists while the
     pool sits below that ceiling means the scaler is not reacting, not that it
     needs a bigger one: `kubectl -n palladium describe scaledobject worker`.
 
     **Rule out a cold start first.** The pool floors at 0, so a burst arriving
-    into an idle cluster queues for ~25-35s before the first pod pulls — longer
+    into an idle cluster queues for ~25-35s before the first pod pulls. Longer
     if Autopilot has to provision a node for it. That is a slow first turn, not
     congestion, and it clears itself. Both conditions below are duration-gated
     well past it.
@@ -47,7 +47,7 @@ documentation:
     trigger is not firing and the pool is falling back to the Cloud Monitoring
     one. Check that the `valkey-wake` trigger resolved its connection details
     from the worker's env: `kubectl -n palladium describe scaledobject worker`.
-    Compare `LLEN chat:wake` against what the scaler reports — a list that grows
+    Compare `LLEN chat:wake` against what the scaler reports. A list that grows
     and never drains means workers are not reaching `_handle`, not that the
     scaler is broken.
 
@@ -93,7 +93,7 @@ conditions:
       comparison: COMPARISON_GT
       # 32 was picked as two full rounds behind a warm floor of 2 replicas x 8
       # concurrent = 16 in flight. That floor is now 0 (keda-worker.yaml), so
-      # the number no longer derives from a standing capacity — but it is kept,
+      # the number no longer derives from a standing capacity, but it is kept,
       # because what it measures is unchanged: 32 queued turns is far more than
       # any single cold start can explain, and KEDA asks for ceil(32/8) = 4
       # replicas long before this matures. Reaching it for ten minutes means the

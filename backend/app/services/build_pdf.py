@@ -1,6 +1,6 @@
 """Deterministic PDF rendering for a shared build.
 
-Plain fpdf2 layout code over the stored snapshot — no LLM anywhere near it. The
+Plain fpdf2 layout code over the stored snapshot: no LLM anywhere near it. The
 same shared_builds row always renders the same document: content comes from the
 frozen snapshot, and the embedded creation date is pinned to the row's
 created_at rather than "now", so re-downloading a link does not produce a file

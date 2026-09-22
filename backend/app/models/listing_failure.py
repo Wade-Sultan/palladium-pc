@@ -15,7 +15,7 @@ from app.db.base import Base
 
 # Parts the listings API could not produce a listing for.
 #
-# Written by commerce (internal/store/store.go), not by anything here — the
+# Written by commerce (internal/store/store.go), not by anything here. The
 # listings API is the only thing that knows a lookup failed. The model exists in
 # the builder because app/models is the schema mirror Alembic autogenerates
 # against; without it, the next `alembic revision --autogenerate` would propose
@@ -23,14 +23,14 @@ from app.db.base import Base
 #
 # Current state, not an event log: one row per part, keyed by part_id, with a
 # counter. The build card fetches listings per part on every render, so a single
-# part with no listing is hit dozens of times a day — an append-only log would
+# part with no listing is hit dozens of times a day. An append-only log would
 # be almost entirely duplicates, and the digest email built on it would be
 # unreadable.
 
 # A part that exists and is recommended, but has nothing active to buy. A
 # coverage gap: the fix is to add a listing.
 REASON_NO_ACTIVE_LISTING = "no_active_listing"
-# The lookup itself failed — a database error, a query timeout. The fix is
+# The lookup itself failed: a database error, a query timeout. The fix is
 # operational, and the part may well be fine.
 REASON_LOOKUP_ERROR = "lookup_error"
 
@@ -73,7 +73,7 @@ class ListingLookupFailure(Base):
     part = relationship("PCPart")
 
     __table_args__ = (
-        # Both readers — the admin page and the digest — want open rows only.
+        # Both readers, the admin page and the digest, want open rows only.
         Index(
             "ix_listing_lookup_failures_open",
             "last_seen_at",

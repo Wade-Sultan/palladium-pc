@@ -52,7 +52,7 @@ spec:
               # LLM extraction, all network-latency bound. It holds one item's
               # documents in memory at a time. The 2 CPU / 8 GiB in the
               # original plan described a LlamaIndex RAG pipeline that does not
-              # exist in this codebase — on Autopilot that would have been
+              # exist in this codebase, on Autopilot that would have been
               # billed idle every month.
               resources:
                 requests:

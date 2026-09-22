@@ -3,12 +3,12 @@ kind: CronJob
 metadata:
   name: embeddings
 spec:
-  # Daily, 04:00 — after the pricing ETL and well clear of the monthly
+  # Daily, 04:00, after the pricing ETL and well clear of the monthly
   # discovery window. Frequent because the sweep is content-addressed and costs
   # nothing when nothing changed: an unchanged catalog is one indexed SELECT per
   # entity type and zero API calls. Spend tracks churn, not catalog size or
   # schedule frequency.
-  # 04:30, not 04:00 — pricing-etl already holds 04:00 daily, and on Autopilot
+  # 04:30, not 04:00. Pricing-etl already holds 04:00 daily, and on Autopilot
   # two jobs requesting capacity at once is two nodes scaling up. There is no
   # ordering requirement between them: price changes do not touch embedding
   # hashes (services/embeddings/text.py excludes price precisely so the ETL
@@ -30,7 +30,7 @@ spec:
       backoffLimit: 1
       # Generous for the steady state (a handful of changed rows), and sized so
       # a first full backfill of the catalog still completes inside it. Batches
-      # run sequentially by design — see services/embeddings/client.py.
+      # run sequentially by design. See services/embeddings/client.py.
       activeDeadlineSeconds: 3600
       ttlSecondsAfterFinished: 86400
       template:
@@ -58,6 +58,6 @@ spec:
                   memory: 1Gi
 # REQUIRES OPENAI_API_KEY in the referenced secret. Without it the job exits 1
 # by design rather than no-oping, so an unconfigured key shows up as a red
-# CronJob instead of a silently empty embeddings table — which is the failure
+# CronJob instead of a silently empty embeddings table, which is the failure
 # mode that is otherwise invisible, since every read path degrades to "no
 # matches" without erroring.

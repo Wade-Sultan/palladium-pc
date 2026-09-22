@@ -1,7 +1,7 @@
 """Which shopping results count as a listing for the part we searched for.
 
 The disqualifier gate is the interesting half: these titles score *well* on
-similarity — they contain the part's full name — which is exactly why a
+similarity, they contain the part's full name, which is exactly why a
 similarity threshold alone can't keep a $3,499 prebuilt out of a GPU's price.
 """
 

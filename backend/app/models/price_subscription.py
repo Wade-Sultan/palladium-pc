@@ -16,7 +16,7 @@ from sqlalchemy.sql import func
 from app.db.base import Base
 
 # Price alerts: a user asks to be told when a part gets cheaper, and the pricing
-# ETL (app/services/pricing_etl/) is what decides whether that has happened —
+# ETL (app/services/pricing_etl/) is what decides whether that has happened,
 # it is the only thing in the system that ever moves street_price_cents, so it
 # is the only place where "the price changed" is a fact rather than a guess.
 #
@@ -29,7 +29,7 @@ from app.db.base import Base
 
 # Terminal once notified: an alert fires at most once per subscription. A user
 # who wants to keep watching a part re-subscribes, which starts a fresh row with
-# a fresh baseline — otherwise a part oscillating around a threshold would mail
+# a fresh baseline, otherwise a part oscillating around a threshold would mail
 # them on every run that nudged it back down.
 STATUS_ACTIVE = "active"
 STATUS_SENT = "sent"
@@ -97,7 +97,7 @@ class PriceSubscription(Base):
             postgresql_where=text("status = 'active'"),
         ),
         # One live subscription per user per target. Partial so the same user
-        # can re-subscribe to a part they were already alerted about — the
+        # can re-subscribe to a part they were already alerted about. The
         # sent row stays for history and does not block the new one.
         Index(
             "uq_price_subscriptions_active_user_target",

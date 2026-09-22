@@ -4,15 +4,15 @@ WHY THIS IS A TABLE AND NOT JUST A VALKEY KEY. The pause is open-ended: the
 user may pick in four seconds or come back tomorrow, and between those two the
 turn that produced the options has ended, its worker has moved on, and the pod
 that ran it may well have been replaced. Valkey holds the fast copy and answers
-almost every resume, but it is a cache — it evicts under pressure and it
-expires — and losing this payload does not cost a cache miss, it costs nine
+almost every resume, but it is a cache, it evicts under pressure and it
+expires, and losing this payload does not cost a cache miss, it costs nine
 LLM calls and the user's whole build. So Postgres carries the durable copy and
 Valkey is the read-through in front of it, the same division of labour
 `conversations.graph_checkpoint` already keeps against Valkey's checkpointer.
 
 `resumed_at` is what makes the resume happen at most once. Claiming is a
-conditional UPDATE (see services/paused_build.py), so two picks racing — a
-double click, a redelivered message — resolve to one winner in one statement,
+conditional UPDATE (see services/paused_build.py), so two picks racing, a
+double click, a redelivered message, resolve to one winner in one statement,
 with no lock held across the pipeline work that follows.
 
 `conversation_id` is a plain column rather than a foreign key for the same

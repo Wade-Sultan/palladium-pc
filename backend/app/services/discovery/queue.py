@@ -3,21 +3,21 @@
 WHAT THIS CLOSES. `catalog_match` resolves the titles a user names against the
 games / software / ai_models catalogs, and anything it cannot match is dropped
 into `unmatched_terms` and forgotten. Those terms are the single best signal we
-have about what the catalog is missing — a user asking for "Gemma 4 31B" the
-week it ships is telling us exactly what to go find — and until now the only
+have about what the catalog is missing, a user asking for "Gemma 4 31B" the
+week it ships is telling us exactly what to go find, and until now the only
 consequence was a build sized without it.
 
 So an unmatched term is enqueued here, and the discovery sweep drains the most
 asked-for ones on its next run. The user who triggered it does not benefit; the
 next one does.
 
-A SORTED SET, SCORED BY DEMAND — not a list. With roughly ten searches per sweep
+A SORTED SET, SCORED BY DEMAND, not a list. With roughly ten searches per sweep
 the ordering is the whole design: FIFO would spend that budget on whatever was
 typed first, while ZINCRBY spends it on what people keep asking for. Dedupe comes
 free with it, which a list would need a separate SET to get.
 
 WRITTEN FROM THE GRAPH, READ BY A JOB. The enqueue happens inside the build
-pipeline, i.e. inside a LangGraph node, and is a Valkey write — which is exactly
+pipeline, i.e. inside a LangGraph node, and is a Valkey write, which is exactly
 what that path is allowed to do. Everything that reaches Postgres happens later,
 in the sweep. See app/services/telemetry_buffer.py for the same split.
 
@@ -39,7 +39,7 @@ from app.core.valkey import get_client
 logger = logging.getLogger(__name__)
 
 # One queue per catalog kind, so the ai_model sweep never picks up a game title.
-# The kind is known at enqueue time from which answer key the term came out of —
+# The kind is known at enqueue time from which answer key the term came out of,
 # see dspy_pipeline._resolve_catalog_requirements.
 KIND_AI_MODEL = "ai_model"
 KIND_GAME = "game"
@@ -67,7 +67,7 @@ MIN_SCORE = 2
 #
 # THE GAP BETWEEN THEM IS THE POINT, not slack. Every term enters at score 1 and
 # is therefore the coldest thing in the set, so a queue trimmed back to exactly
-# its cap evicts the next new term immediately — and the one after that, forever.
+# its cap evicts the next new term immediately, and the one after that, forever.
 # Trimming down to _TRIM_TARGET instead leaves headroom that new terms occupy
 # without triggering another trim, which is the window they need to be mentioned
 # a second time and earn their place.
@@ -75,7 +75,7 @@ MIN_SCORE = 2
 # The residual limit is honest: a term first mentioned while the set is at the
 # high-water mark still dies. With a 2000-term cap, MIN_SCORE filtering and a
 # 90-day TTL, being at that mark means 2000 distinct unresolved terms with live
-# demand — a flood, and in a flood protecting established demand is correct.
+# demand. A flood, and in a flood protecting established demand is correct.
 _MAX_TRACKED = 2000
 _TRIM_TARGET = 1800
 
@@ -101,7 +101,7 @@ def _normalize(term: str) -> str:
 
 
 def _is_plausible(term: str) -> bool:
-    """Cheap junk filter. Not security — the review queue is that — just enough
+    """Cheap junk filter. Not security, the review queue is that, just enough
     to keep obvious garbage from consuming a search."""
     stripped = term.strip()
     if not (_MIN_TERM_LEN <= len(stripped) <= _MAX_TERM_LEN):
@@ -157,13 +157,13 @@ async def _trim_if_oversized(client, kind: str, size: int) -> None:
     capacity evicts each new term the instant it arrives and the queue freezes
     with whatever got in first. Firing only above _MAX_TRACKED and cutting back
     to _TRIM_TARGET leaves headroom that new terms occupy without triggering
-    another trim — the window they need to earn a second mention.
+    another trim: the window they need to earn a second mention.
 
     Below the high-water mark nothing is evicted at all, which is the ordinary
     case; the eviction path is for floods, and under a flood protecting
     established demand is the correct policy.
 
-    Both keys are trimmed together — dropping a score while leaving its display
+    Both keys are trimmed together. Dropping a score while leaving its display
     string would leak the hash without bound, since only the sorted set is
     capped.
     """
@@ -191,7 +191,7 @@ async def take(kind: str, limit: int, *, min_score: int = MIN_SCORE) -> list[str
     """The most-requested terms worth searching, highest demand first.
 
     Returns display spellings, ready to hand to a search API. Does NOT remove
-    them — call `resolve` once a term has actually been dealt with, so a sweep
+    them. Call `resolve` once a term has actually been dealt with, so a sweep
     that dies halfway leaves its queue intact.
     """
     if kind not in _KINDS or limit <= 0:
@@ -218,7 +218,7 @@ async def take(kind: str, limit: int, *, min_score: int = MIN_SCORE) -> list[str
         displays = []
 
     # Fall back to the normalized key if the display mapping has expired out
-    # from under the score — a worse search query, but better than skipping it.
+    # from under the score: a worse search query, but better than skipping it.
     out: list[str] = []
     for idx, key in enumerate(keys):
         display = _decode(displays[idx]) if idx < len(displays) else None
@@ -230,7 +230,7 @@ async def resolve(terms: list[str], kind: str) -> int:
     """Drop terms from the queue once they've been searched or added.
 
     Call after a sweep has processed a term, and when a model is approved into
-    the catalog — otherwise an entity we now HAVE keeps burning searches.
+    the catalog, otherwise an entity we now HAVE keeps burning searches.
     """
     if kind not in _KINDS or not terms:
         return 0

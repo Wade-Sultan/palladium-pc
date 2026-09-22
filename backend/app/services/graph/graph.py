@@ -8,7 +8,7 @@ The `paused` branch is the case picker: the builder stops after choosing three
 cases, saves the pipeline mid-flight (app/services/paused_build.py) and ends
 the turn without a build. There is nothing for `present` to introduce until the
 user picks, and the pick arrives as its own turn, which resumes the pipeline
-outside the graph entirely — see resume_build in chat_pipeline.py.
+outside the graph entirely. See resume_build in chat_pipeline.py.
 
 The builder is one node, not ten. Its ten DSPy steps have their own sequencing,
 their own budget allocation and their own telemetry recorder in
@@ -32,8 +32,8 @@ from app.services.graph.state import ChatTurnState
 logger = logging.getLogger(__name__)
 
 # Two compiled graphs, at most, for the life of the process: one checkpointed on
-# Valkey and one on memory. Compilation is pure structure — no connections, no
-# per-conversation state — so caching is safe, and the checkpointer itself is
+# Valkey and one on memory. Compilation is pure structure, no connections, no
+# per-conversation state, so caching is safe, and the checkpointer itself is
 # the only thing that differs between them.
 _graph: CompiledStateGraph | None = None
 _fallback_graph: CompiledStateGraph | None = None
@@ -43,7 +43,7 @@ def build_graph() -> StateGraph:
     """The graph's shape, uncompiled and with no checkpointer bound.
 
     Split out from _build so LangGraph Studio can reach the topology without
-    reaching the Valkey checkpointer with it — the dev server brings its own
+    reaching the Valkey checkpointer with it: the dev server brings its own
     persistence and rejects a graph that arrives with one already attached.
     """
     builder: StateGraph = StateGraph(ChatTurnState)
@@ -87,7 +87,7 @@ async def get_graph() -> CompiledStateGraph:
     state dies with the pod, which is exactly the pre-graph behaviour.
 
     Reachability is checked per call, not cached, because Valkey may come up
-    after the process did — but get_client() latches its own failure, so the
+    after the process did, but get_client() latches its own failure, so the
     check is a dictionary lookup after the first attempt rather than a probe.
     """
     global _graph, _fallback_graph

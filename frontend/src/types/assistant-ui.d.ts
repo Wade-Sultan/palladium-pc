@@ -4,7 +4,7 @@
  * assistant-ui's command vocabulary is `add-message` and `add-tool-result`,
  * extended through this augmentation point. Declaring `select-case` here is
  * what lets the case picker's click ride an ordinary /chat request instead of
- * a side channel of its own — so a pick reuses the whole turn machinery
+ * a side channel of its own, so a pick reuses the whole turn machinery
  * (worker dispatch, the Valkey event stream, resume-on-reload) rather than
  * reimplementing a second, weaker copy of it.
  *

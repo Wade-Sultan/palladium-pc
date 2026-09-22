@@ -7,8 +7,8 @@ WHY THIS IS A SEPARATE RUN FROM DISCOVERY. Discovery finds products that are not
 in the catalog yet and stages them for review. This targets rows that are
 already in the catalog and already approved, and enriches one column on them.
 Different target set, different source pages (review outlets and results
-databases rather than vendor spec sheets), and — because the numbers are
-objective and every one of them arrives with a verbatim snippet backing it —
+databases rather than vendor spec sheets), and, because the numbers are
+objective and every one of them arrives with a verbatim snippet backing it,
 different write semantics: values land on the row directly instead of queueing
 for approval.
 
@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 _MAX_SOURCES = 3
 
 # Ceiling per run. Each part costs one search plus up to _MAX_SOURCES
-# fetch+extract calls, so this is the spend dial — same role as
+# fetch+extract calls, so this is the spend dial: same role as
 # DISCOVERY_SWEEP_MAX_CANDIDATES on the discovery side.
 _DEFAULT_LIMIT = 25
 
@@ -223,7 +223,7 @@ async def backfill_benchmarks(
     """Fill benchmark_scores for unscored parts of one category.
 
     Creates a discovery_runs row so the spend shows up beside every other
-    discovery run rather than being invisible — this makes real search and LLM
+    discovery run rather than being invisible. This makes real search and LLM
     calls and should be as auditable as a sweep.
     """
     stats = BackfillStats()

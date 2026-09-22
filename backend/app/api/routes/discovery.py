@@ -17,7 +17,7 @@ router = APIRouter(tags=["discovery"])
 
 
 def _require_search_config(category: str) -> None:
-    """Fail before creating a run row — a run that can't search is noise.
+    """Fail before creating a run row. A run that can't search is noise.
 
     ai_model is exempt: it reads the Hugging Face Hub API directly and never
     touches Tavily, so gating it on a search key would block the one category
@@ -58,7 +58,7 @@ async def trigger_discovery_sweep(
 
     Separate endpoint rather than a mode flag on /discovery/runs: that one's
     `query` is a required part name, and a sweep has no part name at all.
-    Polled through the same GET — a sweep is one run row carrying N items.
+    Polled through the same GET. A sweep is one run row carrying N items.
     """
     _require_search_config(payload.category)
     run_id = await start_sweep_run(payload.hint, payload.category)

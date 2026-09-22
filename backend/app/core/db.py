@@ -30,7 +30,7 @@ def _resolve_db_target() -> str:
 
     Refusing when both are set is the point. CLOUD_SQL_INSTANCE used to win
     unconditionally, so exporting POSTGRES_DB_URL to aim a script at a scratch
-    database did nothing at all and the script wrote to Cloud SQL instead —
+    database did nothing at all and the script wrote to Cloud SQL instead,
     with no error and no log line saying which target it picked. That is a bad
     way to find out, and every environment here sets exactly one of the two:
     GKE and docker-compose.dev pass POSTGRES_DB_URL only, a bare-metal local
@@ -39,7 +39,7 @@ def _resolve_db_target() -> str:
 
     DB_TARGET is the way to resolve it deliberately. It is needed because
     Settings sets env_ignore_empty=True, so blanking one of the two on the
-    command line does nothing — the .env value survives, and the obvious
+    command line does nothing. The .env value survives, and the obvious
     workaround silently fails.
     """
     instance = settings.CLOUD_SQL_INSTANCE
@@ -67,7 +67,7 @@ def _resolve_db_target() -> str:
             f"  CLOUD_SQL_INSTANCE = {instance}\n"
             f"  POSTGRES_DB_URL    = {_redact(url)}\n"
             "Unset whichever one you did not mean, or say which to use. "
-            "Blanking one on the command line will NOT work — Settings uses "
+            "Blanking one on the command line will NOT work. Settings uses "
             "env_ignore_empty, so the .env value survives. To aim one command "
             "at the database in POSTGRES_DB_URL:\n"
             '  DB_TARGET=url POSTGRES_DB_URL="postgresql://..." <command>'
@@ -82,13 +82,13 @@ def _resolve_db_target() -> str:
         return "url"
 
     raise DatabaseConfigError(
-        "No database configured — set CLOUD_SQL_INSTANCE (to use the Cloud SQL "
+        "No database configured. Set CLOUD_SQL_INSTANCE (to use the Cloud SQL "
         "connector) or POSTGRES_DB_URL (to connect directly), but not both."
     )
 
 
 def _create_engine():
-    """Sync engine — used by Alembic, prestart checks, and one-off scripts only."""
+    """Sync engine: used by Alembic, prestart checks, and one-off scripts only."""
     if _resolve_db_target() == "cloud_sql":
         from google.cloud.sql.connector import Connector, IPTypes
 
@@ -122,7 +122,7 @@ def _create_engine():
 
 def _create_async_engine():
     """
-    Async engine — used by the running app so request handlers can await DB
+    Async engine. Used by the running app so request handlers can await DB
     I/O instead of blocking the event loop. This is what lets a single Cloud
     Run instance actually serve concurrent requests off one process/thread.
     """
@@ -134,7 +134,7 @@ def _create_async_engine():
         async def async_creator():
             nonlocal connector
             if connector is None:
-                # Must bind to the loop handling requests — Connector() with no
+                # Must bind to the loop handling requests: Connector() with no
                 # `loop` spins up its own background loop, and connect_async()
                 # requires the currently running loop to match.
                 connector = Connector(loop=asyncio.get_running_loop())
@@ -166,10 +166,10 @@ def _create_async_engine():
     )
 
 
-# Sync engine/session — Alembic, backend_pre_start/tests_pre_start, initial_data,
+# Sync engine/session: Alembic, backend_pre_start/tests_pre_start, initial_data,
 # seeds. Built lazily (see __getattr__ below): with CLOUD_SQL_INSTANCE set, building
 # this eagerly constructs a google.cloud.sql.connector.Connector() at import time,
-# which is pure cold-start cost for the FastAPI app process — the app never uses the
+# which is pure cold-start cost for the FastAPI app process. The app never uses the
 # sync engine at request time (it uses async_engine/AsyncSessionLocal below).
 _engine = None
 _session_local = None
@@ -203,7 +203,7 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# Async engine/session — used by the FastAPI app at request time.
+# Async engine/session: used by the FastAPI app at request time.
 async_engine = _create_async_engine()
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine, autoflush=False, expire_on_commit=False

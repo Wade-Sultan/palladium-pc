@@ -12,7 +12,7 @@ import (
 //	  go test ./internal/email -run TestSendLive -v
 //
 // Use it to confirm the API key, the verified from-domain, and how the
-// templates actually render in a mail client — the things a unit test on the
+// templates actually render in a mail client. The things a unit test on the
 // builders can't tell you.
 func TestSendLive(t *testing.T) {
 	to := os.Getenv("RESEND_LIVE_TO")
@@ -25,7 +25,7 @@ func TestSendLive(t *testing.T) {
 	}
 	c := New(os.Getenv("RESEND_API_KEY"), from)
 	if !c.Enabled() {
-		t.Fatal("RESEND_API_KEY is empty — nothing would be sent")
+		t.Fatal("RESEND_API_KEY is empty. Nothing would be sent")
 	}
 
 	builders := map[string]func() (Message, error){

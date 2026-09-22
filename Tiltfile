@@ -1,16 +1,16 @@
-# Local dev against Minikube. Frontend is NOT here — it keeps running on the
+# Local dev against Minikube. Frontend is NOT here. It keeps running on the
 # host via `npm run dev` and talks to the cluster through the gateway hosts.
 #
 #   ./scripts/minikube-cilium-up.sh   # (re)creates the cluster: Cilium CNI,
 #                                     # kube-proxy replacement, Gateway API
 #   tilt up
 #
-# No `minikube tunnel` needed anymore — gateway-forward relays to the
+# No `minikube tunnel` needed anymore: gateway-forward relays to the
 # gateway Service's NodePort directly.
 
 # Refuse to run against anything but the local cluster. Without this a stray
 # kubectl context makes `tilt up` deploy to whatever it happens to be pointing
-# at — including prod.
+# at, including prod.
 allow_k8s_contexts('minikube')
 
 # The ADC secret can't come from secretGenerator: kustomize won't read files
@@ -32,7 +32,7 @@ k8s_yaml(kustomize('deploy/overlays/local'))
 #
 # builder-config is a plain ConfigMap, not a generated one, so kustomize gives
 # it no content-hash suffix and `kubectl apply` of a changed ConfigMap does not
-# restart anything reading it. envFrom is resolved once, at pod start — so
+# restart anything reading it. envFrom is resolved once, at pod start, so
 # without this, editing config-local.yaml updates the ConfigMap in the cluster
 # and every running pod keeps the old values, indefinitely.
 #
@@ -54,13 +54,13 @@ local_resource(
     # MUST run after the ConfigMaps are applied, or it does the opposite of its
     # job: Tilt gives no ordering between a local_resource and a k8s apply, and
     # the roll losing that race restarts the pods onto the OLD ConfigMap moments
-    # before the new one lands — the exact stale-config state this resource
+    # before the new one lands. The exact stale-config state this resource
     # exists to prevent, now with a cluster that looks correct because the
     # ConfigMap itself is right.
     #
     # 'uncategorized' is Tilt's catch-all resource, and it is where the
     # ConfigMaps and the Secret live because no workload claims them. Depending
-    # on it is less explicit than grouping them under a name of their own — but
+    # on it is less explicit than grouping them under a name of their own, but
     # do NOT do that: reassigning those objects to a new k8s_resource makes Tilt
     # delete them from the cluster and report success without recreating them,
     # which takes every pod that reads them into CreateContainerConfigError.
@@ -73,10 +73,10 @@ local_resource(
 
 # custom_build, not docker_build: this node's container runtime is containerd
 # (minikube v1.39.0 doesn't actually honor --container-runtime=docker for this
-# kubernetes-version pin — see minikube-cilium-up.sh), so there is no shared
+# kubernetes-version pin. See minikube-cilium-up.sh), so there is no shared
 # docker daemon to build straight into. `minikube docker-env` still nominally
 # works around that, but only via an SSH tunnel into a secondary dockerd on
-# the node, on a port tied to the current node container — dead the moment
+# the node, on a port tied to the current node container: dead the moment
 # `minikube delete` recreates it, and unrelated to whether docker_build tries
 # to push instead (it does, straight to a nonexistent Docker Hub repo, the
 # moment that tunnel isn't live). Building on the HOST daemon and loading the
@@ -111,7 +111,7 @@ custom_build(
 
 # Host-based routing entrypoint: 127.0.0.1:8081 → Cilium Gateway. The gateway
 # Service is created by Cilium (not this Tiltfile) and is selector-less, so
-# neither k8s_resource port_forwards nor `kubectl port-forward` can target it —
+# neither k8s_resource port_forwards nor `kubectl port-forward` can target it,
 # the script relays to its NodePort instead. See the script header for the
 # 8081-vs-80 WSL2 story.
 local_resource(
@@ -132,7 +132,7 @@ k8s_resource('pubsub-emulator', labels=['data'])
 # and persists nothing. MANUAL trigger mode with the default auto_init: it runs
 # once on `tilt up`, then never again on its own. It uses the backend image (for
 # google-cloud-pubsub only), so without this it would re-run on every single
-# backend code change — pure noise, since the result is identical.
+# backend code change. Pure noise, since the result is identical.
 #
 # Trigger it by hand if the emulator pod ever restarts: its topics die with it,
 # and the worker starts logging NotFound on the subscription.
@@ -144,7 +144,7 @@ k8s_resource(
 )
 
 # RESTORE FIRST, THEN MIGRATE. This order is not cosmetic and it must not be
-# swapped back — it was the other way round, and that silently pinned local
+# swapped back. It was the other way round, and that silently pinned local
 # development to a schema OLDER than the code.
 #
 # seed-local-db.sh restores a production dump with `pg_restore --clean`, which
@@ -153,7 +153,7 @@ k8s_resource(
 # database ended up at whatever revision production was on when the dump was
 # taken, alembic never ran again, and nothing anywhere reported a problem. The
 # symptom is a column the ORM believes in and Postgres has never heard of,
-# surfacing as a runtime error inside whichever feature happens to touch it —
+# surfacing as a runtime error inside whichever feature happens to touch it,
 # in this case the build-telemetry drain, whose write failed against a
 # build_sessions with no conversation_id.
 #
@@ -177,7 +177,7 @@ k8s_resource('migrate', resource_deps=['seed-db', 'gcp-adc-secret'], labels=['da
 #
 # builder ALSO waits on valkey, and that dependency is load-bearing rather than
 # tidy. app/core/valkey.py latches `_unavailable` on the first failed connection
-# and never retries for the life of the process — deliberately, so a
+# and never retries for the life of the process: deliberately, so a
 # misconfigured deployment pays one timeout per pod instead of one per request.
 # The API starts a buffer gauge loop at startup that connects immediately, so a
 # builder that comes up before Valkey does latches OFF permanently and silently
@@ -193,7 +193,7 @@ k8s_resource(
     labels=['services'],
 )
 
-# The worker cannot start at all without its subscription — app/worker.py raises
+# The worker cannot start at all without its subscription. App/worker.py raises
 # on an empty PUBSUB_SUBSCRIPTION and, given one, fails its streaming pull if the
 # subscription is absent. Same Valkey latch applies: it writes every turn event
 # to the stream, so a worker that latched off produces a turn nobody can read.
@@ -206,7 +206,7 @@ k8s_resource('commerce', resource_deps=['migrate'], port_forwards='8080:8080', l
 k8s_resource('admin', resource_deps=['migrate'], port_forwards='3001:3000', labels=['services'])
 
 # CronJobs are deployed so their manifests stay exercised, but must not fire on
-# a laptop — the pricing ETL burns SerpAPI quota. Trigger by hand from the Tilt
+# a laptop: the pricing ETL burns SerpAPI quota. Trigger by hand from the Tilt
 # UI, or: kubectl create job --from=cronjob/pricing-etl etl-manual-1
 k8s_resource('pricing-etl', trigger_mode=TRIGGER_MODE_MANUAL, auto_init=False, labels=['jobs'])
 k8s_resource('discovery', trigger_mode=TRIGGER_MODE_MANUAL, auto_init=False, labels=['jobs'])

@@ -95,7 +95,7 @@ function GpuForm({ item, chipsets, onSuccess }: { item: GpuWithPart | null; chip
         <FormField control={form.control} name="gpuChipsetId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Chipset * (intrinsic spec — VRAM, cores, TDP)</FormLabel>
+              <FormLabel>Chipset * (intrinsic spec: VRAM, cores, TDP)</FormLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl><SelectTrigger><SelectValue placeholder="Select a chipset" /></SelectTrigger></FormControl>
                 <SelectContent>
@@ -213,7 +213,7 @@ export function GpuTable({ data, chipsets }: { data: GpuWithPart[]; chipsets: Ch
         <Button onClick={() => { setSelected(null); setDialogOpen(true); }} disabled={chipsets.length === 0}>New GPU</Button>
       </div>
       {chipsets.length === 0 && (
-        <p className="text-sm text-muted-foreground">Create a GPU Chipset first — every board belongs to one.</p>
+        <p className="text-sm text-muted-foreground">Create a GPU Chipset first: every board belongs to one.</p>
       )}
       <DataTable columns={columns} data={data} filterPlaceholder="Filter GPUs..." />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

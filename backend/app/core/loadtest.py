@@ -1,14 +1,14 @@
 """Per-request OpenRouter blocker for load tests.
 
-WHY THIS EXISTS. Locust driving /chat would otherwise make real OpenRouter calls
-— profile extraction, elicitation, recommendation, and one LM call per build
+WHY THIS EXISTS. Locust driving /chat would otherwise make real OpenRouter calls:
+profile extraction, elicitation, recommendation, and one LM call per build
 step. A few hundred simulated users is real money, spent to learn nothing about
 the LLM. This stubs the two places the service talks to OpenRouter so a load test
 exercises everything else for real (routing, auth, Postgres, SSE framing,
 telemetry) while making zero outbound LLM calls.
 
 HOW IT IS TRIGGERED. A request carrying `X-Palladium-Load-Test: <secret>` is
-served with stub LMs. Everything else — every real user — takes the normal path
+served with stub LMs. Everything else, every real user, takes the normal path
 and reaches OpenRouter. That is what lets a load test run against the real
 production deployment rather than a parallel copy of it.
 
@@ -16,7 +16,7 @@ SAFE BY DEFAULT. The secret comes from LOAD_TEST_SECRET, which is unset in
 normal deployments; while it is unset the header is ignored entirely, so the
 stub cannot be reached even by someone who guesses the header name. Comparison
 is constant-time. The worst a leaked secret buys an attacker is a fake
-recommendation for themselves — it grants no data access and spends nothing —
+recommendation for themselves, it grants no data access and spends nothing,
 but it is still a credential, so it lives in palladium-secrets-builder rather
 than in the ConfigMap.
 
@@ -26,8 +26,8 @@ where this ContextVar is reliably set:
   * dspy_pipeline.session_lm()         every DSPy module call
 Nothing else in the service makes an outbound LLM call.
 
-IT HAS TO CROSS PUB/SUB. In any deployment with Valkey and Pub/Sub configured —
-which is to say production — /chat does not run the turn at all: it publishes to
+IT HAS TO CROSS PUB/SUB. In any deployment with Valkey and Pub/Sub configured,
+which is to say production, /chat does not run the turn at all: it publishes to
 a topic and relays the worker's stream back. The worker is a different pod in a
 different process, so a ContextVar set by this middleware means nothing there,
 and every LM call of a load-tested turn would be real. The flag therefore
@@ -47,7 +47,7 @@ from typing import Any
 
 from app.core.config import settings
 
-# Minimal ASGI aliases — enough for a middleware, without depending on
+# Minimal ASGI aliases: enough for a middleware, without depending on
 # starlette's private typing module.
 Scope = MutableMapping[str, Any]
 Receive = Callable[[], Awaitable[MutableMapping[str, Any]]]
@@ -71,14 +71,14 @@ def is_load_test() -> bool:
 def load_test_scope(enabled: bool) -> Generator[None]:
     """Re-enter load-test mode off the request path, for the Pub/Sub worker.
 
-    The worker never sees the HTTP header — it sees a decoded message that says
+    The worker never sees the HTTP header. It sees a decoded message that says
     the turn was published by a load-tested request. This is where that claim is
     turned back into the ContextVar the stubs read.
 
     The claim is not taken on trust. It is ANDed with LOAD_TEST_SECRET being
     configured, which preserves the middleware's safe-by-default property on
-    this side too: with the feature off, a message asserting `load_test` — a
-    replay, a stale message left in the subscription across a config change —
+    this side too: with the feature off, a message asserting `load_test`, a
+    replay, a stale message left in the subscription across a config change,
     cannot put a worker into stub mode and start returning fake builds to real
     users.
     """
@@ -90,7 +90,7 @@ def load_test_scope(enabled: bool) -> Generator[None]:
 
 
 class LoadTestMiddleware:
-    """Pure ASGI middleware — deliberately NOT BaseHTTPMiddleware.
+    """Pure ASGI middleware: deliberately NOT BaseHTTPMiddleware.
 
     BaseHTTPMiddleware runs the downstream app in a separate anyio task, so a
     ContextVar set there is not visible to the endpoint. Plain ASGI middleware

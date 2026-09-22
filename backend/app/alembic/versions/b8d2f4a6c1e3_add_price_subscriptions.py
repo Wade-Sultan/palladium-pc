@@ -68,7 +68,7 @@ def upgrade():
         postgresql_where=sa.text("status = 'active'"),
     )
     # One live subscription per user per target, but the same user may
-    # re-subscribe after being alerted — hence partial rather than a plain
+    # re-subscribe after being alerted, hence partial rather than a plain
     # unique constraint, which would make the sent row block the new one.
     op.create_index(
         "uq_price_subscriptions_active_user_target",

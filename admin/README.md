@@ -3,7 +3,7 @@
 Internal catalog and CMS for Palladium: a Next.js App Router app talking to the
 same Cloud SQL Postgres as the backend, through Prisma.
 
-Resource pages live one per directory under `src/app/` — parts (`cpus`, `gpus`,
+Resource pages live one per directory under `src/app/`: parts (`cpus`, `gpus`,
 `motherboards`, `ram`, `storage`, `psus`, `cases`, `cpu-coolers`, `fans` and
 their grouping tables), plus `games`, `ai-models`, `software`,
 `reference-builds`, `guide-videos`, `blog`, `discovery`, `listing-failures`,
@@ -13,7 +13,7 @@ their grouping tables), plus `games`, `ai-models`, `software`,
 
 ```bash
 npm install
-npm run db:generate     # prisma generate — required before the first dev run
+npm run db:generate     # prisma generate: required before the first dev run
 npm run dev             # :3000
 ```
 
@@ -35,7 +35,7 @@ npm run db:studio       # prisma studio
 mapped view of the tables `backend/app/alembic/` creates (`@map` onto their
 snake_case columns), so a schema change is an Alembic revision first and a
 Prisma model update second. `npm run db:push` writes directly to whatever
-`DATABASE_URL` points at — it is not part of any normal workflow here.
+`DATABASE_URL` points at. It is not part of any normal workflow here.
 
 ## Configuration
 
@@ -56,7 +56,7 @@ match `deploy/base/admin/configmap.yaml`. Until the parts bucket exists,
 
 Part images must be uploaded with their credit, source URL and licence filled
 in. Case photos are sourced by hand from manufacturer press kits, and that
-attribution is the basis for using the imagery — every rendered image shows its
+attribution is the basis for using the imagery: every rendered image shows its
 credit line linked back to the source, so a blank credit is a bug, not a
 cosmetic gap.
 
@@ -64,7 +64,7 @@ cosmetic gap.
 
 Built and deployed to GKE by the repo-wide Cloud Build pipeline
 (`deploy/cloudbuild.yaml`); manifests in `deploy/base/admin/`. Nothing routes to
-it publicly — reach production with:
+it publicly: reach production with:
 
 ```bash
 kubectl -n palladium port-forward svc/admin 3000:80

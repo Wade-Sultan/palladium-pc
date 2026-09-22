@@ -4,7 +4,7 @@ Quantization and context window as intake questions.
 The failure these exist to stop: a user asked for a single-GPU box serving a 31B
 model and was shown a $15,000 96GB workstation card, because nothing in the
 intake ever established what precision they intended to serve at. The pipeline
-assumed full precision by omission — the most expensive assumption available.
+assumed full precision by omission: the most expensive assumption available.
 
 Pure-logic tests over the profile gate; no DB, no network.
 """
@@ -54,7 +54,7 @@ def test_llm_workloads_are_recognised(workload):
 
 def test_image_generation_is_not_an_llm_build():
     """Diffusion VRAM is driven by resolution and batch, not weights plus KV
-    cache — asking it for a context window would be noise."""
+    cache. Asking it for a context window would be noise."""
     assert not cp._is_llm_build(_llm_profile(ai_workload="image_gen"))
 
 
@@ -116,7 +116,7 @@ def test_image_generation_is_not_gated_on_llm_questions():
 
 
 def test_quantization_is_not_asked_before_the_workload_is_known():
-    """These are follow-ups to "you're running LLMs", not opening questions —
+    """These are follow-ups to "you're running LLMs", not opening questions,
     the router must not surface them before the workload itself."""
     profile = _llm_profile(ai_workload=None, llm_quantization=None)
     missing = cp._missing_fields(profile)
@@ -147,7 +147,7 @@ def test_the_gate_and_the_missing_list_agree():
 
 
 def test_the_answer_reaches_the_build_as_an_instruction():
-    """The Decide* steps read prose, not enums — "llm.quantization: unsure" is
+    """The Decide* steps read prose, not enums. "llm.quantization: unsure" is
     not actionable, "size for 4-bit" is."""
     request = cp._profile_to_build_request(_llm_profile(llm_quantization="yes"))
     assert "4-bit" in request.answers["llm.quantization"]

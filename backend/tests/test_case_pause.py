@@ -2,7 +2,7 @@
 
 WHAT IS ACTUALLY AT RISK HERE. Nine LLM-backed decisions happen before the
 pause, and the whole point of persisting them is that they are expensive and
-unrepeatable — a resume that silently lost a field would produce a *different*
+unrepeatable. A resume that silently lost a field would produce a *different*
 build than the one the user was shown case options for, with no error anywhere.
 So the round-trip test below asserts field-by-field equality of the whole state
 rather than spot-checking a few attributes.
@@ -113,7 +113,7 @@ def test_a_payload_from_an_older_deploy_still_restores():
 
 def test_the_recorder_survives_the_pause_as_one_session():
     """The telemetry drain upserts with on_conflict_do_nothing, so a run split
-    across two turns has to finish as the SAME build_sessions row — a second
+    across two turns has to finish as the SAME build_sessions row. A second
     session id would be silently dropped instead of recorded."""
     recorder = BuildRecorder(_request(), "v-test", conversation_id=None)
     recorder.set_catalog_requirements({"min_vram_gb": 16})
@@ -219,7 +219,7 @@ def _store_pause(client, token: str, conversation_id: str | None = _CONV) -> dic
 
 
 def test_a_paused_build_is_claimable_exactly_once(monkeypatch):
-    """Two picks racing — a double click, a redelivered message — must not both
+    """Two picks racing: a double click, a redelivered message. Must not both
     come away with the payload and build the machine twice."""
     from app.services import paused_build
 
@@ -241,7 +241,7 @@ def test_a_paused_build_is_claimable_exactly_once(monkeypatch):
 
 def test_a_pick_from_another_conversation_is_refused(monkeypatch):
     """A resumed build is appended to whatever conversation the resuming turn
-    names, so the token alone must not be enough — otherwise a pick could graft
+    names, so the token alone must not be enough, otherwise a pick could graft
     a build onto a thread whose picker was never shown."""
     from app.services import paused_build
 

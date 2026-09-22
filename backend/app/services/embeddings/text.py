@@ -5,7 +5,7 @@ Builds the canonical source text for each embeddable entity, and hashes it.
 
 THE GUIDING RULE: write the text the way a user would describe the thing, not
 the way the database stores it. The query side of this system is unedited human
-prose — "I play Arc Raiders and Tarkov", "I edit 4K footage in Resolve", "I want
+prose: "I play Arc Raiders and Tarkov", "I edit 4K footage in Resolve", "I want
 to run Llama 70B locally". A vector built from `slug=arc-raiders|genre=fps` sits
 in a different region of the embedding space than that prose does, and the match
 quality collapses. So these builders emit short natural-language descriptions
@@ -18,7 +18,7 @@ recurring bill for vectors that would come back nearly identical. Semantics
 only; the numeric filters already live in SQL where they belong.
 
 Changing any builder here changes the hashes it produces, which is exactly how a
-re-embed is triggered — the reconcile sweep will pick up every affected row on
+re-embed is triggered. The reconcile sweep will pick up every affected row on
 its next pass. That is intended, but it is not free, so treat edits to these
 functions as a migration of the vector set rather than a cosmetic change.
 """
@@ -31,7 +31,7 @@ from app.models.embeddings import EmbeddedEntity
 
 
 def content_hash(text: str) -> str:
-    """SHA-256 of the source text — the staleness key for the whole system."""
+    """SHA-256 of the source text: the staleness key for the whole system."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
@@ -49,7 +49,7 @@ def _list(values: list[str] | None) -> str:
     return ", ".join(v.strip() for v in (values or []) if v and v.strip())
 
 
-# --- Catalog — the query side -------------------------------------------------
+# --- Catalog: the query side -------------------------------------------------
 
 
 def game_text(game) -> str:

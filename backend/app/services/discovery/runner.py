@@ -62,7 +62,7 @@ class _StageResult(NamedTuple):
 
 
 class _SweepCandidates(NamedTuple):
-    names: list[str]  # post-filter, capped — what the sweep will pay to extract
+    names: list[str]  # post-filter, capped. What the sweep will pay to extract
     pages_checked: int
     enumerated: int  # names the pages yielded before filtering
 
@@ -166,7 +166,7 @@ async def _stage(
     The tail every discovery path shares, whichever way it obtained its fields:
     web extraction reconciles three sources into this shape, the Hugging Face
     path builds it from one JSON document. Validation and dedup must not differ
-    between them — a reviewer looking at the queue should not have to know
+    between them. A reviewer looking at the queue should not have to know
     which pipeline produced a row.
     """
     name = extracted.get("name") or fallback_name
@@ -203,7 +203,7 @@ async def _stage(
 
 async def _stage_hub_model(run_id: uuid.UUID, model: HubModel) -> _ItemOutcome:
     """Stage one Hugging Face model. Costs no LLM tokens, so usage_events
-    doesn't come into it — sources_checked counts the one Hub record read."""
+    doesn't come into it. Sources_checked counts the one Hub record read."""
     staged = await _stage(
         run_id,
         "ai_model",
@@ -241,7 +241,7 @@ async def _discover_one(
     "nothing extracted" come back as an outcome rather than a run status: for a
     single-part run those end the run, for a sweep they skip one candidate.
     Raises only what the caller must decide about (a missing search key, a DB
-    failure) — per-source failures are already absorbed by _process_source.
+    failure). Per-source failures are already absorbed by _process_source.
     """
     if category == "ai_model":
         # The Hub publishes these fields as structured JSON, so this category
@@ -388,7 +388,7 @@ async def _finalize(
 
 
 async def _run(run_id: uuid.UUID, query: str, category: str) -> None:
-    """The single-part pipeline. Never raises — mirrors BuildRecorder._flush:
+    """The single-part pipeline. Never raises: mirrors BuildRecorder._flush:
     any failure lands in the run row's status/error_detail."""
     status = "completed"
     error_detail: str | None = None
@@ -501,7 +501,7 @@ async def _sweep_ai_models(run_id: uuid.UUID, hint: str | None) -> None:
         else:
             # Filtered after fetching, not before: the Hub has no "exclude
             # these ids" parameter, and hydration has already happened by the
-            # time a listing comes back. Costs nothing but bandwidth — unlike
+            # time a listing comes back. Costs nothing but bandwidth, unlike
             # the web sweep, where each candidate is billed LLM tokens, which
             # is why that one filters before extracting.
             async with AsyncSessionLocal() as db:
@@ -542,7 +542,7 @@ async def _sweep(run_id: uuid.UUID, hint: str | None, category: str) -> None:
     """The category sweep: enumerate what's new, then run the single-part
     pipeline over each candidate, staging everything against this run.
 
-    Candidates run serially on purpose — same reasoning as the gap-fill job.
+    Candidates run serially on purpose: same reasoning as the gap-fill job.
     _discover_one already fans out across three sources internally, so the
     concurrency is there; serialising here keeps search-API rate limits and
     per-click spend predictable. Never raises, for the same reason as _run.
@@ -600,7 +600,7 @@ async def _sweep(run_id: uuid.UUID, hint: str | None, category: str) -> None:
                     items_new += int(outcome.is_new)
 
             if failures:
-                # Partial failure stays "completed" when something was staged —
+                # Partial failure stays "completed" when something was staged,
                 # same call as the gap-fill job exiting 0 on partial success.
                 # The detail names the first few; the rest are in the logs.
                 if items_found == 0:

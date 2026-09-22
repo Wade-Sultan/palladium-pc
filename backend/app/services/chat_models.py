@@ -4,17 +4,17 @@ import os
 
 
 class ChatModelConfig:
-    # Gemma 3 4B for extraction — fast, supports json_object response_format, no Gemma 4 small on OpenRouter
+    # Gemma 3 4B for extraction: fast, supports json_object response_format, no Gemma 4 small on OpenRouter
     EXTRACT_MODEL: str = os.getenv("CHAT_EXTRACT_MODEL", "google/gemma-3-4b-it")
     # Keep the larger model for the recommendation (needs nuance and personality)
     RECOMMEND_MODEL: str = os.getenv("CHAT_RECOMMEND_MODEL", "google/gemma-4-31b-it")
     ELICIT_MODEL: str = os.getenv("CHAT_ELICIT_MODEL", "google/gemma-4-31b-it")
-    # Question ordering only — the router returns a single integer index into a
+    # Question ordering only. The router returns a single integer index into a
     # list the caller already computed, so this is the smallest model in the
     # stack on purpose. It runs on every elicitation turn and it cannot decide
     # anything except which of several known-missing items to raise first.
     ROUTE_MODEL: str = os.getenv("CHAT_ROUTE_MODEL", "google/gemma-3-4b-it")
-    # MiniMax M3 for parts-discovery spec extraction — multimodal (rasterized
+    # MiniMax M3 for parts-discovery spec extraction: multimodal (rasterized
     # PDF spec sheets) and cheap enough for 2-3 extraction calls per SKU.
     DISCOVERY_EXTRACT_MODEL: str = os.getenv(
         "DISCOVERY_EXTRACT_MODEL", "minimax/minimax-m3"
@@ -28,7 +28,7 @@ class ChatModelConfig:
     # A REASONING MODEL NEEDS ALL OF THESE RAISED, and the failure is silent
     # rather than loud. Thinking tokens are billed against the same budget as
     # the answer, so a model that spends ~1000 of them hits the cap mid-thought
-    # and returns finish_reason=length with EMPTY content — not an error. The
+    # and returns finish_reason=length with EMPTY content, not an error. The
     # router then falls back to missing[0], the question and the lead-in stream
     # as nothing, and extraction yields a profile of 'unknown' that
     # is_profile_complete() rejects forever, so the turn never reaches the

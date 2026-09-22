@@ -6,15 +6,15 @@ THE GAP THIS CLOSES. services/recommender/appropriateness.py scores a part
 choice as sufficiency * efficiency, where sufficiency asks whether the part
 clears the hardware floors the user's named games / software / AI models imply.
 Those floors were computed per build by catalog_match and folded into the
-prompt as prose — and then discarded. So scoring a recorded decision could only
+prompt as prose, and then discarded. So scoring a recorded decision could only
 ever measure price efficiency, and reported sufficiency as an explicitly missing
 signal rather than a number.
 
 WHY A COLUMN RATHER THAN A KEY IN input_state. input_state is the verbatim
 snapshot of the arguments the DSPy signature received, and it is what a GEPA
 replay reads back to rebuild an Example. An extra key there would become a
-phantom input field on replay — present in the recorded state, absent from the
-signature — so the requirements get their own column instead.
+phantom input field on replay, present in the recorded state, absent from the
+signature, so the requirements get their own column instead.
 
 WHY SNAPSHOT AT ALL RATHER THAN RECOMPUTE. The floors come from catalogs and
 embeddings that keep moving: games get patched, tiers get edited, the embedding
@@ -50,8 +50,8 @@ def upgrade():
         sa.Column("catalog_requirements", JSONB, nullable=True),
     )
     # Partial index on the rows that have requirements at all. That is the
-    # query the GEPA trainset builder runs — "give me decisions whose
-    # sufficiency is measurable" — and for a long while it will select a small
+    # query the GEPA trainset builder runs, "give me decisions whose
+    # sufficiency is measurable", and for a long while it will select a small
     # minority of the table, which is exactly when a partial index earns its
     # keep over a full one.
     op.execute(

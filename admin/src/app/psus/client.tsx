@@ -65,7 +65,7 @@ function PsuForm({ item, groups, onSuccess }: { item: PsuWithPart | null; groups
         <FormField control={form.control} name="psuGroupId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Group * (spec — wattage, efficiency, form factor)</FormLabel>
+              <FormLabel>Group * (spec: wattage, efficiency, form factor)</FormLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl><SelectTrigger><SelectValue placeholder="Select a group" /></SelectTrigger></FormControl>
                 <SelectContent>{groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
@@ -160,7 +160,7 @@ export function PsuTable({ data, groups }: { data: PsuWithPart[]; groups: GroupO
         <div><h1 className="text-2xl font-bold">PSUs</h1><p className="text-muted-foreground text-sm mt-1">{data.length} units</p></div>
         <Button onClick={() => { setSelected(null); setDialogOpen(true); }} disabled={groups.length === 0}>New PSU</Button>
       </div>
-      {groups.length === 0 && <p className="text-sm text-muted-foreground">Create a PSU Group first — every unit belongs to one.</p>}
+      {groups.length === 0 && <p className="text-sm text-muted-foreground">Create a PSU Group first: every unit belongs to one.</p>}
       <DataTable columns={columns} data={data} filterPlaceholder="Filter PSUs..." />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">

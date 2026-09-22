@@ -8,7 +8,7 @@ import { GA_MEASUREMENT_ID, setGaDisabled } from "@/lib/analytics"
 /**
  * The gtag.js tag, held back until `useAnalyticsConsent` has ruled on this
  * browser. Nothing is injected while that decision is pending, because
- * `gtag('config', ...)` sends a page_view immediately — see the hook for why
+ * `gtag('config', ...)` sends a page_view immediately. See the hook for why
  * that ordering matters.
  *
  * A later change (an internal user signing in, or signing out) is handled by

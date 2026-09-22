@@ -44,7 +44,7 @@ class Game(Base):
     # Community names users actually type: "R6", "Siege" for Rainbow Six Siege;
     # "Val", "Valo" for Valorant. Two jobs, both load-bearing:
     #   1. An exact (normalized) hit here short-circuits the vector search in
-    #      services/recommender/catalog_match.py — a known synonym should not be
+    #      services/recommender/catalog_match.py. A known synonym should not be
     #      resolved by approximate nearest neighbour when a string match is
     #      exact and free.
     #   2. They go into the embedded source text, so near-misses ("r6 siege")

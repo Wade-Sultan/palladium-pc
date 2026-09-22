@@ -1,7 +1,7 @@
 """
 Unit tests for app.services.recommender.scoring.
 
-Pure-logic tests — no DB, no network, no LLM. Two things carry most of the
+Pure-logic tests: no DB, no network, no LLM. Two things carry most of the
 weight here:
 
   * The partial-coverage rules. Benchmark data in the catalog is incomplete and
@@ -9,7 +9,7 @@ weight here:
     candidate is missing the axis a workload is decided on.
   * The dominance gate's refusals. A gate that fires when it shouldn't silently
     removes the LLM from a decision that had real judgment in it, and nothing
-    downstream would flag that — so each reason it must decline gets its own
+    downstream would flag that, so each reason it must decline gets its own
     test.
 """
 
@@ -162,7 +162,7 @@ def test_absolute_game_profile_marks_rt_shortfall():
 
 
 def test_unscorable_candidate_is_kept_with_a_null_score():
-    """Scoring never removes a candidate — the LLM may still choose it."""
+    """Scoring never removes a candidate. The LLM may still choose it."""
     rows = [
         _cpu("Measured", 300, single=100, multi=1000),
         _cpu("Unmeasured", 250),

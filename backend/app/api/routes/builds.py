@@ -2,7 +2,7 @@
 
 Both endpoints are token-addressed and unauthenticated by design: the token is
 the capability (see models/shared_build.py), and the snapshot deliberately
-contains nothing about the conversation or the user — the `profile` was
+contains nothing about the conversation or the user. The `profile` was
 stripped before it was stored.
 """
 
@@ -63,7 +63,7 @@ async def get_build_pdf(token: str) -> Response:
         media_type="application/pdf",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}-{row.token}.pdf"',
-            # Immutable by construction — the snapshot never changes.
+            # Immutable by construction. The snapshot never changes.
             "Cache-Control": "public, max-age=86400",
         },
     )

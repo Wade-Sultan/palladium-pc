@@ -19,7 +19,7 @@ function num(value: unknown): number {
 
 // Costs here are tiny (fractions of a cent up to a few cents), so show extra precision.
 function fmtCost(value: number | null): string {
-  if (value == null) return '—';
+  if (value == null) return '-';
   return value.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -29,7 +29,7 @@ function fmtCost(value: number | null): string {
 }
 
 function fmtPct(value: number | null): string {
-  return value == null ? '—' : `${(value * 100).toFixed(1)}%`;
+  return value == null ? '-' : `${(value * 100).toFixed(1)}%`;
 }
 
 export default async function AnalyticsPage() {
@@ -201,13 +201,13 @@ export default async function AnalyticsPage() {
                     {(conv.totalTokensIn + conv.totalTokensOut).toLocaleString()}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {conv.modelsUsed.length > 0 ? conv.modelsUsed.join(', ') : '—'}
+                    {conv.modelsUsed.length > 0 ? conv.modelsUsed.join(', ') : '-'}
                   </TableCell>
                   <TableCell>
                     {conv.reachedRecommendation ? (
                       <span className="text-green-600 dark:text-green-500">✓</span>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
                 </TableRow>

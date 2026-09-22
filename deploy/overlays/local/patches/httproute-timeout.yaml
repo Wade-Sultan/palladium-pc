@@ -1,5 +1,5 @@
 # The Cilium half of the SSE timeout (see base/builder/httproute.yaml for why it
-# is not in base). Cilium implements Gateway API's timeouts.request natively —
+# is not in base). Cilium implements Gateway API's timeouts.request natively,
 # verified in the generated CiliumEnvoyConfig, which carries
 # "timeout": "300s" on the builder route.
 #

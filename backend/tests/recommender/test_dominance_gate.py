@@ -4,7 +4,7 @@ Integration tests for the dominance gate inside the pipeline steps.
 test_scoring.py covers when find_dominant should and should not fire. These
 cover the wiring around it: that a fired gate actually prevents the LLM call,
 that state ends up identical to the LLM path, that the decision is still
-recorded, and — most importantly — that the GPU step declines to use the gate
+recorded, and, most importantly, that the GPU step declines to use the gate
 whenever the two questions it cannot answer (`gpu_required` and `gpu_count`)
 are still live.
 
@@ -44,7 +44,7 @@ def _async_return(value):
 
 
 def _explode_if_called(monkeypatch):
-    """Make _run_step a hard failure — the gate must not reach the LLM."""
+    """Make _run_step a hard failure. The gate must not reach the LLM."""
 
     async def _fake(*args, **kwargs):
         raise AssertionError("_run_step was called; the dominance gate did not fire")
@@ -64,7 +64,7 @@ def _record_run_step(monkeypatch, prediction):
     return called
 
 
-# Two CPUs where one is both cheaper and materially faster — the shape the gate
+# Two CPUs where one is both cheaper and materially faster. The shape the gate
 # exists for.
 _DOMINANT_CPUS = json.dumps(
     [
@@ -174,7 +174,7 @@ def test_cpu_step_falls_through_to_the_llm_without_a_dominant_candidate(monkeypa
     assert state.cpu_name == "Fast"
 
 
-# --- GPU step — the extra eligibility rules -----------------------------------
+# --- GPU step: the extra eligibility rules -----------------------------------
 
 
 def test_gpu_step_skips_the_llm_on_a_single_slot_gaming_board(monkeypatch):

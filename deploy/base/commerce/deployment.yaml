@@ -50,7 +50,7 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           # NOTE: deliberately no preStop hook. The image is
-          # gcr.io/distroless/static-debian12 — no shell, no sleep binary — so
+          # gcr.io/distroless/static-debian12, no shell, no sleep binary, so
           # an exec hook would only produce FailedPreStopHook events. The
           # equivalent drain is done in-process on SIGTERM instead.
           resources:

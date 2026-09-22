@@ -89,7 +89,7 @@ const MULTI_INSTANCE_ROLES = new Set<BuildComponentRole>(['gpu', 'storage', 'fan
 // Collapse the resolved entries into pc_build_parts rows.
 //
 // This used to keep only the first entry per role, because the table carried a
-// UNIQUE (build_id, role) — so a two-GPU or three-fan reference build silently
+// UNIQUE (build_id, role), so a two-GPU or three-fan reference build silently
 // lost everything after the first. gpu/storage/fan may now repeat; identical
 // units become one row with quantity > 1 rather than repeated rows, because
 // UNIQUE (build_id, role, part_id) makes quantity the only way to say "two of
@@ -166,7 +166,7 @@ export async function createReferenceBuild(data: ReferenceBuildFormData) {
 }
 
 export async function updateReferenceBuild(id: string, data: ReferenceBuildFormData) {
-  // Every save re-resolves the grouped slots — i.e. re-rolls the frozen member.
+  // Every save re-resolves the grouped slots: i.e. re-rolls the frozen member.
   const entries = await resolveEntries(data);
   const totalApprox = entries.reduce((s, e) => s + e.priceCents, 0) || null;
 

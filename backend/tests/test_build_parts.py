@@ -4,7 +4,7 @@ but is still exactly one CPU / board / cooler / PSU / case.
 
 The uniqueness itself is enforced by partial indexes and check constraints in
 Postgres, so it isn't reachable from a pure-logic test. What is tested here is
-everything that decides *what those constraints say* — the role set, the SQL
+everything that decides *what those constraints say*: the role set, the SQL
 predicates generated from it, and the quantity arithmetic callers depend on.
 A drift between MULTI_INSTANCE_ROLES and the predicates would silently widen
 or narrow the schema on the next migration.
@@ -58,7 +58,7 @@ def test_predicates_are_derived_from_the_role_set_not_hand_written():
     for role in _SINGLETON_ROLES:
         assert f"'{role.value}'" not in IS_MULTI_INSTANCE_ROLE_SQL
 
-    # Same value list, opposite sense — the singleton index and the quantity
+    # Same value list, opposite sense. The singleton index and the quantity
     # check are written against these two and must stay complementary.
     assert IS_SINGLETON_ROLE_SQL == IS_MULTI_INSTANCE_ROLE_SQL.replace(
         "role IN", "role NOT IN"
@@ -67,7 +67,7 @@ def test_predicates_are_derived_from_the_role_set_not_hand_written():
 
 def test_predicate_value_order_is_stable():
     """Sorted, so the generated DDL string doesn't vary between processes and
-    read as schema drift — frozenset iteration order is not stable."""
+    read as schema drift. Frozenset iteration order is not stable."""
     assert IS_MULTI_INSTANCE_ROLE_SQL == "role IN ('fan', 'gpu', 'storage')"
 
 

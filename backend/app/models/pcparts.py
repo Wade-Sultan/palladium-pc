@@ -50,7 +50,7 @@ class FormFactor(str, enum.Enum):
     ITX = "itx"
     EATX = "eatx"
     # Server/workstation board sizes. SSI-EEB and SSI-CEB are what most
-    # Threadripper PRO, EPYC and dual-socket Xeon boards actually ship as —
+    # Threadripper PRO, EPYC and dual-socket Xeon boards actually ship as,
     # they are wider than E-ATX and only fit cases that list them explicitly,
     # so collapsing them into "eatx" would produce builds that don't physically
     # assemble.
@@ -92,9 +92,9 @@ class MemoryModuleType(str, enum.Enum):
     unbuffered ones, while consumer AM5/LGA1851 boards reject registered ones.
     `RAMGroup.is_ecc` alone can't express that, since ECC UDIMMs exist."""
 
-    UDIMM = "udimm"  # unbuffered — every consumer platform, ECC or not
-    RDIMM = "rdimm"  # registered — Threadripper PRO, EPYC, Xeon W/SP
-    LRDIMM = "lrdimm"  # load-reduced — highest-capacity server configs
+    UDIMM = "udimm"  # unbuffered: every consumer platform, ECC or not
+    RDIMM = "rdimm"  # registered: Threadripper PRO, EPYC, Xeon W/SP
+    LRDIMM = "lrdimm"  # load-reduced: highest-capacity server configs
 
 
 class CaseSize(str, enum.Enum):
@@ -133,7 +133,7 @@ class PCPart(Base):
 
     # Product image, admin-uploaded to GCS (see admin/src/lib/storage.ts). The
     # credit fields exist because the images are sourced from manufacturer
-    # press/product pages rather than owned outright — every displayed image
+    # press/product pages rather than owned outright: every displayed image
     # carries its attribution, and image_source_url records where it came from
     # so the licensing basis can be re-checked later.
     image_url = Column(String(500), nullable=True)
@@ -177,7 +177,7 @@ class PCPart(Base):
 #
 # What lives on the group has grown. It began as intrinsic spec only, then took
 # street_price_cents (f6a7b8c9d0e1), and now takes listings too
-# (e5a7c9b1d3f5) — one eBay search URL is right for every board of a chipset.
+# (e5a7c9b1d3f5). One eBay search URL is right for every board of a chipset.
 # The direction of the FK is why resolving a part's group costs a lookup in its
 # subtype table rather than a column read on pc_parts.
 
@@ -363,7 +363,7 @@ class CPU(PCPart):
     series = Column(String(100), nullable=True)
 
     # Server/workstation platform spec. These are what separate a Threadripper
-    # or Xeon from a desktop part — not clocks. All nullable: a value of NULL
+    # or Xeon from a desktop part, not clocks. All nullable: a value of NULL
     # means "not recorded", which is different from a definitive zero/false.
     pcie_lanes = Column(
         Integer,
@@ -462,7 +462,7 @@ class Motherboard(PCPart):
     usb_type_c_count = Column(Integer, nullable=True)
     audio_codec = Column(String(50), nullable=True)
 
-    # Server/workstation board spec — the board half of CPU.pcie_lanes etc.
+    # Server/workstation board spec: the board half of CPU.pcie_lanes etc.
     supports_ecc = Column(Boolean, nullable=True)
     has_ipmi = Column(
         Boolean,

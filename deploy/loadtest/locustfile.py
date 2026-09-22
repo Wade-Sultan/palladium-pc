@@ -1,7 +1,7 @@
 """Locust load test for the builder /chat endpoint and the commerce read paths.
 
 COST SAFETY. Every request carries X-Palladium-Load-Test, which routes the turn
-into stub LMs — see backend/app/core/loadtest.py. Without a matching
+into stub LMs. See backend/app/core/loadtest.py. Without a matching
 LOAD_TEST_SECRET on the server the header is ignored and the run makes REAL
 OpenRouter calls, one per build step per simulated user. Two independent guards
 exist so that cannot happen quietly:
@@ -57,7 +57,7 @@ _STUB_MARKER = "stubbed"
 
 # The server's own fallback texts, from routes/chat.py and turn_runner.py. These
 # arrive as ordinary token frames, so without matching them explicitly a
-# saturated backend is indistinguishable from a real model answering — and the
+# saturated backend is indistinguishable from a real model answering, and the
 # cost guard would abort the run exactly when the load test got interesting.
 # Matched on a distinctive fragment rather than the full string, which carries
 # leading newlines and trailing punctuation.
@@ -74,7 +74,7 @@ class _Stream(Enum):
     expensive real completion, and those are not the same event."""
 
     EMPTY = auto()  # no token frames at all
-    STUBBED = auto()  # the stub LM — the expected case
+    STUBBED = auto()  # the stub LM. The expected case
     SERVICE_ERROR = auto()  # a server fallback message; nothing was spent
     UNSTUBBED = auto()  # real model output; money is being spent
 
@@ -129,7 +129,7 @@ def preflight(environment, **_kwargs) -> None:
 
     Fires on the master only. In distributed mode this event also reaches every
     worker, and four workers racing the same check would just be four real
-    builds if the secret were wrong — the exact outcome being guarded against.
+    builds if the secret were wrong: the exact outcome being guarded against.
     """
     if isinstance(environment.runner, WorkerRunner):
         return
@@ -166,13 +166,13 @@ def preflight(environment, **_kwargs) -> None:
 
     # Strict here, unlike the per-request check: the preflight runs against an
     # idle service with one request, so anything other than a clean stubbed
-    # build means the run should not start — including a service error, which
+    # build means the run should not start, including a service error, which
     # at zero load is a broken deployment rather than saturation.
     _, _, verdict = _consume_sse(res, time.perf_counter())
     if verdict is not _Stream.STUBBED:
         _abort(
             environment,
-            f"preflight /chat came back as {verdict.name}, not STUBBED — the "
+            f"preflight /chat came back as {verdict.name}, not STUBBED. The "
             "secret is wrong, LOAD_TEST_SECRET is unset on the server, or the "
             "worker running the turn did not receive the flag. If it was "
             "UNSTUBBED, real tokens were spent on this one request; stopping "
@@ -180,7 +180,7 @@ def preflight(environment, **_kwargs) -> None:
         )
         return
 
-    logger.info("preflight OK — %s is serving stubbed builds", host)
+    logger.info("preflight OK. %s is serving stubbed builds", host)
 
 
 def _consume_sse(response, started: float) -> tuple[float, float, _Stream]:
@@ -190,7 +190,7 @@ def _consume_sse(response, started: float) -> tuple[float, float, _Stream]:
 
     Time to first token is the number worth watching. Total duration mostly
     measures how long the stub chose to stream for, which says nothing about
-    the health of the service — the same reason the server excludes streaming
+    the health of the service: the same reason the server excludes streaming
     duration from its own request histogram.
     """
     first_token_ms: float | None = None
@@ -303,11 +303,11 @@ class ChatUser(HttpUser):
                 return
             if verdict is _Stream.EMPTY:
                 # No token frames at all. No LM was reached, so nothing was
-                # spent — a failed request, not a cost incident.
+                # spent: a failed request, not a cost incident.
                 res.failure("stream produced no tokens")
                 return
             if verdict is _Stream.UNSTUBBED:
-                res.failure("served by a REAL model — see abort below")
+                res.failure("served by a REAL model. See abort below")
                 _abort(
                     self.environment,
                     "a /chat response carried model output with no stub marker "

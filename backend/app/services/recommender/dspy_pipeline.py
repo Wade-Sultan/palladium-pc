@@ -12,7 +12,7 @@ Dependency order:
 
 Budget allocation:
     _allocate_budget() derives per-slot ceilings from the total budget.
-    These are independent soft maximums passed to the DB query layer — they
+    These are independent soft maximums passed to the DB query layer. They
     don't have to sum to the total budget (ram/storage in particular are
     sized generously since not every slot maxes out at once), and they
     don't prevent the LLM from picking a cheaper option (and it should,
@@ -23,9 +23,9 @@ Status messages:
     the DB query) via _emit(). DSPy's own per-callback sub-messages
     (module_start / lm_start) are intentionally swallowed (_noop_status) so the
     frontend keeps showing that one message for the whole step instead of
-    flickering — e.g. "Building your PC…" stays put through the entire DDR step
+    flickering: e.g. "Building your PC…" stays put through the entire DDR step
     and only changes when the next step begins.
-    The pipeline is fully async — await run_pipeline() from an async context.
+    The pipeline is fully async: await run_pipeline() from an async context.
 """
 
 from __future__ import annotations
@@ -98,7 +98,7 @@ from app.services.recommender.status_provider import BuildStatusProvider
 
 logger = logging.getLogger(__name__)
 
-# Module-level singleton — stateless, safe to share across concurrent requests
+# Module-level singleton: stateless, safe to share across concurrent requests
 _status_provider = BuildStatusProvider()
 
 # Model the Decide* modules run on. Routed through OpenRouter so every call
@@ -108,20 +108,20 @@ _status_provider = BuildStatusProvider()
 # OpenRouter's names and no other server answers to them.
 RECOMMEND_MODEL = os.getenv("RECOMMEND_MODEL", "openrouter/google/gemma-4-31b-it")
 
-# Output token budget for every DSPy call — extraction and all ten Decide*
+# Output token budget for every DSPy call: extraction and all ten Decide*
 # steps. 1024 is ample for a model that answers directly: the largest output is
 # ProfileExtraction's seventeen short fields.
 #
 # It is NOT ample for a reasoning model, whose thinking is charged to this same
 # budget. Measured against qwen3.8-27b in LM Studio, extraction alone spent ~990
-# tokens thinking and was cut off at the cap with EMPTY content — DSPy then
+# tokens thinking and was cut off at the cap with EMPTY content: DSPy then
 # parses no fields, every one defaults to 'unknown', and the turn never reaches
 # the builder because is_profile_complete() keeps rejecting the profile. 4096
 # was enough for the same call to finish. Raise this alongside the CHAT_*
 # budgets in app/services/chat_models.py, never on its own.
 RECOMMEND_MAX_TOKENS = int(os.getenv("RECOMMEND_MAX_TOKENS", "1024"))
 
-# Dependency order of the Decide* steps — recorded as sequence_order so later
+# Dependency order of the Decide* steps. Recorded as sequence_order so later
 # decisions (which depend on earlier ones) can be reconstructed.
 _SEQUENCE_ORDER: dict[str, int] = {
     "ddr": 0,
@@ -139,7 +139,7 @@ _SEQUENCE_ORDER: dict[str, int] = {
 
 # Use cases where a discrete GPU is a foregone conclusion, so the GPU step's
 # `gpu_required` output carries no real decision. Only these are eligible for
-# the dominance gate — see _step_gpu.
+# the dominance gate. See _step_gpu.
 _DISCRETE_GPU_USE_CASES = frozenset(
     {"gaming", "streaming", "creator", "rendering", "aiml", "server"}
 )
@@ -164,7 +164,7 @@ def _ensure_candidates(step: str, candidates_json: str) -> None:
     """Fail fast if a step's candidate query came back empty.
 
     An empty candidate list means the LLM would be asked to choose from
-    nothing — there's no valid part in the DB compatible with the decisions
+    nothing: there's no valid part in the DB compatible with the decisions
     made so far, so continuing would only produce a hallucinated pick.
     """
     try:
@@ -228,7 +228,7 @@ def litellm_model(name: str) -> str:
 
     Rewriting rather than demanding the caller get it right keeps the existing
     RECOMMEND_MODEL / GEPA_REFLECTION_MODEL values and their defaults working
-    unchanged — an environment on LM Studio only has to name a model it has
+    unchanged. An environment on LM Studio only has to name a model it has
     loaded, not also learn litellm's prefix convention.
     """
     if settings.chat_endpoint.is_openrouter:
@@ -240,7 +240,7 @@ def litellm_model(name: str) -> str:
 def configure_dspy() -> None:
     """Configure DSPy to run the Decide* modules. Call once at startup.
 
-    Via OpenRouter, or — when LLM_BASE_URL is set — via whatever
+    Via OpenRouter, or, when LLM_BASE_URL is set, via whatever
     OpenAI-compatible server it names. The Decide* modules themselves do not
     change; only where their completions are served from.
     """
@@ -268,7 +268,7 @@ def load_all_programs() -> None:
 
     Each load_program is lru_cached, so this is what fills those caches; the
     step calls in run_pipeline then hit them. The caches are process-local and
-    never invalidated — after re-running optimize() and writing new weights,
+    never invalidated, after re-running optimize() and writing new weights,
     a serving process must be restarted to pick them up.
     """
     for load in (
@@ -292,14 +292,14 @@ def session_lm(session_id: str | None) -> dspy.LM:
     every call made under it groups into one session in OpenRouter's
     dashboard. With no session_id, returns the LM unchanged (no-op override).
 
-    Use via `with dspy.context(lm=session_lm(...)):` around a run — dspy.context
+    Use via `with dspy.context(lm=session_lm(...)):` around a run. Dspy.context
     is safe to call from any thread/task, unlike dspy.configure (which is
     restricted to the one thread that first called it).
 
     Under load test this returns a local stub instead, so none of the eleven
     Decide* modules calls OpenRouter. Resolving it here rather than deeper is
     deliberate: every caller wraps the result in dspy.context, and DSPy carries
-    its own settings into the worker threads it spawns — so the stub survives
+    its own settings into the worker threads it spawns, so the stub survives
     into places a ContextVar would not reach.
     """
     from app.core.loadtest import is_load_test
@@ -310,7 +310,7 @@ def session_lm(session_id: str | None) -> dspy.LM:
         return make_stub_lm()
 
     # `session_id` is an OpenRouter dashboard concept and travels in extra_body,
-    # which litellm sends verbatim — so off OpenRouter there is nothing to group
+    # which litellm sends verbatim, so off OpenRouter there is nothing to group
     # calls into and nowhere safe to put the field.
     if not session_id or not settings.chat_endpoint.is_openrouter:
         return dspy.settings.lm
@@ -358,9 +358,9 @@ def _try_dominance(
     """Resolve a step without an LLM call when one candidate strictly dominates.
 
     Two distinct key names, because they genuinely differ. `candidate_name_key`
-    is the field the *candidate row* carries — "name" for CPUs, "chipset" for
+    is the field the *candidate row* carries: "name" for CPUs, "chipset" for
     GPU chipsets, set by the serializers in db/queries.py. `output_field` is
-    what the *Decide\\* signature* emits — "cpu_name", "gpu_chipset" — and is
+    what the *Decide\\* signature* emits, "cpu_name", "gpu_chipset", and is
     what the caller reads off the returned Prediction. Collapsing the two would
     make the gate silently never fire, since `row.get("cpu_name")` is None on
     every candidate.
@@ -368,7 +368,7 @@ def _try_dominance(
     Returns a Prediction shaped exactly like the one the Decide* module would
     have produced (so the caller's field access is unchanged), or None to fall
     through to the normal LLM path. `extra_outputs` supplies the fields the gate
-    cannot itself decide — see the GPU call site.
+    cannot itself decide. See the GPU call site.
 
     Never raises: a bug in scoring must degrade to "ask the model", which is the
     behaviour that existed before the gate.
@@ -423,7 +423,7 @@ def _try_dominance(
 # Slots where a pre-selected part IS the answer, so the step can be skipped.
 #
 # storage and fans are deliberately absent. Both are multi-part roles where
-# naming one item means "include this", not "this is the whole answer" — a user
+# naming one item means "include this", not "this is the whole answer". A user
 # who already owns a 2TB drive still wants us to decide whether the build needs
 # a second one. Their locks are resolved and put in front of the step as
 # context (see locked_parts.summary) rather than replacing it.
@@ -442,7 +442,7 @@ def _locked_result(
     """Resolve a step from the user's own pre-selected part, with no LLM call.
 
     Returns a Prediction shaped exactly like the one the Decide* module would
-    have produced — so every call site's state-population code is unchanged — or
+    have produced, so every call site's state-population code is unchanged, or
     None when this slot has no honoured lock and the step should run normally.
     Whether a lock is honoured was settled before the first step ran; see
     locked_parts.resolve. By here it is a dictionary lookup.
@@ -450,7 +450,7 @@ def _locked_result(
     DELIBERATELY CALLED BEFORE THE CANDIDATE QUERY, unlike the dominance gate,
     which needs a candidate set to be dominant over. A locked slot's budget
     entry holds what the part cost rather than a ceiling to shop under, and for
-    a part the user already owns that figure is zero — so querying candidates
+    a part the user already owns that figure is zero, so querying candidates
     against it would come back empty and _ensure_candidates would fail a build
     that is in fact perfectly well specified.
     """
@@ -550,7 +550,7 @@ async def _run_step(
 # --- Budget allocation --------------------------------------------------------
 
 # Per-slot budget ceilings by use case, as a fraction of the total budget.
-# These are independent soft maximums, not a partition — they are not
+# These are independent soft maximums, not a partition. They are not
 # required to sum to 1.0 and, for slots like ram/storage where a generous
 # ceiling matters more than strict proportionality, deliberately don't. The
 # LLM can and should go lower within each slot when value calls for it.
@@ -689,7 +689,7 @@ def _allocate_budget(
     Under the 'custom' tier (budget_usd is NO_BUDGET_CEILING) every slot gets
     the sentinel rather than a share of a total, because there is no total to
     take a share of. Splitting a notional huge number across the slots would
-    reintroduce exactly the constraint the user declined to set — the point of
+    reintroduce exactly the constraint the user declined to set. The point of
     'custom' is that no slot has a maximum, not that every slot has a large
     one. The CRUD layer drops its price filter on the same sentinel.
     """
@@ -720,7 +720,7 @@ def _allocate_budget(
     # Locked slots keep an entry holding what they actually cost. Recorded
     # rather than dropped because the telemetry and the appropriateness metrics
     # both read a per-slot figure, and for a slot nobody chose, what it cost is
-    # the only honest one. Nothing queries candidates against it — a locked
+    # the only honest one. Nothing queries candidates against it. A locked
     # step returns before it would.
     allocation.update(locked_costs)
     return allocation
@@ -738,7 +738,7 @@ def _request_summary(request: BuildRequest) -> str:
         # one piece of context every Decide* module receives, so it is the
         # cheapest place to say it once and have all ten see it.
         parts.append(
-            "Budget: no ceiling — the user has explicitly said cost is not a "
+            "Budget: no ceiling. The user has explicitly said cost is not a "
             "constraint. Still choose parts that earn their price for this "
             "workload; unlimited budget is not licence to pick the most "
             "expensive part in every slot."
@@ -777,8 +777,8 @@ def _catalog_terms(request: BuildRequest) -> list[str]:
 
 
 # Which catalog an answer key's free text is describing. `general.workloads` is
-# the ambiguous one — it holds model names for an AI build and application names
-# for everything else — so it is resolved against the use case rather than
+# the ambiguous one, it holds model names for an AI build and application names
+# for everything else, so it is resolved against the use case rather than
 # guessed. This only decides which discovery queue an UNMATCHED term lands in;
 # matching itself still searches all three catalogs together, because the user's
 # phrasing rarely says which it is.
@@ -817,7 +817,7 @@ async def _queue_unmatched_terms(
     inside a LangGraph node, which may not write to Postgres. The rows this
     eventually produces are written by the discovery sweep, off that path.
 
-    Best-effort to the point of invisibility — a build must never be affected by
+    Best-effort to the point of invisibility. A build must never be affected by
     whether we managed to note what we were missing.
     """
     if not requirements.unmatched_terms:
@@ -898,7 +898,7 @@ async def _resolve_catalog_requirements(
         return None
 
     # What we could not resolve is the best signal we have about what the
-    # catalog is missing — see app/services/discovery/queue.py.
+    # catalog is missing. See app/services/discovery/queue.py.
     await _queue_unmatched_terms(request, requirements)
     return requirements
 
@@ -975,7 +975,7 @@ class DSPyBuildState:
     # used to admit any compatible motherboard generation.
     cpu_ddr_gen: str = "ddr5"
     cpu_ddr_gens: list[str] = field(default_factory=lambda: ["ddr5"])
-    # Advisory input to the GPU step — 0 means the catalog doesn't record it,
+    # Advisory input to the GPU step. 0 means the catalog doesn't record it,
     # which is the norm for consumer parts.
     cpu_pcie_lanes: int = 0
 
@@ -983,7 +983,7 @@ class DSPyBuildState:
 
     mobo_name: str = ""
     mobo_form_factor: str = "atx"
-    # DDR generation of the *chosen* board — RAM must match this specific board,
+    # DDR generation of the *chosen* board. RAM must match this specific board,
     # not the CPU's whole supported set.
     mobo_ddr_gen: str = ""
     mobo_m2_slots: int = 2
@@ -1020,7 +1020,7 @@ class DSPyBuildState:
     # means the value stays comparable with the chipset row it came from.
     gpu_tdp_w: int = 0
     # The chipset vendor's own single-card PSU recommendation, per card. Unlike
-    # TDP this already accounts for transient spikes — a 600W card that draws
+    # TDP this already accounts for transient spikes: a 600W card that draws
     # 600W steady-state pulls far more for milliseconds at a time, which is what
     # actually trips a supply's OCP. 0 when the catalog doesn't record it.
     gpu_recommended_psu_w: int = 0
@@ -1041,7 +1041,7 @@ class DSPyBuildState:
 
     error: str | None = None
 
-    # Reconsideration thresholds — surfaced to user in the build card
+    # Reconsideration thresholds: surfaced to user in the build card
     thresholds: dict[str, str] = field(default_factory=dict)
 
     # -- pausing at the case step ---------------------------------------------
@@ -1059,7 +1059,7 @@ class DSPyBuildState:
         cannot survive a JSON round trip are named explicitly below, and both
         are re-supplied on the far side rather than stored:
 
-        `progress_callback` is a closure over the resuming turn's stream — the
+        `progress_callback` is a closure over the resuming turn's stream. The
         resume attaches its own, because the stream a paused build was emitting
         into is long gone.
 
@@ -1086,7 +1086,7 @@ class DSPyBuildState:
         progress_callback: Callable[[str, str], None] | None = None,
     ) -> DSPyBuildState:
         """Rebuild a paused state. Unknown keys are ignored, so a payload
-        written by an older deploy still restores under a newer one — it simply
+        written by an older deploy still restores under a newer one. It simply
         arrives with defaults for whatever was added since."""
         from dataclasses import fields as dataclass_fields
 
@@ -1105,7 +1105,7 @@ class DSPyBuildState:
 
 # Stand-in for an unstated form factor, applied only where a *physical size* is
 # required. UserPreferences.form_factor defaults to "no_preference", which is a
-# real and useful value to the motherboard query — crud.get_motherboard_candidates
+# real and useful value to the motherboard query. Crud.get_motherboard_candidates
 # reads it as "do not filter", so a user with no preference correctly sees ATX,
 # mATX and ITX boards alike. It is not a size, though, and any consumer that needs
 # to reason about clearance has to be handed one.
@@ -1238,7 +1238,7 @@ async def _step_cooler(
             state.cpu_tdp_w,
             state.cpu_socket,
             budget["cooler"],
-            # Concrete size, never "no_preference" — the cooler path needs
+            # Concrete size, never "no_preference". The cooler path needs
             # something to size clearance against. The motherboard step below
             # deliberately does NOT do this; there "no_preference" means "do not
             # filter".
@@ -1326,7 +1326,7 @@ async def _step_ram(
             session,
             ddr_for_ram,
             budget["ram"],
-            # Registered vs unbuffered is a wall, not a preference — the chosen
+            # Registered vs unbuffered is a wall, not a preference: the chosen
             # board decides it, same as it decides the generation.
             state.mobo_module_types,
         )
@@ -1390,7 +1390,7 @@ def _parse_name_list(raw: str, limit: int) -> list[str]:
 def _clamp_count(raw, *, ceiling: int, label: str) -> int:
     """Coerce a model-supplied count into [1, ceiling].
 
-    The ceilings here are physical — PCIe slots, drive mounts, fan mounts — so
+    The ceilings here are physical, PCIe slots, drive mounts, fan mounts, so
     a model that overshoots would otherwise produce a build that cannot be
     assembled. Logged when it bites, because a step that regularly ignores its
     stated ceiling is a prompt problem worth seeing.
@@ -1414,7 +1414,7 @@ def _clamp_count(raw, *, ceiling: int, label: str) -> int:
 
 def _pick_exact(exacts: list):
     """Pick the exact SKU for a chosen group. Street price now lives on the group
-    (every member is priced identically), so there's nothing to optimize on —
+    (every member is priced identically), so there's nothing to optimize on,
     return the first active member deterministically. RAM/Storage/PSU use this;
     GPU has its own fit-aware resolver (length/power still vary per board)."""
     return exacts[0] if exacts else None
@@ -1477,7 +1477,7 @@ async def _step_gpu(
 ) -> None:
     _emit(state, "gpu", "Choosing GPU…")
     # The board was chosen three steps ago and its x16 slot count is now the
-    # hard ceiling on how many cards this build can host — there is no going
+    # hard ceiling on how many cards this build can host. There is no going
     # back to a wider board from here. That asymmetry is why the motherboard
     # step is told to favour multi-slot boards for GPU-heavy use cases.
     max_gpu_slots = min(state.mobo_pcie_x16_slots, _MAX_GPUS)
@@ -1499,7 +1499,7 @@ async def _step_gpu(
     )
     if result is None:
         # The main step chooses a chipset; the exact board is resolved later,
-        # once the case (length) and PSU (power) are known — see
+        # once the case (length) and PSU (power) are known. See
         # _resolve_gpu_variant.
         candidates = await get_gpu_chipset_candidates(
             session,
@@ -1522,7 +1522,7 @@ async def _step_gpu(
         # case in _DISCRETE_GPU_USE_CASES removes the gpu_required one. For
         # productivity, dev, audio and NAS builds, "no discrete GPU at all" is a
         # live and often correct answer that no amount of benchmark leadership
-        # can rule out — those always go to the model.
+        # can rule out: those always go to the model.
         dominance_eligible = max_gpu_slots == 1 and all(
             uc in _DISCRETE_GPU_USE_CASES for uc in state.request.use_cases
         )
@@ -1564,7 +1564,7 @@ async def _step_gpu(
             state.gpu_tdp_w = max(tdps)
         # Carried to _step_psu so the supply is sized against the vendor figure
         # rather than against TDP alone. This is the same column _resolve_gpu_variant
-        # filters boards on — reading it here is what stops the PSU step from
+        # filters boards on. Reading it here is what stops the PSU step from
         # choosing a unit that the variant resolver then has to reject.
         recs = [
             v.chipset.recommended_psu_watts
@@ -1582,7 +1582,7 @@ async def _resolve_gpu_variant(state: DSPyBuildState, session: AsyncSession) -> 
     a chipset's boards (it lives on the chipset), so there's nothing to optimize
     on beyond fit.
 
-    If no board fits (rare — e.g. every variant is too long for the picked case),
+    If no board fits (rare: e.g. every variant is too long for the picked case),
     fall back to the first variant and warn, so the build still completes; the
     reference build remains the safety net for genuinely incompatible outcomes.
     """
@@ -1596,7 +1596,7 @@ async def _resolve_gpu_variant(state: DSPyBuildState, session: AsyncSession) -> 
     # A user who named a specific board gets that board. Everything below exists
     # to choose among boards nobody expressed a view on, and overruling a named
     # one on clearance grounds would ship a different card than the one they
-    # asked for — the case and the supply were both sized around this card, not
+    # asked for. The case and the supply were both sized around this card, not
     # the other way round.
     locked = (state.locked or {}).get("gpu") or {}
     if locked.get("honored") and locked.get("pinned_exact"):
@@ -1642,7 +1642,7 @@ async def _resolve_gpu_variant(state: DSPyBuildState, session: AsyncSession) -> 
         slots on nearly every consumer and workstation layout, so a card up to
         two slots wide clears its neighbour and a 3-slot card does not. The
         schema carries no per-case expansion-slot budget to check properly, so
-        this narrows the field rather than proving fit — hence the fallback
+        this narrows the field rather than proving fit, hence the fallback
         below rather than a hard failure.
         """
         if state.gpu_count <= 1:
@@ -1689,7 +1689,7 @@ async def _step_psu(
 ) -> None:
     _emit(state, "psu", "Calculating power supply…")
     # Add 20% headroom over combined TDP. gpu_tdp_w is per card, so a four-card
-    # build draws four times it — sizing against a single card here would put a
+    # build draws four times it. Sizing against a single card here would put a
     # 750W supply on a 1600W machine.
     system_tdp = (
         state.cpu_tdp_w + state.gpu_tdp_w * state.gpu_count + _PLATFORM_OVERHEAD_W
@@ -1704,7 +1704,7 @@ async def _step_psu(
     # over-count that allowance n-1 times. _resolve_gpu_variant rejects any
     # board whose chipset recommends more than `psu_watts / gpu_count`, so a
     # PSU sized any smaller than this is one the resolver will refuse to pair
-    # with the very chipset that was chosen — and its fallback is to ignore the
+    # with the very chipset that was chosen, and its fallback is to ignore the
     # mismatch and ship the build anyway. Over-provisioning a multi-GPU supply
     # is the cheaper error.
     if state.gpu_required and state.gpu_recommended_psu_w:
@@ -1745,8 +1745,8 @@ async def _step_case(
     # A case the user named is not a shortlist to choose from, so this step
     # produces it alone rather than padding it out with two alternatives nobody
     # asked for. The pause still happens: the picker becomes a one-click
-    # confirmation, which keeps the whole resume path — token, claim, post-case
-    # steps — working exactly as it does for a build that had three options.
+    # confirmation, which keeps the whole resume path, token, claim, post-case
+    # steps, working exactly as it does for a build that had three options.
     locked_case = (state.locked or {}).get("case") or {}
     if locked_case.get("honored") and locked_case.get("group_name"):
         _emit(state, "case", "Using the case you picked…")
@@ -1792,7 +1792,7 @@ async def _step_case(
         {"name": result.option_2, "reason": result.option_2_reason},
         {"name": result.option_3, "reason": result.option_3_reason},
     ]
-    # Pipeline pauses here — case_name is set externally after user picks
+    # Pipeline pauses here. Case_name is set externally after user picks
 
 
 async def _step_fans(
@@ -1846,7 +1846,7 @@ async def run_pipeline(
 
     Pass a BuildRecorder to capture per-decision telemetry (see recording.py).
     The pipeline pauses at the case step, so on the success path the recorder is
-    NOT flushed here — reuse the same recorder for run_pipeline_post_case, which
+    NOT flushed here: reuse the same recorder for run_pipeline_post_case, which
     finalizes it. On error the recorder is flushed with status=error.
 
     Returns a DSPyBuildState with all decisions populated up to (but not
@@ -1892,8 +1892,8 @@ async def run_pipeline(
     # step seven but has to be known at step zero.
     #
     # Judged against the allocation this build WOULD have had with no locks at
-    # all. That is the yardstick the overspec test wants — how far past a slot's
-    # natural share the user's choice goes — and it sidesteps the circularity of
+    # all. That is the yardstick the overspec test wants, how far past a slot's
+    # natural share the user's choice goes, and it sidesteps the circularity of
     # needing the locked allocation in order to decide what to lock.
     state.locked = await locked_parts.resolve(
         session,
@@ -1924,7 +1924,7 @@ async def run_pipeline(
             await _step_gpu(state, session, budget, load_gpu(), recorder)
             await _step_psu(state, session, budget, load_psu(), recorder)
             await _step_case(state, session, budget, load_case(), recorder)
-            # Pipeline pauses — return state with case_options populated
+            # Pipeline pauses: return state with case_options populated
     except Exception as exc:
         state.error = str(exc)
         if recorder is not None:

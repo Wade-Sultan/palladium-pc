@@ -91,8 +91,8 @@ function GuideVideoForm({ item, onSuccess }: { item: GuideVideo | null; onSucces
               {url && (
                 <p className="text-xs text-muted-foreground">
                   {detectedId
-                    ? `YouTube video ${detectedId} — will play inline on the guides page.`
-                    : 'Not a recognised YouTube link — this will render as an outbound link card instead of an embed.'}
+                    ? `YouTube video ${detectedId}, will play inline on the guides page.`
+                    : 'Not a recognised YouTube link, this will render as an outbound link card instead of an embed.'}
                 </p>
               )}
               <FormMessage />
@@ -221,7 +221,7 @@ export function GuideVideosTable({ videos }: { videos: GuideVideo[] }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Video?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes it from the guides page. Only the link is deleted — the video itself is on YouTube.
+              This removes it from the guides page. Only the link is deleted. The video itself is on YouTube.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

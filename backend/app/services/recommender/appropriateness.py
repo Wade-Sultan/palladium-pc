@@ -1,8 +1,8 @@
 """
 appropriateness.py
 ==================
-Quality metrics for the three Decide* steps worth optimizing — CPU, GPU and
-motherboard — expressed as GEPA metrics and as pure functions that can be run
+Quality metrics for the three Decide* steps worth optimizing, CPU, GPU and
+motherboard, expressed as GEPA metrics and as pure functions that can be run
 retroactively over recorded telemetry.
 
 THE QUESTION EACH METRIC ASKS, in two halves:
@@ -12,7 +12,7 @@ THE QUESTION EACH METRIC ASKS, in two halves:
                it cost. Scored steeply: 90% of the requirement is not 90% good.
 
   Efficiency   Having cleared the bar, how much money went above it? Some
-               headroom is right — the cheapest part that exactly meets today's
+               headroom is right. The cheapest part that exactly meets today's
                requirement is fragile, because games get heavier and monitors
                get bigger. Far above it is the user overpaying for capability
                the profile never uses.
@@ -25,12 +25,12 @@ let it: 0.5 * insufficient + 0.5 * very cheap still passes. The product makes
 sufficiency a gate, which is what it actually is.
 
 WHY OVERSHOOT IS PRICED, NOT MEASURED IN PERFORMANCE. A part 40% faster than
-needed for 5% more money is not a mistake — it is a good buy. What makes
+needed for 5% more money is not a mistake. It is a good buy. What makes
 overshoot bad is specifically the dollars it takes away from the rest of the
 build. So efficiency is computed as money spent above the cheapest candidate
 that would also have been sufficient, normalized against the slot's budget.
 That figure is computable entirely from the candidate set, which
-module_decisions already snapshots verbatim — which is what lets these metrics
+module_decisions already snapshots verbatim, which is what lets these metrics
 be run over builds that have already happened rather than needing a fresh
 collection campaign.
 
@@ -42,7 +42,7 @@ here only to compare candidates against each other, never to judge "enough".
 
 THE MOTHERBOARD IS NOT A PERFORMANCE METRIC. It is an option-preservation one.
 Its sufficiency asks whether the board kept open the expansion the profile
-needs — above all, PCIe x16 slots, because dspy_pipeline._step_gpu takes the
+needs. Above all, PCIe x16 slots, because dspy_pipeline._step_gpu takes the
 board's slot count as a hard ceiling on gpu_count and there is no going back to
 a wider board from there. Under-provisioning slots is unrecoverable; paying for
 IPMI and eight memory channels on a gaming build is merely wasteful. The curves
@@ -65,7 +65,7 @@ logger = logging.getLogger(__name__)
 # --- Curve shape -----------------------------------------------------------
 
 # Below the requirement, score decays this many times faster than the shortfall.
-# At 4.0, hitting 90% of a requirement scores 0.6 and 75% scores 0.0 — steep
+# At 4.0, hitting 90% of a requirement scores 0.6 and 75% scores 0.0. Steep
 # enough that "nearly enough" is not treated as nearly right, gradual enough
 # that GEPA still gets a gradient to climb instead of a cliff of zeros.
 _SHORTFALL_STEEPNESS = 4.0
@@ -76,7 +76,7 @@ _SHORTFALL_STEEPNESS = 4.0
 _FREE_HEADROOM = 0.25
 
 # Beyond the free band, efficiency decays linearly and reaches 0 when the
-# overspend equals the entire slot budget — i.e. the step spent twice what it
+# overspend equals the entire slot budget: i.e. the step spent twice what it
 # needed to.
 _TOTAL_WASTE_FRACTION = 1.0
 
@@ -96,8 +96,8 @@ class Appropriateness:
     feedback: str
     detail: dict[str, Any] = field(default_factory=dict)
     # Signals that were unavailable. A metric computed with no requirements and
-    # no benchmark data is measuring almost nothing, and callers — especially
-    # the offline script — need to know that rather than average it in.
+    # no benchmark data is measuring almost nothing, and callers, especially
+    # the offline script, need to know that rather than average it in.
     missing_signals: list[str] = field(default_factory=list)
 
     @property
@@ -124,7 +124,7 @@ def _shortfall_score(actual: float | None, required: float | None) -> float | No
     """1.0 when the requirement is met, decaying steeply below it.
 
     None when the requirement is unknown (not a constraint) or the candidate
-    does not record the attribute — both mean "this dimension says nothing",
+    does not record the attribute. Both mean "this dimension says nothing",
     which is different from "this dimension says zero".
     """
     if required is None or actual is None:
@@ -139,7 +139,7 @@ def _find(rows: list[dict], name_key: str, name: str | None) -> dict | None:
     """The candidate row the step actually chose, matched case-insensitively.
 
     Tolerant matching because chosen_name comes back from an LLM and the
-    pipeline's own resolution step is equally tolerant — a metric that scored a
+    pipeline's own resolution step is equally tolerant. A metric that scored a
     successful build as 0 over letter case would be measuring the wrong thing.
     """
     if not name:
@@ -226,11 +226,11 @@ def gpu_appropriateness(
     VRAM does not run slowly, it does not run.
 
     KNOWN GAP: catalog_match also resolves `required_features` (bf16, fp8,
-    tensor cores — the feature floors an AI workload needs), and this does not
+    tensor cores. The feature floors an AI workload needs), and this does not
     check them. It cannot: db/queries.py::_serialize_gpu_chipset does not put
     `supported_features` on the candidate rows, so the data is absent from the
     snapshot this scores against. Closing it means adding that field to the
-    serializer first — at which point old telemetry still will not have it, so
+    serializer first, at which point old telemetry still will not have it, so
     the check has to report a missing signal rather than fail.
     """
     missing: list[str] = []
@@ -244,7 +244,7 @@ def gpu_appropriateness(
             efficiency=0.0,
             feedback=(
                 f"Chose {chosen_name!r}, which is not in the candidate list. The "
-                f"choice must be one of the chipsets provided — an out-of-set "
+                f"choice must be one of the chipsets provided: an out-of-set "
                 f"pick cannot be bought and the build falls back to a reference."
             ),
             detail={"out_of_set": True},
@@ -322,7 +322,7 @@ def _gpu_feedback(
         return (
             f"{name} has {chosen.get('vram_gb')}GB of VRAM but the workload needs "
             f"at least {min_vram_gb}GB{source}. This is a hard floor, not a "
-            f"performance preference — a model or scene that does not fit in VRAM "
+            f"performance preference. A model or scene that does not fit in VRAM "
             f"does not run slowly, it fails to run. Choose a chipset meeting the "
             f"VRAM floor even if it is slower or costs more elsewhere in the build."
         )
@@ -331,7 +331,7 @@ def _gpu_feedback(
         excess = chosen_price - cheapest
         return (
             f"{name} at {price_str} clears the requirements, but so does "
-            f"{alternative.get('chipset')} at ${cheapest:,.0f} — "
+            f"{alternative.get('chipset')} at ${cheapest:,.0f}. "
             f"${excess:,.0f} of the budget bought capability this profile does not "
             f"call for{source}. Headroom is worth paying for; this much of it "
             f"takes money away from slots that still have to be filled. Prefer the "
@@ -414,7 +414,7 @@ def cpu_appropriateness(
     detail["chosen_cores"] = chosen.get("cores")
     detail["min_cores"] = min_cores
 
-    # perf_score is set-relative, so it cannot say "enough" — but it can say
+    # perf_score is set-relative, so it cannot say "enough", but it can say
     # whether the extra money bought extra speed, which is what makes an
     # overspend defensible or not.
     chosen_perf = _num(chosen.get("perf_score"))
@@ -484,7 +484,7 @@ def _cpu_feedback(
         return (
             f"{name} at {price_str} costs ${excess:,.0f} more than "
             f"{alternative.get('name')} at ${cheapest:,.0f}{gain}. {verdict} "
-            f"Remember the budget ceiling is a maximum, not a target — spending "
+            f"Remember the budget ceiling is a maximum, not a target. Spending "
             f"under it is a good outcome when the workload does not need the rest."
         )
 
@@ -510,7 +510,7 @@ def motherboard_appropriateness(
     """Score a board choice on the options it preserved, not on performance.
 
     THE ASYMMETRY THIS ENCODES. dspy_pipeline._step_gpu caps gpu_count at the
-    board's pcie_x16_slots, and the GPU step runs three steps later — there is no
+    board's pcie_x16_slots, and the GPU step runs three steps later. There is no
     path back to a wider board. So a board with too few slots does not make the
     build slightly worse, it makes a whole class of build unreachable, and the
     sufficiency term is what carries that. Paying for IPMI and eight memory
@@ -620,7 +620,7 @@ def _motherboard_feedback(
     if "ecc" in unmet:
         return (
             f"{name} does not support ECC memory, which this profile requires. "
-            f"ECC is a platform property — it cannot be added later by choosing "
+            f"ECC is a platform property: it cannot be added later by choosing "
             f"different RAM."
         )
 
@@ -642,7 +642,7 @@ def _motherboard_feedback(
             f"{name} at {price_str} preserves the right options "
             f"({required_slots} x16 slot(s)), but a board meeting the same "
             f"requirements was available at ${cheapest:,.0f}. A motherboard adds "
-            f"no performance — beyond connectivity and expansion, money spent "
+            f"no performance: beyond connectivity and expansion, money spent "
             f"here buys the build nothing."
         )
 
@@ -683,7 +683,7 @@ def context_from_requirements(
     script, the trainset builder and the GEPA adapter cannot drift apart on it.
 
     A None or empty blob yields only the budget, which is the correct degraded
-    state — the scorers then report sufficiency as an unmeasured signal instead
+    state: the scorers then report sufficiency as an unmeasured signal instead
     of assuming it passed.
     """
     context: dict[str, Any] = {
@@ -730,7 +730,7 @@ def make_gepa_metric(signature_name: str):
     """Build a GEPA metric for one Decide* module.
 
     Returns a callable matching GEPA's five-argument protocol and returning
-    dspy.Prediction(score, feedback) — the feedback is what GEPA reflects on to
+    dspy.Prediction(score, feedback). The feedback is what GEPA reflects on to
     rewrite the module's instruction, so returning a bare float here would
     reduce the optimizer to random search.
 
@@ -752,7 +752,7 @@ def make_gepa_metric(signature_name: str):
 
     # Which context keys this particular scorer understands. Computed once at
     # construction rather than per call, and from the real signature rather than
-    # from __code__ internals — the scorers take keyword-only arguments, which
+    # from __code__ internals. The scorers take keyword-only arguments, which
     # co_varnames slicing does not describe correctly.
     accepted = {
         name

@@ -3,15 +3,15 @@
 WHY A SNAPSHOT AND NOT A JOIN. The build a conversation produced lives in
 message metadata, which is private to the conversation's owner and shaped by
 whatever the pipeline emitted that day. A share link has the opposite needs:
-readable by anyone holding the token, and frozen — the page and the PDF someone
+readable by anyone holding the token, and frozen. The page and the PDF someone
 shares must keep saying what they said when they were shared, even after
 catalogs, prices, or the pipeline move on. So the row copies the build payload
 outright rather than referencing anything that can drift.
 
 The token is the only credential: unguessable (secrets.token_urlsafe), carried
 in the URL, and granting access to nothing but this snapshot. `conversation_id`
-is a plain column, not a foreign key, because the row is written mid-turn —
-before _save_turn has necessarily created the conversation — and for guest
+is a plain column, not a foreign key, because the row is written mid-turn,
+before _save_turn has necessarily created the conversation, and for guest
 turns the conversation never comes to exist at all.
 """
 
@@ -41,7 +41,7 @@ class SharedBuild(Base):
     )
 
     # The full build payload as emitted to the client (label, description,
-    # total_approx, parts). The `profile` key is stripped before insert — it
+    # total_approx, parts). The `profile` key is stripped before insert. It
     # paraphrases what the user told the intake chat, which is not something a
     # share link should republish.
     build = Column(JSONB, nullable=False)

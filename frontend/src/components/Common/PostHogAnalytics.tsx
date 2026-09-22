@@ -10,7 +10,7 @@ import { POSTHOG_HOST, POSTHOG_KEY, POSTHOG_UI_HOST } from "@/lib/analytics"
  *
  * Deliberately *not* wired through `instrumentation-client.ts`, which is what
  * PostHog's Next.js guide suggests. That file runs before React mounts and so
- * before Firebase can say who is signed in — it would capture the internal
+ * before Firebase can say who is signed in, so it would capture the internal
  * user's `$pageview` and then be told to stop. Same reasoning as the GA tag;
  * `useAnalyticsConsent` holds the rule for both.
  *

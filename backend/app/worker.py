@@ -11,14 +11,14 @@ dispatches each message to a callback on its own thread pool. The turn pipeline
 is thoroughly async. So this module owns an event loop on the main thread, and
 each callback thread hands its coroutine over with
 `asyncio.run_coroutine_threadsafe` and blocks on the result before acking. That
-block is deliberate — the callback thread's lifetime is what Pub/Sub's flow
+block is deliberate. The callback thread's lifetime is what Pub/Sub's flow
 control counts, so blocking it is what makes `max_messages` an actual
 concurrency ceiling rather than a polite suggestion.
 
 ACK SEMANTICS. Ack on success and on permanent failure; nack on transient
 failure so it comes back. A turn that raised inside the pipeline is *not*
-transient — run_turn already caught it, emitted an apology and terminated the
-stream — so redelivering it would only spend more OpenRouter budget arriving at
+transient, run_turn already caught it, emitted an apology and terminated the
+stream, so redelivering it would only spend more OpenRouter budget arriving at
 the same answer. Only infrastructure failures nack.
 """
 
@@ -99,7 +99,7 @@ def _decode(
         bool(payload.get("rewound")),
         # (token, case_name) when this turn finishes a build paused at the case
         # step. Absent on every ordinary turn, and on anything published before
-        # the picker existed — None simply means "run the graph".
+        # the picker existed. None simply means "run the graph".
         _decode_case_pick(payload.get("case_pick")),
     )
 
@@ -125,7 +125,7 @@ async def _handle(
     case_pick: tuple[str, str] | None = None,
 ) -> None:
     # FIRST, and before the claim below. This turn has reached a worker, which
-    # is the entire question the wake queue answers — so it stops counting
+    # is the entire question the wake queue answers, so it stops counting
     # towards "the pool needs to exist" even if the claim then rejects this
     # delivery as a duplicate, and even if the turn goes on to fail. Clearing it
     # any later would keep the scaler asking for a pod that is already here.
@@ -153,7 +153,7 @@ async def _handle(
     except BaseException:
         # Includes CancelledError from a SIGTERM mid-turn. Releasing the claim is
         # what lets the redelivery actually re-run the turn instead of being
-        # skipped as a duplicate — without this, a rolling restart would silently
+        # skipped as a duplicate, without this, a rolling restart would silently
         # drop every turn that was in flight.
         await turn_stream.release_claim(turn_id)
         raise
@@ -198,8 +198,8 @@ class Worker:
 
         # BEFORE subscribing, not lazily on the first turn. chat_pipeline defers
         # the dspy/litellm import into its function bodies, so importing this
-        # module costs ~1s and the real work — the import chain, configure_dspy,
-        # and reading all ten Decide* weights files — lands on whichever turn
+        # module costs ~1s and the real work, the import chain, configure_dspy,
+        # and reading all ten Decide* weights files, lands on whichever turn
         # happens to arrive first. That was survivable at a warm floor of 1,
         # where the pod had paid it long before a user showed up. At
         # minReplicaCount 0 (keda-worker.yaml) the pod is created *because* a
@@ -211,7 +211,7 @@ class Worker:
         # The API pays the same cost the same way, in main.py's lifespan. It
         # does it off-thread and gates /readyz on it; there is no equivalent
         # gate here because nothing routes to a worker, so blocking startup
-        # ahead of subscribe() is both simpler and strictly what we want — an
+        # ahead of subscribe() is both simpler and strictly what we want. An
         # unsubscribed worker leaves its turns in the subscription rather than
         # accepting one it is not ready to run.
         warm_dspy_pipeline()
@@ -236,7 +236,7 @@ class Worker:
             # and the number of turns this pod runs at once.
             max_messages=settings.PUBSUB_MAX_CONCURRENCY,
             # Lease extension stops here. Past it the message is redelivered even
-            # though this pod is still working on it — which the Valkey claim then
+            # though this pod is still working on it, which the Valkey claim then
             # turns into a skip rather than a duplicate run.
             max_lease_duration=settings.PUBSUB_ACK_EXTENSION_S,
         )
@@ -308,7 +308,7 @@ class Worker:
 
         # After the drain, so the turns that just finished are included. This
         # is the flush that matters: turns are short, spans are batched, and a
-        # rollout SIGTERMs this process without warning — without it the last
+        # rollout SIGTERMs this process without warning, without it the last
         # turn before every deploy vanishes from both backends.
         shutdown_tracing()
 
@@ -338,7 +338,7 @@ class Worker:
         try:
             future.result()
         except Exception:
-            # Infrastructure failure — run_turn handles pipeline errors itself
+            # Infrastructure failure. Run_turn handles pipeline errors itself
             # and returns normally, so reaching here means something below it
             # broke. Worth a redelivery.
             logger.exception("turn %s failed; nacking for redelivery", turn_id)

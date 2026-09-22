@@ -8,7 +8,7 @@ import { db } from '@/lib/prisma';
  *
  * Normally resolution is automatic: adding or reactivating a listing for the
  * part clears it (see resolveListingFailure in @/lib/listings, and commerce's
- * own createListing handler). This is for the cases automation can't judge —
+ * own createListing handler). This is for the cases automation can't judge,
  * a part that is genuinely unbuyable and should be deactivated instead, or a
  * lookup_error from an incident that is long over.
  *
@@ -25,7 +25,7 @@ export async function resolveFailure(partId: string) {
 
 /**
  * Reopen a row closed too eagerly. Clears notifiedAt as well, so the next
- * digest reports it again — reopening it silently would leave it visible only
+ * digest reports it again. Reopening it silently would leave it visible only
  * to whoever thought to look at this page.
  */
 export async function reopenFailure(partId: string) {

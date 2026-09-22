@@ -6,7 +6,7 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
-/** The public page for a shared build — same-origin, so shareable as-is. */
+/** The public page for a shared build. Same-origin, so shareable as-is. */
 export function sharedBuildUrl(token: string): string {
   // window.location is fine here: every caller is a client component acting
   // on a user gesture (copy link), never during SSR.

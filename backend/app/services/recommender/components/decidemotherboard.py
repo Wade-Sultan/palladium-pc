@@ -30,23 +30,23 @@ class MotherboardSelection(dspy.Signature):
     cannot be revisited: the GPU step runs after this one and is capped by
     whatever this board provides, so a single-slot board silently forecloses a
     multi-GPU build no matter what the user asked for. When the use case points
-    at hosting several GPUs — an LLM server, multi-GPU training or inference,
-    a render node — prefer a board with more than one x16 slot, and be willing
+    at hosting several GPUs, an LLM server, multi-GPU training or inference,
+    a render node, prefer a board with more than one x16 slot, and be willing
     to pay a premium for it that you would not pay on a desktop.
 
     This is a preference, not a rule. A single-slot board that is the better
     board on every other axis is still the right pick when nothing in the use
     case calls for a second card, and for ordinary desktop builds extra x16
-    slots are worth nothing — do not spend on capacity the workload will never
+    slots are worth nothing. Do not spend on capacity the workload will never
     use.
     """
 
     use_cases: str = dspy.InputField(desc="User's use cases and preferences summary")
-    cpu_name: str = dspy.InputField(desc="Chosen CPU — drives VRM and chipset needs")
+    cpu_name: str = dspy.InputField(desc="Chosen CPU. Drives VRM and chipset needs")
     # Add ddr6 to the desc when DDR6 parts exist.
     ddr_gen: str = dspy.InputField(desc="Required DDR generation (ddr4 or ddr5)")
     budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on motherboard in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on motherboard in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     candidates: str = dspy.InputField(
         desc="JSON list of compatible motherboards. Fields: name, socket, chipset, "
@@ -67,7 +67,7 @@ class MotherboardSelection(dspy.Signature):
 
 
 class DecideMotherboard(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideMotherboard"
     signature_version = 1

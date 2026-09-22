@@ -34,7 +34,7 @@ export interface PartListings {
 /**
  * Fetch the current listings for each part, keyed by part_id and split by
  * marketplace (the first active listing of each). Parts with no active listing
- * (or failed requests) are simply absent from the result — callers fall back to
+ * (or failed requests) are simply absent from the result. Callers fall back to
  * whatever snapshot data they already have.
  */
 export async function fetchListingsByPart(

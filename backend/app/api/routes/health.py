@@ -18,7 +18,7 @@ def health():
 
 @router.get("/healthz", tags=["health"])
 def healthz():
-    """Liveness. Deliberately does no I/O — a Cloud SQL blip must restart
+    """Liveness. Deliberately does no I/O. A Cloud SQL blip must restart
     nothing, and this is also the startupProbe target while DSPy imports."""
     return {"status": "ok"}
 

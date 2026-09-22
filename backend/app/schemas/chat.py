@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# Sentinel budget ceiling meaning "no ceiling at all" — the 'custom' budget
+# Sentinel budget ceiling meaning "no ceiling at all". The 'custom' budget
 # tier, where the user has explicitly said cost is not a constraint.
 #
 # A sentinel rather than a very large number because those are not the same
@@ -106,7 +106,7 @@ class LockedPart(BaseModel):
     they have decided to buy must be, or every other slot is sized against money
     that is already spent. The two read almost identically in conversation ("I'm
     reusing my 3080" against "I want a 5090"), so the extractor is asked for the
-    distinction outright rather than left to infer it — getting it backwards is
+    distinction outright rather than left to infer it. Getting it backwards is
     worth hundreds of dollars in either direction.
 
     The name is kept as the user said it. Resolution to a catalog row happens in
@@ -151,20 +151,20 @@ class BuildProfile(BaseModel):
     # Only meaningful for an LLM build (see chat_pipeline._is_llm_build). These
     # two are the dominant terms in how much VRAM the machine actually needs,
     # and leaving them unstated is what let a 31B model be sized as though it
-    # were served at fp16 — a $15000 card for a job a $800 one does.
+    # were served at fp16. A $15000 card for a job a $800 one does.
     #
     # "yes" (quantization is fine) | "no" (full precision) | "unsure".
     # 'unsure' is a real answer, not an absence: it resolves to the q4-q8
     # default that self-hosters actually run, and it exists so a user who has
     # never heard of quantization is not blocked by the question.
     llm_quantization: str | None = None
-    # "4k" | "8k" | "32k" | "128k" | "unsure" — target context window. Drives
+    # "4k" | "8k" | "32k" | "128k" | "unsure": target context window. Drives
     # KV cache, which at long context rivals the weights themselves.
     llm_context_tokens: str | None = None
     # "ai_training" | "ai_serving" | "hpc" | "virtualization" | "storage"
     # | "render_farm"
     server_workload: str | None = None
-    # "0" | "1" | "2" | "4" | "8" — kept a string, like gaming_fps: it is a
+    # "0" | "1" | "2" | "4" | "8". Kept a string, like gaming_fps: it is a
     # bucket label the extraction model emits, not an arithmetic quantity.
     server_gpu_count: str | None = None
     editing_resolution: str | None = None  # "1080p" | "4k" | "6k_plus"
@@ -172,7 +172,7 @@ class BuildProfile(BaseModel):
     workload_intensity: str | None = None  # "light" | "moderate" | "heavy"
     # "entry" | "mid" | "high" | "elite" | "custom". 'custom' means no ceiling
     # applies anywhere; it is never inferred, only accepted when the user says
-    # so outright — see chat_pipeline._confirm_custom_budget.
+    # so outright. See chat_pipeline._confirm_custom_budget.
     budget_tier: str
     # The dollar figure the user actually named for the whole build, when they
     # named one. A tier is a band and cannot round-trip a number: every tier
@@ -188,7 +188,7 @@ class BuildProfile(BaseModel):
     # Volunteered by the user, never inferred from the use case, and never
     # required to reach a build. They populate UserPreferences (and the Q&A
     # string) on the way into the DSPy pipeline, which already knows how to
-    # read all of them — the chat path just never filled them in before.
+    # read all of them: the chat path just never filled them in before.
     form_factor: str | None = None  # "atx" | "matx" | "itx" | "no_preference"
     color_theme: str | None = None  # free text, e.g. "black & white"
     rgb_lighting: str | None = None  # "yes" | "no"

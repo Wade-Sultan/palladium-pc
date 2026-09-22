@@ -20,7 +20,7 @@ import type { BuildData } from "@/types/build"
  * The public page behind a build's share link (/b/{token}).
  *
  * Renders the frozen shared_builds snapshot through the same BuildCard the
- * chat uses — the snapshot is shaped as BuildData minus `key`. Reusing the
+ * chat uses. The snapshot is shaped as BuildData minus `key`. Reusing the
  * card gets live listings and marketplace buttons for free; its feedback
  * thumbs are suppressed via OutsideConversation, since a visitor holding a
  * share link has no conversation of their own to rate.
@@ -62,7 +62,7 @@ export default function SharedBuildPage() {
       <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
         <p className="font-medium">This build link doesn't exist</p>
         <p className="text-muted-foreground text-sm">
-          It may have been mistyped — check the link you were sent.
+          It may have been mistyped. Check the link you were sent.
         </p>
       </div>
     )

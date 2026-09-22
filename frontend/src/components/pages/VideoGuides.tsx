@@ -21,7 +21,7 @@ function VideoCard({ video }: { video: GuideVideo }) {
             style={{ width: "100%" }}
           />
         ) : (
-          // A link the admin saved that isn't a YouTube URL — still listed, but
+          // A link the admin saved that isn't a YouTube URL: still listed, but
           // it opens externally instead of playing inline.
           <a
             href={video.url}
@@ -69,7 +69,7 @@ export function VideoGuides({ videos }: { videos: GuideVideo[] }) {
 
       {videos.length === 0 && (
         <p className="text-center text-muted-foreground mt-8">
-          No guides yet — check back soon.
+          No guides yet. Check back soon.
         </p>
       )}
 

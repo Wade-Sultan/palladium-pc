@@ -25,7 +25,7 @@ class LLMEndpoint:
     means anything to the /generation cost endpoint.
     """
 
-    # Empty means "unset", which resolves to OpenRouter — see `url`.
+    # Empty means "unset", which resolves to OpenRouter. See `url`.
     base_url: str
     local_key: str
     openrouter_key: str
@@ -84,7 +84,7 @@ class Settings(BaseSettings):
 
     # Shared secret enabling the Locust load-test path (app/core/loadtest.py):
     # requests presenting it in X-Palladium-Load-Test are served by stub LMs and
-    # never reach OpenRouter. Empty — the default — disables the header
+    # never reach OpenRouter. Empty, the default, disables the header
     # entirely, so a normal deployment cannot be put into stub mode at all.
     LOAD_TEST_SECRET: str = ""
     POSTGRES_SERVER: str
@@ -129,7 +129,7 @@ class Settings(BaseSettings):
     # This exists because a model slug names a model, not a machine. OpenRouter
     # fans `google/gemma-4-31b-it` out across upstreams that differ in
     # quantization and sampling defaults, so a reply can degenerate on one of
-    # them and be fine on the next request — which is exactly how a wall of one
+    # them and be fine on the next request, which is exactly how a wall of one
     # repeated token reached a user in production and then could not be
     # reproduced. Pinning is the lever for that, once a trace names the culprit.
     #
@@ -137,7 +137,7 @@ class Settings(BaseSettings):
     # rare bad sample for a hard dependency on one provider's uptime, so prefer
     # `ignore` over `only`, and keep `allow_fallbacks` true unless the point is
     # to fail rather than be served by anyone else. Shape is OpenRouter's
-    # ProviderPreferences — order / only / ignore / quantizations / sort:
+    # ProviderPreferences: order / only / ignore / quantizations / sort:
     #
     #   OPENROUTER_PROVIDER={"ignore":["SomeProvider"],"allow_fallbacks":true}
     #   OPENROUTER_PROVIDER={"quantizations":["bf16","fp16"]}
@@ -150,14 +150,14 @@ class Settings(BaseSettings):
     # --- Chat-completion endpoint ---------------------------------------------
     # Empty (the default, and what production runs) means every chat completion
     # goes to OpenRouter. Setting it points them at any other OpenAI-compatible
-    # server instead — the local overlay uses it to reach LM Studio on the host
+    # server instead. The local overlay uses it to reach LM Studio on the host
     # GPU. Include the `/v1` suffix: the OpenAI SDK appends paths to this, it
     # does not append a version.
     #
     # This switches the ENDPOINT, not the model. LM Studio serves whatever is
     # loaded under its own ids, so an environment that sets this must also set
     # the CHAT_*_MODEL / RECOMMEND_MODEL / DISCOVERY_EXTRACT_MODEL slugs to
-    # match — the OpenRouter defaults (`google/gemma-4-31b-it` and friends) mean
+    # match: the OpenRouter defaults (`google/gemma-4-31b-it` and friends) mean
     # nothing to it and come back as 404 model_not_found.
     #
     # Cost accounting goes quiet when this is set, by design: dollar figures
@@ -168,7 +168,7 @@ class Settings(BaseSettings):
 
     # Credential for LLM_BASE_URL. LM Studio accepts anything but the OpenAI
     # client refuses to construct without a key, hence the placeholder. Ignored
-    # entirely when LLM_BASE_URL is empty — OpenRouter uses OPENROUTER_API_KEY.
+    # entirely when LLM_BASE_URL is empty. OpenRouter uses OPENROUTER_API_KEY.
     LLM_API_KEY: str = "not-needed"
 
     # Lets parts discovery go somewhere other than LLM_BASE_URL. Empty (prod)
@@ -177,7 +177,7 @@ class Settings(BaseSettings):
     #
     # This exists because discovery is not substitutable the way chat is. It
     # sends rasterized PDF pages and a per-category JSON schema, so it needs a
-    # multimodal model that honours `response_format` — and unlike chat it is a
+    # multimodal model that honours `response_format`, and unlike chat it is a
     # CronJob, so when it cannot do that the failure is a recurring background
     # 404 nobody is watching rather than a broken reply somebody reports.
     DISCOVERY_LLM_BASE_URL: str = ""
@@ -189,7 +189,7 @@ class Settings(BaseSettings):
 
     @property
     def discovery_endpoint(self) -> LLMEndpoint:
-        """Where parts discovery goes — its own override, else the chat endpoint."""
+        """Where parts discovery goes: its own override, else the chat endpoint."""
         return LLMEndpoint(
             self.DISCOVERY_LLM_BASE_URL or self.LLM_BASE_URL,
             self.LLM_API_KEY,
@@ -198,7 +198,7 @@ class Settings(BaseSettings):
 
     # --- Embeddings (pgvector) -----------------------------------------------
     # Separate from OPENROUTER_API_KEY because OpenRouter has no embeddings
-    # endpoint — it proxies chat completions only. Optional at boot: without it
+    # endpoint: it proxies chat completions only. Optional at boot: without it
     # the embedding service refuses to run and catalog matching degrades to
     # "no matches", which the recommender already handles as its normal
     # cold-start state. Nothing else in the app is affected.
@@ -206,7 +206,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     # Must match app.models.embeddings.EMBEDDING_DIMS and the vector(N) column
     # width in migration c1d2e3f4a5b6. Overriding this alone will not resize the
-    # column — changing model width is a migration plus a full re-embed.
+    # column. Changing model width is a migration plus a full re-embed.
     EMBEDDING_DIMS: int = 1536
 
     # Hugging Face Hub token for the AI-model discovery job. Public model
@@ -229,7 +229,7 @@ class Settings(BaseSettings):
     # --- Price alerts ---------------------------------------------------------
     # The master switch on whether a price drop actually mails anyone. Off means
     # the pricing ETL still evaluates every subscription and logs what it would
-    # have sent, but nothing leaves the cluster and no subscription is retired —
+    # have sent, but nothing leaves the cluster and no subscription is retired,
     # so turning it on later alerts exactly the people it would have alerted
     # while it was off. Subscribing is unaffected either way.
     PRICE_ALERTS_ENABLED: bool = False
@@ -252,7 +252,7 @@ class Settings(BaseSettings):
     VALKEY_PORT: int = 6379
     # Which redis-py client to build: RedisCluster when True, Redis when False.
     # It must match how the Memorystore instance was created, and the two fail
-    # in opposite, equally confusing ways — a plain Redis client against a
+    # in opposite, equally confusing ways: a plain Redis client against a
     # clustered instance dies on the first MOVED redirect mid-turn, and a
     # RedisCluster client against a Cluster Mode Disabled instance fails at
     # connect because there is no CLUSTER SLOTS to read.
@@ -260,7 +260,7 @@ class Settings(BaseSettings):
     # False is the default because it matches both real deployments: prod runs a
     # `custom-pico` node, which Google only offers on Cluster Mode Disabled
     # instances, and local dev runs a standalone valkey container. Set True only
-    # if the instance is recreated as Cluster Mode Enabled — the key layout is
+    # if the instance is recreated as Cluster Mode Enabled. The key layout is
     # already cluster-safe (see app/services/turn_stream.py), so that is a
     # config change rather than a code change.
     VALKEY_CLUSTER: bool = False
@@ -282,14 +282,14 @@ class Settings(BaseSettings):
 
     # Fallback expiry on the chat buffer. The buffer is normally deleted the
     # moment its turn is committed to Postgres, so this only fires for turns that
-    # never commit — a worker OOM-killed mid-run, or a poison message that
+    # never commit: a worker OOM-killed mid-run, or a poison message that
     # exhausted its retries. Deliberately longer than TURN_STREAM_TTL_S so the
     # buffer outlives the stream it describes and a post-mortem can still read it.
     CHAT_BUFFER_TTL_S: int = 86400
 
     # How long a conversation's LangGraph checkpoints live in Valkey. Matched to
     # CHAT_BUFFER_TTL_S because they answer the same question for the same
-    # window — what was this conversation in the middle of. Past it, the latest
+    # window. What was this conversation in the middle of. Past it, the latest
     # checkpoint is still in Postgres (conversations.graph_checkpoint), so
     # expiry costs resumability mid-turn, not the accumulated build profile.
     GRAPH_CHECKPOINT_TTL_S: int = 86400
@@ -298,7 +298,7 @@ class Settings(BaseSettings):
     # Empty key disables the LangSmith span exporter entirely; the Google
     # Cloud Observability side is driven separately by the standard
     # OTEL_EXPORTER_OTLP_ENDPOINT, which Managed OpenTelemetry for GKE injects
-    # into the pod. Both are independently optional — see app/core/tracing.py.
+    # into the pod. Both are independently optional. See app/core/tracing.py.
     LANGSMITH_API_KEY: str = ""
     LANGSMITH_PROJECT: str = "palladium"
     LANGSMITH_OTEL_ENDPOINT: str = "https://api.smith.langchain.com/otel"
@@ -312,7 +312,7 @@ class Settings(BaseSettings):
     GOOGLE_CLOUD_PROJECT: str = ""
     # Ceiling on turns one worker pod runs at once. Each turn is mostly blocked
     # on OpenRouter rather than on CPU, so this is about memory and OpenRouter
-    # rate limits, not cores — the same reason builder's CPU-based HPA
+    # rate limits, not cores: the same reason builder's CPU-based HPA
     # understates its load (deploy/overlays/prod/hpa.yaml).
     PUBSUB_MAX_CONCURRENCY: int = 8
     # Must exceed the longest possible turn. The subscriber extends the ack

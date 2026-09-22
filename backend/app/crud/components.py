@@ -37,7 +37,7 @@ def _within_budget(price_column, budget_ceiling_usd: int):
     """Price predicate for a candidate query, or an always-true one.
 
     Every candidate query filters on price the same way, and every one of them
-    has to drop that filter entirely under the 'custom' budget tier — a ceiling
+    has to drop that filter entirely under the 'custom' budget tier. A ceiling
     the user explicitly declined to set must not silently reappear as a
     candidate-set boundary. Centralised so the sentinel is honoured in one
     place rather than nine.
@@ -55,12 +55,12 @@ _PART_POLY = with_polymorphic(PCPart, "*")
 
 
 async def get_part_by_name(db: AsyncSession, name: str) -> PCPart | None:
-    """Case-insensitive lookup on the polymorphic base — any part type. Subclass
+    """Case-insensitive lookup on the polymorphic base: any part type. Subclass
     columns (incl. the group FKs) are eager-loaded for resolve_part_price_cents.
 
     Skips a pc_parts row that has no row in its subclass table. The
     polymorphic load outer-joins the subclass table, and on such a row the
-    subclass's null primary key wins the shared `id` attribute — so the
+    subclass's null primary key wins the shared `id` attribute, so the
     instance comes back with `id is None`, no specs and no price. The local
     catalog holds several duplicate-named parts where one copy is exactly
     that, and `.limit(1)` was handing the DSPy assembler the orphan.
@@ -89,7 +89,7 @@ async def get_part_by_id(db: AsyncSession, part_id: uuid.UUID) -> PCPart | None:
 # part_type -> (group FK attr on the exact, group model). Price for these types
 # lives on the group, not on the exact's pc_parts row. Public because price
 # subscriptions need the same mapping to point a watch at the row that actually
-# moves (app/crud/price_subscriptions.py) — a second copy of it would be a
+# moves (app/crud/price_subscriptions.py). A second copy of it would be a
 # second place for "which parts are grouped" to go stale.
 GROUP_PRICE_LOOKUP = {
     "gpu": ("gpu_chipset_id", GPUChipset),
@@ -126,7 +126,7 @@ def _normalize(value: str) -> str:
     still match instead of silently returning zero candidates.
 
     Beyond lowercasing/trimming, this drops a leading "Socket " qualifier and
-    removes internal whitespace and hyphens — so "Socket AM5"/"AM5",
+    removes internal whitespace and hyphens, so "Socket AM5"/"AM5",
     "LGA 1700"/"LGA1700", and "LGA-1700"/"LGA1700" all compare equal.
     Underscores are preserved on purpose: some values are keyed on them (e.g.
     the "sfx_l" PSU form factor compared against a lower/trim SQL column)."""
@@ -269,7 +269,7 @@ async def get_cooler_candidates(
 ) -> list[CPUCooler]:
     # supported_sockets is a free-text, admin-entered array (e.g. "LGA1700, AM5"),
     # so array containment can't rely on exact casing/whitespace matching the
-    # CPU's own socket string — filter in Python against normalized values
+    # CPU's own socket string: filter in Python against normalized values
     # instead of CPUCooler.supported_sockets.contains([cpu_socket]).
     stmt = select(CPUCooler).where(
         CPUCooler.is_active == True,  # noqa: E712
@@ -292,7 +292,7 @@ async def get_motherboard_by_name(db: AsyncSession, name: str) -> Motherboard | 
     # `.is_(True)`, not `== True`: both compile to the same predicate, but the
     # explicit form satisfies ruff's E712 outright and needs no suppression.
     # The suppressions that used to sit here were silently orphaned by a
-    # `ruff format` pass that moved the closing paren onto its own line — a
+    # `ruff format` pass that moved the closing paren onto its own line. A
     # per-line suppression only applies to the line it sits on, so reformatting
     # can quietly detach one from the code it was written for.
     stmt = select(Motherboard).where(
@@ -312,7 +312,7 @@ async def get_motherboard_candidates(
 ) -> list[Motherboard]:
     # socket, ddr_generation and form_factor are all free-text, admin-entered
     # fields (see the admin motherboard form) carrying the same casing/whitespace
-    # risk as CPUCooler.supported_sockets — so normalize and match in Python
+    # risk as CPUCooler.supported_sockets, so normalize and match in Python
     # rather than via SQL equality, which only lower/trims.
     #
     # ddr_gens is the CPU's full set of supported DDR generations: a board is
@@ -361,8 +361,8 @@ async def get_ram_candidates(
     matches. queries.py aggregates these into one candidate per RAM group.
 
     module_types is the chosen board's accepted DIMM types. Registered and
-    unbuffered memory are not interchangeable in either direction — a TRX50 or
-    WRX90 board will not POST on UDIMMs, and a consumer board rejects RDIMMs —
+    unbuffered memory are not interchangeable in either direction, a TRX50 or
+    WRX90 board will not POST on UDIMMs, and a consumer board rejects RDIMMs,
     so this is a hard filter, not a preference. None (the board didn't record
     any, which is every consumer board today) means unconstrained, keeping the
     candidate set identical to what it was before the column existed.
@@ -395,12 +395,12 @@ async def get_ram_candidates(
 
 async def get_ram_kits_for_group(db: AsyncSession, group_name: str) -> list[RAMKit]:
     """Active RAM kit exacts of the chosen group (matched on the group name,
-    normalized) — for the deterministic cheapest-exact resolution."""
+    normalized), for the deterministic cheapest-exact resolution."""
     return await _exacts_for_group(db, RAMKit, RAMKit.group, group_name)
 
 
 async def get_all_ram_active(db: AsyncSession) -> list[RAMKit]:
-    """RAM kit exacts with group loaded — used by get_ddr_candidates to compare
+    """RAM kit exacts with group loaded: used by get_ddr_candidates to compare
     per-generation platform cost (price on the exact, ddr gen on the group)."""
     stmt = (
         select(RAMKit)
@@ -450,7 +450,7 @@ async def get_storage_candidates(
 async def get_storage_drives_for_group(
     db: AsyncSession, group_name: str
 ) -> list[StorageDrive]:
-    """Active storage drive exacts of the chosen group — for cheapest-exact resolution."""
+    """Active storage drive exacts of the chosen group, for cheapest-exact resolution."""
     return await _exacts_for_group(db, StorageDrive, StorageDrive.group, group_name)
 
 
@@ -485,7 +485,7 @@ async def get_psu_candidates(
             _within_budget(PSUGroup.street_price_cents, budget_ceiling_usd),
             PSUGroup.wattage >= min_wattage,
             # form_factor is the same free-text admin field as
-            # Motherboard.socket/ddr_generation — normalize it too.
+            # Motherboard.socket/ddr_generation: normalize it too.
             func.lower(func.trim(PSUGroup.form_factor)) == _normalize(psu_form_factor),
         )
         .options(selectinload(PSU.group))
@@ -495,7 +495,7 @@ async def get_psu_candidates(
 
 
 async def get_psus_for_group(db: AsyncSession, group_name: str) -> list[PSU]:
-    """Active PSU exacts of the chosen group — for cheapest-exact resolution."""
+    """Active PSU exacts of the chosen group, for cheapest-exact resolution."""
     return await _exacts_for_group(db, PSU, PSU.group, group_name)
 
 
@@ -523,7 +523,7 @@ async def get_case_candidates(
         stmt = stmt.where(Case.max_psu_length_mm.isnot(None))
     result = await db.execute(stmt)
     # supported_mobo_form_factors is a free-text, comma-separated admin field
-    # (e.g. "ATX, mATX, ITX") — same casing/whitespace risk as
+    # (e.g. "ATX, mATX, ITX"): same casing/whitespace risk as
     # CPUCooler.supported_sockets, so filter in Python against normalized values.
     target = _normalize(mobo_form_factor)
     return [

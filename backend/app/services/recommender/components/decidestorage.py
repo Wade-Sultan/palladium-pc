@@ -16,21 +16,21 @@ class StorageSelection(dspy.Signature):
     Select the best storage *group* (spec) for this build from the candidates.
 
     Each candidate is a storage spec (interface / capacity / speeds), not a
-    specific product — the exact branded drive is resolved deterministically
+    specific product. The exact branded drive is resolved deterministically
     afterwards. Choose at the spec level here. Interface generation is a value
     question, not just a spec question: Gen5 costs more and runs hotter with
     minimal gaming benefit. Recommend based on workload, not on what's newest.
     Capacity is often more valuable than speed.
 
     A build may take more than one drive, so storage_groups is a list. One
-    drive is the right answer for most desktops and should stay the default —
+    drive is the right answer for most desktops and should stay the default,
     a second drive is only worth its money when the build genuinely wants two
     different kinds of storage, not merely more of the same. Prefer a single
     larger drive over two smaller ones at equal capacity and price.
 
     The case for splitting is a mixed workload: a fast NVMe for the OS and
     working set plus bulk capacity for things that are read sequentially and
-    rarely — model weights, datasets, footage, media libraries. An LLM server
+    rarely: model weights, datasets, footage, media libraries. An LLM server
     is the clearest example, where weights run to hundreds of gigabytes but see
     nothing like the random-access pressure the OS drive does, and paying NVMe
     prices for that capacity is waste.
@@ -41,7 +41,7 @@ class StorageSelection(dspy.Signature):
 
     use_cases: str = dspy.InputField(desc="User's use cases and preferences summary")
     budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on storage in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on storage in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     max_drives: int = dspy.InputField(
         desc="Most drives this build can physically mount (M.2 slots + SATA "
@@ -68,7 +68,7 @@ class StorageSelection(dspy.Signature):
 
 
 class DecideStorage(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideStorage"
     # v2: chooses a storage group (spec), not an exact drive name; the branded

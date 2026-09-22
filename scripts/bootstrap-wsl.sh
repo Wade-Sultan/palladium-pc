@@ -19,7 +19,7 @@
 #
 # NOT installed here: docker (Docker Desktop's WSL integration provides it),
 # kubectl (already present), gcloud (only needed for prod, lives on Windows),
-# KEDA itself (a cluster component, not a tool — see minikube-cilium-up.sh).
+# KEDA itself (a cluster component, not a tool. See minikube-cilium-up.sh).
 #
 # Needs sudo for apt and for /usr/local/bin. Run it as yourself, not as root,
 # so uv and its Python land in your home directory.
@@ -40,7 +40,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 if [ "$(id -u)" -eq 0 ]; then
-  echo "Run this as your own user, not root — uv must install into your home." >&2
+  echo "Run this as your own user, not root. Uv must install into your home." >&2
   exit 1
 fi
 if [ "$(uname -m)" != "x86_64" ]; then

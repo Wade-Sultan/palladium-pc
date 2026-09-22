@@ -156,7 +156,7 @@ services:
       # CORS: match the local frontend origin (npm run dev) + admin.
       - FRONTEND_HOST=http://localhost:3000
       - BACKEND_CORS_ORIGINS=http://localhost:3000,http://localhost:3001
-      # Resend welcome emails — empty disables sending (service still boots).
+      # Resend welcome emails: empty disables sending (service still boots).
       - RESEND_API_KEY=${RESEND_API_KEY}
       - EMAIL_FROM=${EMAIL_FROM:-Palladium <noreply@palladiumtech.ai>}
       # Shared secret for /internal/* (price alerts from the builder's pricing

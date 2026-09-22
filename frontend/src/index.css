@@ -296,7 +296,7 @@
  * The visible control is the styled <label> contents; the real <input> is
  * present but visually hidden so the browser still provides the semantics,
  * keyboard activation and form state. Hiding it costs the default focus ring,
- * so :focus-within puts one back on the label — without this, keyboard users
+ * so :focus-within puts one back on the label, without this, keyboard users
  * get no indication of where they are.
  */
 .build-option-input {

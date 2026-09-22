@@ -47,7 +47,7 @@ class PriceTargetLookup(BaseModel):
     Keyed by the part_id the caller asked about, which is not necessarily the
     target that gets watched: grouped parts are redirected to their group (see
     crud.price_subscriptions.resolve_price_target), and the client has to
-    subscribe to — and match its own subscriptions against — the resolved pair,
+    subscribe to, and match its own subscriptions against, the resolved pair,
     not the part it started from.
 
     `current_price_cents` is the catalog street price, which is what alerts are

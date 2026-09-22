@@ -16,7 +16,7 @@ class CPUSelection(dspy.Signature):
     Select the best CPU for this build from the given candidates.
 
     Prioritize genuine value for the user's actual workload. Resist the pull
-    toward the newest or most impressive option — recommend what actually fits
+    toward the newest or most impressive option: recommend what actually fits
     the use case and budget. If a lower-tier CPU covers the workload well and
     costs meaningfully less, choose it and say so.
 
@@ -25,9 +25,9 @@ class CPUSelection(dspy.Signature):
     upgrade; above that the gaming premium isn't justified for this workload.'
 
     For server and workstation builds the deciding specs are different ones.
-    pcie_lanes caps how many GPUs and NVMe drives can run at full width — four
+    pcie_lanes caps how many GPUs and NVMe drives can run at full width, four
     x16 GPUs need 64 lanes from the CPU regardless of what the board's slot
-    count suggests — and memory_channels sets bandwidth, which is what HPC and
+    count suggests, and memory_channels sets bandwidth, which is what HPC and
     CPU-side inference are actually limited by. A high-clocking desktop part
     with 28 lanes and 2 channels is the wrong answer for those builds however
     well it benchmarks, and a workstation part is the wrong answer for a
@@ -41,14 +41,14 @@ class CPUSelection(dspy.Signature):
         desc="Total build budget in USD; -1 means the user has set no budget at all"
     )
     cpu_budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on CPU in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on CPU in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     candidates: str = dspy.InputField(
         desc="JSON list of compatible CPUs with street prices. Fields: name, brand, "
         "cores, threads, base_clock_ghz, boost_clock_ghz, tdp_w, socket, "
         "ddr_gen, has_integrated_graphics, pcie_lanes, memory_channels, "
         "supports_ecc, street_price_usd. The last three are null on consumer "
-        "desktop parts — that absence is meaningful, not missing data. When a "
+        "desktop parts. That absence is meaningful, not missing data. When a "
         "game performance envelope is available, performance_headroom and "
         "meets_performance_profile report whether the measured CPU clears it; "
         "prefer a verified fit."
@@ -67,7 +67,7 @@ class CPUSelection(dspy.Signature):
 
 
 class DecideCPU(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideCPU"
     signature_version = 1
@@ -115,7 +115,7 @@ def optimize(
         - reason (str)             ← optional, used by metric
         - reconsideration_threshold (str)  ← optional, used by metric
 
-    The metric follows GEPA's protocol — (gold, pred, trace, pred_name,
+    The metric follows GEPA's protocol: (gold, pred, trace, pred_name,
     pred_trace) returning dspy.Prediction(score, feedback). Use
     appropriateness.make_gepa_metric("DecideCPU"), which scores sufficiency
     against the workload's core floor and prices the overshoot against the

@@ -52,7 +52,7 @@ async def list_posts(
 ) -> BlogPostList:
     """Published posts, featured first then newest first.
 
-    Public and unauthenticated — drafts are never exposed here.
+    Public and unauthenticated. Drafts are never exposed here.
     """
     where = [BlogPost.status == BlogPostStatus.PUBLISHED.value]
     if tag:

@@ -5,7 +5,7 @@ The Postgres half of the join between the two telemetry systems.
 LangSmith holds the conversation, the prompts and the model's reasoning;
 build_sessions / module_decisions hold the candidate sets, the chosen parts and
 the prices at decision time. Both describe the same runs and, until now, shared
-no key — so a low-scoring conversation in LangSmith could not be resolved to the
+no key, so a low-scoring conversation in LangSmith could not be resolved to the
 candidate list that produced it, and a suspect build could not be resolved back
 to the conversation that asked for it.
 
@@ -17,8 +17,8 @@ there too. That gives a two-way join:
     LangSmith trace --(build_session_id)--> module_decisions
     build_sessions  --(conversation_id)---> LangSmith Thread
 
-NOT A FOREIGN KEY, deliberately. Guest turns have no `conversations` row at all
-— chat_pipeline synthesizes a "turn:<uuid>" thread id for them — and a FK would
+NOT A FOREIGN KEY, deliberately. Guest turns have no `conversations` row at all,
+chat_pipeline synthesizes a "turn:<uuid>" thread id for them, and a FK would
 either reject those rows or force the id to be dropped. Telemetry must never
 constrain what the product is allowed to do, and an orphaned id here is inert.
 

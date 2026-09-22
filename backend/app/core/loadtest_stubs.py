@@ -1,6 +1,6 @@
 """Stub LMs used when a request opts into load-test mode.
 
-Both stubs are local and make no network calls of any kind — that is the whole
+Both stubs are local and make no network calls of any kind. That is the whole
 point. See app/core/loadtest.py for how a request is routed here.
 
 They deliberately imitate the *shape* of the real thing rather than returning
@@ -87,14 +87,14 @@ def _stub_response_metadata(model: str) -> dict[str, Any]:
     # cost is explicitly 0.0 rather than absent: the per-conversation cost
     # column should record that this turn was free, not that its cost is
     # unknown. No generation id, so nothing tries to look the cost up over the
-    # network — see app/services/llm/openrouter.py.
+    # network. See app/services/llm/openrouter.py.
     return {"model_name": model, "cost": 0.0, "model_provider": "openrouter"}
 
 
 class StubChatModel(BaseChatModel):
     """Drop-in for ChatOpenRouter that never leaves the process.
 
-    Implements the BaseChatModel hooks app/services/llm/ actually calls —
+    Implements the BaseChatModel hooks app/services/llm/ actually calls,
     `ainvoke` (via `_agenerate`) and `astream` (via `_astream`). The synchronous
     halves raise, because reaching them would mean a call site changed and a
     load test had quietly started billing OpenRouter.
@@ -135,7 +135,7 @@ class StubChatModel(BaseChatModel):
 
         The trailing empty-content chunk carrying usage is what ChatOpenRouter
         really emits when stream_options.include_usage is set, and
-        chat_pipeline._stream_text sums across every chunk to find it — so the
+        chat_pipeline._stream_text sums across every chunk to find it, so the
         shape matters as much as the timing.
         """
         await asyncio.sleep(_TTFT_S)
@@ -177,7 +177,7 @@ _FIELD = re.compile(r"^\s*\d+\.\s*`([^`]+)`\s*\(([^)]*)\)", re.MULTILINE)
 # load test drives the full build pipeline rather than parking in elicitation.
 #
 # These are declared `str` in the signatures rather than Literal, so the generic
-# placeholder below returns "stub" — and is_profile_complete() reads "stub" as
+# placeholder below returns "stub", and is_profile_complete() reads "stub" as
 # an unrecognised primary_use, judges the profile incomplete, and every virtual
 # user loops forever on the elicitation path. The expensive path (eleven Decide*
 # modules, one LM call each) would then never be exercised at all, which is the

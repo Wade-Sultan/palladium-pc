@@ -1,7 +1,7 @@
 # Chat turn workers: the Pub/Sub subscribers that run the DSPy pipeline off the
 # request path. See backend/app/worker.py.
 #
-# SAME IMAGE AS BUILDER, different command — exactly like the migrate Job. The
+# SAME IMAGE AS BUILDER, different command: exactly like the migrate Job. The
 # worker imports the same pipeline, models and DSPy configuration the API does,
 # so a separate image would let the two drift while looking identical in the
 # repo. `kustomize edit set image palladium/builder=...` in cloudbuild.yaml
@@ -10,7 +10,7 @@
 #
 # NO SERVICE, NO HTTPROUTE. Nothing routes to a worker: it pulls its own work
 # from Pub/Sub and writes results to Valkey. That is what makes it safe for it to
-# hold no inbound port at all, and why there is no readiness probe below — an
+# hold no inbound port at all, and why there is no readiness probe below. An
 # unready worker simply isn't pulling, and there is no endpoint list to be
 # removed from.
 apiVersion: apps/v1
@@ -45,7 +45,7 @@ spec:
           # Overrides the image CMD, which starts the API server.
           command: ["python", "-m", "app.worker"]
           ports:
-            # Metrics only — there is no HTTP API here. Same port name as
+            # Metrics only. There is no HTTP API here. Same port name as
             # builder so overlays/prod/podmonitoring.yaml scrapes it with an
             # identical endpoint block.
             - containerPort: 9090
@@ -76,8 +76,8 @@ spec:
             failureThreshold: 3
           resources:
             # Higher memory than builder's request, lower CPU. A worker runs up
-            # to PUBSUB_MAX_CONCURRENCY turns at once — each holding a DSPy state
-            # and a candidate set — but spends nearly all of that time blocked on
+            # to PUBSUB_MAX_CONCURRENCY turns at once, each holding a DSPy state
+            # and a candidate set, but spends nearly all of that time blocked on
             # OpenRouter rather than computing.
             requests:
               cpu: "500m"

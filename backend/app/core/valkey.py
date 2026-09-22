@@ -1,6 +1,6 @@
 """Valkey (Memorystore) connection management.
 
-Valkey speaks the Redis wire protocol, so this is redis-py throughout — there is
+Valkey speaks the Redis wire protocol, so this is redis-py throughout. There is
 no separate client library, and `import redis` here is not a mistake.
 
 CLUSTER MODE MUST MATCH THE INSTANCE, and getting it wrong is the most likely way
@@ -14,8 +14,8 @@ to lose an afternoon, because the two mismatches fail in opposite directions:
                                        SLOTS to read.
 
 `VALKEY_CLUSTER` defaults to False, which is correct for both real deployments.
-Production runs a `custom-pico` node — the smallest node type Google sells with
-an SLA, and one they offer on **Cluster Mode Disabled instances only** — and local
+Production runs a `custom-pico` node, the smallest node type Google sells with
+an SLA, and one they offer on **Cluster Mode Disabled instances only**, and local
 dev runs a standalone valkey container. (`shared-core-nano` is cheaper and does
 speak the cluster protocol, but it has no SLA and Google documents it as
 development-only.)
@@ -42,18 +42,18 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# TWO clients, and the split is not an optimisation — it is a correctness fix.
+# TWO clients, and the split is not an optimisation. It is a correctness fix.
 #
 # redis-py enforces `socket_timeout` on every read, INCLUDING the read that is
 # deliberately parked by a blocking command. XREAD BLOCK 15000 against a stream
 # nothing has written to yet is a 15-second read by design, so a 5-second socket
 # timeout aborts it every time: redis-py raises TimeoutError (a RedisError),
-# retries the command a few times, and eventually gives up — about 60 seconds of
+# retries the command a few times, and eventually gives up, about 60 seconds of
 # nothing, surfaced to the caller as an error rather than as "no events yet".
 #
 # HOW THIS HID FOR SO LONG. turn_stream.tail() is the only blocking reader, and
 # until the worker pool gained a scale-to-zero floor there was always a warm
-# worker that wrote its first event within a few hundred milliseconds — well
+# worker that wrote its first event within a few hundred milliseconds: well
 # inside 5 seconds, so the block never ran long enough to trip the timeout. The
 # first cold start made every /chat fail with "That build didn't start", because
 # the tail now genuinely has to wait out the pod coming up. The bug was always
@@ -65,8 +65,8 @@ logger = logging.getLogger(__name__)
 # they issue.
 #
 # Two pools, not two connection counts: redis-py creates connections lazily, so
-# the second pool costs nothing in a process that never issues a blocking read
-# — which is every process except the API pods serving SSE.
+# the second pool costs nothing in a process that never issues a blocking read,
+# which is every process except the API pods serving SSE.
 _client: Redis | RedisCluster | None = None
 _blocking_client: Redis | RedisCluster | None = None
 _unavailable = False
@@ -88,7 +88,7 @@ def is_enabled() -> bool:
 
     Returns True before the first connection is ever attempted, so it cannot be
     used to decide whether streaming will actually work. Use is_available() for
-    that — see the note there for what goes wrong otherwise.
+    that. See the note there for what goes wrong otherwise.
     """
     return bool(settings.VALKEY_HOST) and not _unavailable
 
@@ -100,8 +100,8 @@ async def is_available() -> bool:
     produces the least debuggable failure this system has. `/chat` decides
     between dispatching a turn to a worker and running it inline. If that
     decision is made on configuration alone, then a builder pod that cannot
-    reach Valkey will still publish to Pub/Sub — the worker picks the turn up,
-    runs it, bills OpenRouter and commits it to Postgres, all perfectly — while
+    reach Valkey will still publish to Pub/Sub, the worker picks the turn up,
+    runs it, bills OpenRouter and commits it to Postgres, all perfectly, while
     the pod holding the browser connection has no way to read the events back.
     The user gets an empty response, and nothing in either pod's log says why,
     because nothing failed.
@@ -109,7 +109,7 @@ async def is_available() -> bool:
     Checking reachability first means that pod falls back to inline streaming
     instead: the turn still works, it just isn't durable across a disconnect.
 
-    Cheap after the first call — get_client() caches the client, and the
+    Cheap after the first call. Get_client() caches the client, and the
     unavailable latch means a broken deployment pays one timeout per process
     rather than one per request.
     """
@@ -120,7 +120,7 @@ async def get_client() -> Redis | RedisCluster | None:
     """Return the shared client, or None if Valkey is unconfigured/unreachable.
 
     For ordinary, short commands. Anything issuing a blocking command (XREAD
-    BLOCK, BLPOP) must use get_blocking_client() instead — see the note on
+    BLOCK, BLPOP) must use get_blocking_client() instead. See the note on
     BLOCKING_READ_TIMEOUT_S for what this client's socket timeout does to one.
 
     Connects lazily on first use rather than at import, so that merely importing
@@ -189,7 +189,7 @@ async def _connect(*, socket_timeout: float) -> Redis | RedisCluster | None:
         # 128 either way. XREAD BLOCK parks a connection for the whole block
         # duration, so the pool ceiling is really the SSE fan-in ceiling: every
         # browser tailing a turn on this pod holds one. The default (roughly 2^31
-        # in redis-py, bounded in practice by the OS) is not the problem — being
+        # in redis-py, bounded in practice by the OS) is not the problem. Being
         # explicit here is, so that a future reduction is a deliberate act.
         if settings.VALKEY_CLUSTER:
             client: Redis | RedisCluster = RedisCluster(max_connections=128, **common)
@@ -202,7 +202,7 @@ async def _connect(*, socket_timeout: float) -> Redis | RedisCluster | None:
         # is the recovery path, and on GKE that is what a rollout does anyway.
         _unavailable = True
         logger.exception(
-            "Valkey unreachable at %s:%s — turn streaming and chat buffering are "
+            "Valkey unreachable at %s:%s. Turn streaming and chat buffering are "
             "disabled for the life of this process; /chat falls back to inline "
             "streaming (turns will not survive client disconnect).",
             settings.VALKEY_HOST,

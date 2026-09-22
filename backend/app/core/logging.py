@@ -87,7 +87,7 @@ class JsonFormatter(logging.Formatter):
                 payload[key] = value
 
         # default=str so a UUID/Decimal/datetime in an `extra` can't kill the
-        # log line — same guard the SSE encoder uses.
+        # log line. Same guard the SSE encoder uses.
         return json.dumps(payload, default=str)
 
 
@@ -104,7 +104,7 @@ def configure_logging(level: str | None = None) -> None:
     root.setLevel(level or os.getenv("LOG_LEVEL", "INFO").upper())
 
     # uvicorn installs its own text handlers at startup. Clear them and let the
-    # records propagate to root, otherwise every access line is emitted twice —
+    # records propagate to root, otherwise every access line is emitted twice,
     # once as JSON, once as plain text.
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         uvicorn_logger = logging.getLogger(name)

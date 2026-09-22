@@ -81,7 +81,7 @@ def filter_new_names(
     drop in-sweep repeats and anything already in the catalog or review queue,
     preserving order, then cap.
 
-    Exact-on-normalized only — deliberately weaker than match_item(). Fuzzy
+    Exact-on-normalized only: deliberately weaker than match_item(). Fuzzy
     would skip candidates *before* any extraction happens, and WRatio scores a
     new SKU against its predecessor right at the 90 threshold ("RTX 5080 Super"
     vs "RTX 5080"), so a fuzzy pre-filter would silently discard exactly the

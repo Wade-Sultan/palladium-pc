@@ -1,7 +1,7 @@
 """Scheduled job entrypoint: `python -m app.jobs.telemetry_drain`.
 
 Backstop for the build-telemetry write-behind buffer. In the normal case
-turn_runner drains it at the end of every turn, so this finds nothing — its
+turn_runner drains it at the end of every turn, so this finds nothing. Its
 reason to exist is the cases turn_runner cannot cover:
 
   - a worker that was SIGTERM'd between the recorder's buffer write and the
@@ -48,7 +48,7 @@ async def run() -> int:
         if written == 0:
             # Either the buffer is empty or the batch was entirely duplicates
             # that have now been trimmed. Either way there is no progress to be
-            # made by looping harder — drain_pending never raises, so a real
+            # made by looping harder. Drain_pending never raises, so a real
             # failure has already been logged.
             break
         total += written

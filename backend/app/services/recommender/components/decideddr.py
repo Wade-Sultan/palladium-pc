@@ -17,7 +17,7 @@ class DDRSelection(dspy.Signature):
 
     This is a platform-level decision that constrains CPU and motherboard
     selection downstream. Pick the generation that gives the best value for
-    the user's actual workload — not just the newest option.
+    the user's actual workload, not just the newest option.
 
     Consider:
     - DDR4: cheaper RAM and motherboards, still perfectly capable for gaming
@@ -49,12 +49,12 @@ class DDRSelection(dspy.Signature):
     )
     reconsideration_threshold: str = dspy.OutputField(
         desc="One sentence stating when the other DDR generation becomes worth considering. "
-        "Be specific — mention a dollar figure or use-case change."
+        "Be specific: mention a dollar figure or use-case change."
     )
 
 
 class DecideDDR(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideDDR"
     signature_version = 1
@@ -99,7 +99,7 @@ def optimize(
         - reason (str)             ← optional, used by metric
         - reconsideration_threshold (str)  ← optional, used by metric
 
-    The metric follows GEPA's protocol — (gold, pred, trace, pred_name,
+    The metric follows GEPA's protocol: (gold, pred, trace, pred_name,
     pred_trace) returning dspy.Prediction(score, feedback). The feedback text is
     what GEPA reflects on to rewrite this instruction; a bare float reduces it
     to random search.

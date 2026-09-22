@@ -19,7 +19,7 @@ export interface RecommendedPart {
   model: string
   /**
    * PER UNIT, in cents. The line total is approx_price * quantity. Null when
-   * the catalog has no price for the part — a custom build resolves this from
+   * the catalog has no price for the part: a custom build resolves this from
    * the DB (see chat_pipeline._assemble_dspy_build), and a part whose group
    * carries no street price comes through unpriced rather than as zero.
    */
@@ -77,7 +77,7 @@ export interface CaseOption {
 /**
  * The case picker's wire shape. `chosen` is null while the pipeline is
  * waiting; once set (by the user's pick or the timeout fallback) the picker is
- * closed — including on history replays, which only ever see the closed state.
+ * closed, including on history replays, which only ever see the closed state.
  */
 export interface CaseOptionsData {
   token: string

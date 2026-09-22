@@ -6,9 +6,7 @@ class Part(TypedDict, total=False):
     brand: str
     model: str
     approx_price: int
-    part_id: (
-        str  # stringified UUID — JSON-serializable, matches the frontend's contract
-    )
+    part_id: str  # stringified UUID: JSON-serializable, matches the frontend's contract
     amazon_url: str | None
 
 
@@ -18,7 +16,7 @@ class Build(TypedDict):
     total_approx: int
     max_resolution: (
         int | None
-    )  # 1080 / 1440 / 2160 — vertical pixel floor this build satisfies
+    )  # 1080 / 1440 / 2160: vertical pixel floor this build satisfies
     parts: list[dict[str, Any]]  # Part fields + component-type spec fields for seeding
 
 

@@ -4,8 +4,8 @@ WHY THIS IS HAND-WRITTEN RATHER THAN `langgraph-checkpoint-redis`. That package
 stores checkpoints as RedisJSON documents and finds them through a RediSearch
 index queried by thread_id/checkpoint_ns/checkpoint_id. Memorystore for Valkey
 blocks MODULE LOAD outright, so neither module can be present. Memorystore for
-Redis Cluster 8.0+ looks like a way out — it has native JSON and exposes
-FT.CREATE — but its search is a vector engine wearing RediSearch's command
+Redis Cluster 8.0+ looks like a way out, it has native JSON and exposes
+FT.CREATE, but its search is a vector engine wearing RediSearch's command
 names: a VECTOR field is required, only HASH keys can be indexed (not JSON), and
 tag/numeric predicates are documented as unusable except alongside a vector
 query. That is exactly the standalone metadata lookup the package performs, so
@@ -27,7 +27,7 @@ TWO TIERS, DIFFERENT JOBS.
 Hydration runs one way: a Valkey miss for a real conversation reads Postgres and
 warms Valkey back up. A Postgres miss is simply a new conversation.
 
-KEY LAYOUT mirrors app/services/turn_stream.py — `{thread_id}` is a cluster hash
+KEY LAYOUT mirrors app/services/turn_stream.py. `{thread_id}` is a cluster hash
 tag, not formatting, so a conversation's checkpoints, buffer and event stream all
 hash to one slot. Prod is Cluster Mode Disabled today and slots are irrelevant
 there; the tags cost nothing and keep a later move to a clustered instance a
@@ -62,7 +62,7 @@ from app.core.valkey import get_client
 logger = logging.getLogger(__name__)
 
 # Bumped only if the on-disk shape below changes incompatibly. A row written by
-# an older version is discarded rather than misread — losing a checkpoint costs
+# an older version is discarded rather than misread. Losing a checkpoint costs
 # one re-asked question, misreading one corrupts a build.
 MIRROR_VERSION = 1
 
@@ -87,7 +87,7 @@ def _is_conversation_id(thread_id: str) -> bool:
     """Whether this thread maps to a persisted conversation.
 
     Guest turns get a scratch thread id (`turn:<uuid4>`) that has no
-    Conversation row and never should — so they must not trigger a Postgres
+    Conversation row and never should, so they must not trigger a Postgres
     lookup on every miss, and must not be mirrored on the way out.
     """
     try:
@@ -116,7 +116,7 @@ class AsyncValkeySaver(BaseCheckpointSaver[int]):
 
     # -- serialization ----------------------------------------------------
     # serde.dumps_typed returns (type_tag, bytes). The Valkey client runs with
-    # decode_responses=True, so raw bytes cannot survive a round trip — base64
+    # decode_responses=True, so raw bytes cannot survive a round trip: base64
     # and a JSON envelope keep every value a str.
 
     def _encode(self, value: Any) -> dict[str, str]:
@@ -210,7 +210,7 @@ class AsyncValkeySaver(BaseCheckpointSaver[int]):
             fields: dict[str, str] = {}
             for idx, (channel, value) in enumerate(writes):
                 # Negative indices are the special channels in WRITES_IDX_MAP
-                # (error, interrupt, resume). Those are upserts — a retry must
+                # (error, interrupt, resume). Those are upserts. A retry must
                 # overwrite the previous attempt's error. Ordinary writes at a
                 # non-negative index are append-once, so an already-present
                 # field is left alone, which is what makes a redelivered task
@@ -263,7 +263,7 @@ class AsyncValkeySaver(BaseCheckpointSaver[int]):
 
         # Valkey had nothing (TTL expired, instance flushed, or unreachable).
         # A real conversation may still have its last checkpoint in Postgres.
-        # Only for the latest — an explicit checkpoint_id is asking for a
+        # Only for the latest. An explicit checkpoint_id is asking for a
         # specific point in history, which the mirror does not keep.
         if get_checkpoint_id(config) is None and _is_conversation_id(thread_id):
             return await self._hydrate_from_postgres(thread_id, ns)
@@ -393,7 +393,7 @@ class AsyncValkeySaver(BaseCheckpointSaver[int]):
         """Rebuild the latest checkpoint from the conversations mirror.
 
         Pending writes are deliberately not mirrored, so what comes back is a
-        completed checkpoint with none attached — enough to resume the
+        completed checkpoint with none attached. Enough to resume the
         conversation on a NEW turn, which is the case this tier exists for.
         Resuming mid-node is Valkey's job, and inside its TTL.
         """
@@ -457,7 +457,7 @@ class AsyncValkeySaver(BaseCheckpointSaver[int]):
         """Render a checkpoint tuple for the conversations.graph_checkpoint column.
 
         JSONB rather than BYTEA so the column stays readable in psql during a
-        post-mortem — the serialized halves are base64 inside it, but the
+        post-mortem. The serialized halves are base64 inside it, but the
         version, namespace and id are plain.
         """
         return {

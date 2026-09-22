@@ -30,7 +30,7 @@ _API = "https://huggingface.co/api"
 _TIMEOUT = 20.0
 
 # The Hub's pipeline_tag is the closest thing to a family discriminator it
-# publishes. Anything unmapped is skipped rather than guessed at — a model
+# publishes. Anything unmapped is skipped rather than guessed at. A model
 # staged under the wrong family would be matched against the wrong workloads.
 _PIPELINE_TO_FAMILY: dict[str, str] = {
     "text-generation": "llm",
@@ -112,7 +112,7 @@ def _params_billions(detail: dict, hub_id: str) -> float | None:
     safetensors.total is summed from the real weight index, so it is the only
     non-marketing parameter count available anywhere. It is absent for models
     published in other formats (GGUF-only repos, older .bin checkpoints), which
-    is the one case where falling back to the name is better than nothing —
+    is the one case where falling back to the name is better than nothing,
     the name is where the number came from originally.
     """
     total = (detail.get("safetensors") or {}).get("total")
@@ -153,7 +153,7 @@ def _display_name(hub_id: str) -> str:
     """Human-facing name from a Hub id: the repo half, dashes to spaces.
 
     "meta-llama/Llama-3.1-70B-Instruct" -> "Llama 3.1 70B Instruct". Kept
-    deliberately mechanical — this is the reviewer's editable default in the
+    deliberately mechanical. This is the reviewer's editable default in the
     approval form, not a final answer, and a cleverer transform would just be
     a second thing to disagree with the Hub about.
     """
@@ -161,7 +161,7 @@ def _display_name(hub_id: str) -> str:
 
 
 def _slug(hub_id: str) -> str:
-    """ai_models.slug is unique, and so is a Hub id — derive one from the other
+    """ai_models.slug is unique, and so is a Hub id. Derive one from the other
     so re-discovering a model can never mint a second slug for it."""
     return re.sub(r"[^a-z0-9]+", "-", hub_id.lower()).strip("-")
 
@@ -175,7 +175,7 @@ def _to_hub_model(detail: dict) -> HubModel | None:
     family = _PIPELINE_TO_FAMILY.get(detail.get("pipeline_tag") or "")
     if family is None:
         logger.debug(
-            "hf discovery: skipping %s — unmapped pipeline_tag %r",
+            "hf discovery: skipping %s: unmapped pipeline_tag %r",
             hub_id,
             detail.get("pipeline_tag"),
         )
@@ -196,7 +196,7 @@ def _to_hub_model(detail: dict) -> HubModel | None:
     fields = {k: v for k, v in fields.items() if v is not None}
 
     # Every field came from one JSON document, so provenance is uniform. The
-    # snippet names the API field rather than quoting prose — there is no prose
+    # snippet names the API field rather than quoting prose. There is no prose
     # to quote, and "which key did this come from" is what a reviewer checking
     # a Hub-sourced value actually wants to know.
     provenance = {
@@ -277,7 +277,7 @@ async def list_trending(hint: str | None, limit: int) -> list[HubModel]:
 
     Sorted by trending score rather than downloads, the opposite of
     search_models and for the opposite reason. Downloads are cumulative, so
-    that ranking returns the same established models every month — useless to
+    that ranking returns the same established models every month: useless to
     a sweep. Trending surfaces recent releases, which is what the hardware
     sweeps get from their "officially launched" search terms.
     """

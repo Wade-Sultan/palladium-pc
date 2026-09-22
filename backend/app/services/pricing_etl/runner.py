@@ -38,7 +38,7 @@ class _Target:
     id: uuid.UUID
     queries: list[str]
     # MSRP, when the target has one, as an absolute plausibility anchor for the
-    # price stats. Only pc_parts carry msrp_cents — the group tables don't — so
+    # price stats. Only pc_parts carry msrp_cents, the group tables don't, so
     # this is None for every grouped kind (see stats.compute_stats).
     anchor_cents: int | None = None
 
@@ -46,7 +46,7 @@ class _Target:
 async def _build_batch(db, limit: int, low_priority_allowed: bool) -> list[_Target]:
     """Oldest-checked-first across every priced type. High-priority types
     (cpu/gpu/motherboard/ram/storage) are always eligible; low-priority types
-    (cooler/case/psu/fan) drop out once the month's quota runs low — see
+    (cooler/case/psu/fan) drop out once the month's quota runs low. See
     quota.low_priority_allowed."""
     targets: list[_Target] = []
 
@@ -88,7 +88,7 @@ async def _check_target(
 
     # Every result is recorded, with the reason it was or wasn't used.
     # candidate_prices is the subset that survived title filtering, and
-    # candidate_rows is that same subset by reference into scored_results — so
+    # candidate_rows is that same subset by reference into scored_results, so
     # the stats layer's own rejections (outliers, the MSRP band) can be written
     # back onto the stored row by index.
     scored_results: list[dict] = []
@@ -123,8 +123,8 @@ async def _check_target(
             candidate_rows[idx]["included_in_stats"] = False
             candidate_rows[idx]["exclusion_reason"] = reason
 
-    # The median of the trimmed sample, not the mean of everything that matched
-    # — see stats.py for why. None when too few results survived to trust one.
+    # The median of the trimmed sample, not the mean of everything that matched.
+    # See stats.py for why. None when too few results survived to trust one.
     applied_cents = price_stats.applied_cents if price_stats else None
 
     await crud.record_price_check(
@@ -164,7 +164,7 @@ async def _check_target(
 
 
 async def run() -> None:
-    """The pipeline entrypoint. Never raises — mirrors discovery/runner.py's
+    """The pipeline entrypoint. Never raises: mirrors discovery/runner.py's
     _run: any failure lands in the run row's status/error_detail."""
     async with AsyncSessionLocal() as db:
         run_row = await crud.create_run(db)

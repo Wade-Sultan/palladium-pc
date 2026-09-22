@@ -8,14 +8,14 @@ WHY THIS RUNS OFFLINE RATHER THAN NEEDING A COLLECTION CAMPAIGN. module_decision
 stores `candidate_set` as a verbatim JSONB snapshot of exactly what the model was
 shown, plus the chosen name and the input state. The appropriateness metrics are
 pure functions of those, so every build already recorded can be scored right
-now — the eval set is the production history.
+now. The eval set is the production history.
 
 READ THE COVERAGE REPORT BEFORE THE SCORES. The metrics degrade rather than fail
 when a signal is missing, and two signals arrived recently:
 
-  * `perf_score` on candidate rows — added when scoring.py landed. Decisions
+  * `perf_score` on candidate rows: added when scoring.py landed. Decisions
     recorded before then have candidate sets without it.
-  * requirement floors (min_vram_gb, min_cores) — these come from catalog_match
+  * requirement floors (min_vram_gb, min_cores). These come from catalog_match
     resolving what the user named, which needs embeddings backfilled AND the
     user to have named something matchable.
 
@@ -99,7 +99,7 @@ def _score_row(decision: ModuleDecision) -> Appropriateness | None:
     budget = _slot_budget(decision.input_state, budget_keys)
     # The floors the decision was actually made under, snapshotted at decision
     # time. NULL on rows written before migration e3f4a5b6c7d8, and on any build
-    # where the user named nothing matchable — both leave sufficiency unmeasured
+    # where the user named nothing matchable: both leave sufficiency unmeasured
     # and reported as a missing signal rather than fabricated as passing.
     context = context_from_requirements(
         decision.catalog_requirements, slot_budget_usd=budget
@@ -209,7 +209,7 @@ def _report(rows: list[tuple[ModuleDecision, Any]], worst_n: int) -> dict:
         out_of_set = sum(1 for r in results if r.detail.get("out_of_set"))
         if out_of_set:
             print(
-                f"\n    {out_of_set} out-of-set pick(s) — the model named a part that\n"
+                f"\n    {out_of_set} out-of-set pick(s). The model named a part that\n"
                 f"    was not in its candidate list. These score 0 and are worth\n"
                 f"    fixing before optimizing anything else."
             )

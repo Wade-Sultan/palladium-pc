@@ -22,7 +22,7 @@ import { stepMessage } from "./pipeline-steps"
  * `build` hangs off the message that produced it rather than sitting in a
  * top-level slot. A conversation can contain several builds, and a single slot
  * both loses the older ones and re-attaches the survivor to whichever assistant
- * message happens to be last — so asking a follow-up after a build dragged the
+ * message happens to be last, so asking a follow-up after a build dragged the
  * card down onto the reply.
  */
 export interface ChatMessageState {
@@ -50,18 +50,18 @@ export const initialAgentState: ChatAgentState = {
 const NEVER_JOIN = { joinStrategy: "none" } as const
 
 /**
- * `toThreadMessages` does the assistant-ui bookkeeping — ids, statuses, message
- * metadata — that a hand-built `ThreadMessageLike[]` does not satisfy. This
+ * `toThreadMessages` does the assistant-ui bookkeeping, ids, statuses, message
+ * metadata, that a hand-built `ThreadMessageLike[]` does not satisfy. This
  * callback only has to say what each message *is*.
  *
  * The BuildCard is rendered by `makeAssistantDataUI({name: "build"})`, which
- * looks for a data part of that name — the same shape `ConversationLoader`
+ * looks for a data part of that name. The same shape `ConversationLoader`
  * rebuilds from persisted metadata, so BuildCard itself is untouched.
  *
  * ONE BUBBLE PER TURN. `convertExternalMessages` starts a new thread message
  * only when it sees a user or system message, so by default it concatenates a
  * run of consecutive assistant messages into a single bubble. Every other turn
- * here is answering something the user typed, so that default is invisible —
+ * here is answering something the user typed, so that default is invisible,
  * except after a case pick, which is a click on a card and therefore carries no
  * user message. The picker's turn and the turn that finishes the build are two
  * adjacent assistant messages, and joining them rendered the whole thing as one
@@ -151,7 +151,7 @@ export function createConverter() {
     metadata: AssistantTransportConnectionMetadata,
   ) => {
     // Optimistic echo: commands the runtime has queued but not yet sent. This
-    // covers only the gap before the request goes out — once the first state
+    // covers only the gap before the request goes out: once the first state
     // operation lands, the runtime drops these and the server's copy of the
     // same message takes over (see `_append_pending` in transport.py).
     const renderable: ChatMessageState[] = [
@@ -167,7 +167,7 @@ export function createConverter() {
       isRunning: metadata.isSending,
       // Re-exposed so the transition layer can read messages and pipeline back
       // out. Cast because the option is typed as plain JSON and ChatAgentState
-      // is an interface without an index signature; the value really is JSON —
+      // is an interface without an index signature; the value really is JSON,
       // it round-trips to the server on every request.
       state: state as unknown as ReadonlyJSONValue,
     }
@@ -178,7 +178,7 @@ export function createConverter() {
  * The progress line, resolved through the local copy table.
  *
  * `step` is the stable identifier and the server's `message` is only a fallback
- * for steps this build has not been taught yet — so wording changes stay a
+ * for steps this build has not been taught yet, so wording changes stay a
  * frontend deploy. See pipeline-steps.ts.
  */
 export function pipelineMessage(state: ChatAgentState): string | null {

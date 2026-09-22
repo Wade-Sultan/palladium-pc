@@ -6,7 +6,7 @@ import (
 )
 
 // The builders must render their embedded templates without error and
-// address the right recipient — a broken template should fail in CI, not on
+// address the right recipient. A broken template should fail in CI, not on
 // the first signup in prod.
 func TestMessageBuilders(t *testing.T) {
 	tests := []struct {
@@ -123,12 +123,12 @@ func TestBranding(t *testing.T) {
 func TestNoEmDashes(t *testing.T) {
 	for name, msg := range allMessages(t) {
 		t.Run(name, func(t *testing.T) {
-			for _, bad := range []string{"—", "&mdash;", "&#8212;"} {
+			for _, bad := range []string{"\u2014", "&mdash;", "&#8212;"} {
 				if strings.Contains(msg.HTML, bad) {
 					t.Errorf("HTML contains an em-dash (%s)", bad)
 				}
 			}
-			if strings.Contains(msg.Text, "—") {
+			if strings.Contains(msg.Text, "\u2014") {
 				t.Error("plain-text body contains an em-dash")
 			}
 		})
@@ -217,8 +217,8 @@ func TestPriceAlertWithoutURL(t *testing.T) {
 	}
 }
 
-// The pricing ETL's alerts have no marketplace — its price is a median across
-// retailers — so the "at <retailer>" clause must disappear rather than render
+// The pricing ETL's alerts have no marketplace, its price is a median across
+// retailers, so the "at <retailer>" clause must disappear rather than render
 // as a dangling "at ." in either body.
 func TestPriceAlertWithoutMarketplace(t *testing.T) {
 	a := sampleAlert()
@@ -274,7 +274,7 @@ func TestListingFailureDigestMessage(t *testing.T) {
 	}
 }
 
-// One part is "1 part", not "1 parts" — this lands in an inbox daily, so the
+// One part is "1 part", not "1 parts". This lands in an inbox daily, so the
 // grammar is worth the branch.
 func TestListingFailureDigestSingular(t *testing.T) {
 	d := sampleDigest()
@@ -292,7 +292,7 @@ func TestListingFailureDigestSingular(t *testing.T) {
 	}
 }
 
-// An empty digest must not render as "0 parts" — it should not be sent at all,
+// An empty digest must not render as "0 parts". It should not be sent at all,
 // and a caller that got here without rows has a bug.
 func TestListingFailureDigestRejectsAnEmptyReport(t *testing.T) {
 	d := sampleDigest()
@@ -325,7 +325,7 @@ func TestFormatMoney(t *testing.T) {
 	}
 }
 
-// Send must be a silent no-op with no API key — the prod path when the
+// Send must be a silent no-op with no API key. The prod path when the
 // resend-api-key secret is absent or empty.
 func TestSendDisabled(t *testing.T) {
 	c := New("", "Palladium <noreply@palladiumtech.ai>")

@@ -4,7 +4,7 @@ THE FAILURE THIS EXISTS TO CATCH IS SILENT. langchain-openrouter surfaces
 OpenRouter's real `cost` on non-streaming responses but drops it when streaming
 (chat_models.py emits the usage chunk with token counts alone). Two of the three
 chat call sites stream, so if the generation-id lookup ever stops working,
-nothing errors — `conversations.total_cost_usd` simply stops growing, and the
+nothing errors. `conversations.total_cost_usd` simply stops growing, and the
 first sign is a billing figure that disagrees with OpenRouter's dashboard weeks
 later.
 

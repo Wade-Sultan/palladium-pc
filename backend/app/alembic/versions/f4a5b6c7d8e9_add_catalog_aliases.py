@@ -1,7 +1,7 @@
 """add aliases to the games, software and ai_models catalogs
 
 Users do not type published titles. They type "R6", "Siege", "Val", "Tarkov",
-"Resolve", "SD" — community names that appear nowhere in the catalog row, and
+"Resolve", "SD": community names that appear nowhere in the catalog row, and
 therefore nowhere in the text app/services/embeddings/text.py embeds. A vector
 search for "R6" against "Rainbow Six Siege. competitive fps video game." only
 resolves if the embedding model happens to have learned that association, and
@@ -11,8 +11,8 @@ The failure is silent and expensive: catalog_match finds nothing above its
 distance cutoff, the build proceeds with no hardware floors attached, and
 nothing anywhere reports that a title the user named went unrecognised.
 
-WHY ALL THREE TABLES IN ONE MIGRATION. The problem is identical across them —
-"Resolve" for DaVinci Resolve, "SD" for Stable Diffusion — the column is the
+WHY ALL THREE TABLES IN ONE MIGRATION. The problem is identical across them,
+"Resolve" for DaVinci Resolve, "SD" for Stable Diffusion, the column is the
 same, and the alternative is running this migration twice more later.
 
 NOT NULL WITH AN EMPTY DEFAULT, matching software.use_case_tags rather than
@@ -22,14 +22,14 @@ null check from every builder and query that touches it.
 
 NO INDEX, DELIBERATELY. The lookup in catalog_match normalizes both sides
 (lowercase, trimmed) before comparing, so a GIN index on the raw array would not
-be usable by that query — it would be an index that looks like a guarantee and
+be usable by that query. It would be an index that looks like a guarantee and
 delivers a sequential scan anyway. These catalogs hold hundreds to low thousands
 of rows, where that scan is genuinely free. Add a real index when the query plan
 says to, not before.
 
 THIS CHANGES EVERY EMBEDDING FOR THESE TYPES. The text builders now include
 aliases, so the content hashes move and the next reconcile sweep re-embeds every
-game, software and AI model row that has one — by design, that is exactly how a
+game, software and AI model row that has one, by design, that is exactly how a
 source-text change is meant to propagate (see the note at the top of
 embeddings/text.py). Rows with no aliases hash identically to before and are
 skipped, so the cost is proportional to how many rows actually get filled in.

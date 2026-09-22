@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Environment-independent shape only. Anything that differs between local and
-# GKE — replica counts, DB endpoint, ingress class, resource ceilings — belongs
+# GKE, replica counts, DB endpoint, ingress class, resource ceilings, belongs
 # in an overlay, never here.
 #
 # Note: labels are metadata only (includeSelectors defaults to false). Adding
@@ -14,7 +14,7 @@ labels:
     # Managed OpenTelemetry selects PODS, not Deployments. Without this the
     # label lands on Deployment metadata only, the Instrumentation CR in
     # deploy/observability.md §4d matches nothing, OTEL_EXPORTER_OTLP_ENDPOINT
-    # is never injected, and tracing.py quietly skips the Google exporter —
+    # is never injected, and tracing.py quietly skips the Google exporter,
     # with a green deploy and no error anywhere.
     #
     # Distinct from includeSelectors, which stays off for the reason above:

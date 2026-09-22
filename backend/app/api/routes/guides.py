@@ -18,7 +18,7 @@ async def list_guide_videos(
     """Published guide videos in the order set in the admin panel.
 
     Public and unauthenticated. The catalog is small and curated, so it is
-    returned whole — the page filters client-side.
+    returned whole: the page filters client-side.
     """
     result = await db.execute(
         select(GuideVideo)

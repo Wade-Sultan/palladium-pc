@@ -73,7 +73,7 @@
 }
 
 /* Blog editor (Tiptap). The admin has no typography plugin, so the editing
-   surface gets its own minimal prose styles — enough to make structure legible
+   surface gets its own minimal prose styles: enough to make structure legible
    while writing. The public site renders the same Markdown with its own styles. */
 .prose-editor {
   font-size: 0.9375rem;

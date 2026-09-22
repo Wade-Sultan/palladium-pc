@@ -481,7 +481,7 @@ _CATALOG: list[dict] = [
                 "min_storage_gb": 10,
                 "gpu_backends": ["cuda"],
                 "assumptions": {"clip_seconds": 30, "batch_size": 1},
-                "notes": "Generation is autoregressive over audio tokens — far "
+                "notes": "Generation is autoregressive over audio tokens. Far "
                 "heavier than ASR at similar parameter counts.",
             },
         ],
@@ -520,7 +520,7 @@ _CATALOG: list[dict] = [
             "name": "PPO (Gymnasium)",
             "slug": "ppo-gymnasium",
             "family": "rl",
-            "developer": "—",
+            "developer": "-",
             "license": "mit",
             "website_url": "https://gymnasium.farama.org",
             "notes": "Stands in for on-policy RL training loops (Stable-Baselines3, "

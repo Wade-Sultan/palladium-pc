@@ -143,7 +143,7 @@ const ThreadSuggestionItem: FC = () => {
 }
 
 const Composer: FC = () => {
-  // The Enter path. The Send button is guarded separately in ComposerAction —
+  // The Enter path. The Send button is guarded separately in ComposerAction,
   // see the note on useSecretCodeInterceptor for why both are needed.
   const interceptSecretCode = useSecretCodeInterceptor()
 
@@ -230,7 +230,7 @@ const AssistantMessage: FC = () => {
   // operation sets both messages (see `_begin_assistant_turn` in transport.py).
   const isFirstTurn = useAuiState((s) => s.thread.messages.length <= 2)
   const siteMode = useSiteMode()
-  // Once per mounted message, never per render — `pickStatusMessage` is random,
+  // Once per mounted message, never per render. `pickStatusMessage` is random,
   // and this component re-renders on every token that arrives.
   //
   // Sampling the mode at mount rather than tracking it is safe because the mode
@@ -324,15 +324,15 @@ const AssistantActionBar: FC = () => {
  * NOT ActionBarPrimitive.Reload, and not a raw transport command. Both look
  * like they should work and neither does:
  *
- *   Reload    `useAssistantTransportRuntime` has no `onReload` option — unlike
- *             `capabilities.edit` there is nothing to opt into — so the
+ *   Reload    `useAssistantTransportRuntime` has no `onReload` option, unlike
+ *             `capabilities.edit` there is nothing to opt into, so the
  *             external-store core's `startRun` throws "Runtime does not support
  *             reloading messages." The primitive is not capability gated, so it
  *             renders a button that silently does nothing.
  *
  *   sendCommand  `useAssistantTransportSendCommand` only enqueues the command.
- *             The request body's top-level `parentId` — the ONLY thing that
- *             makes the server rewind rather than append — comes from a ref
+ *             The request body's top-level `parentId`, the ONLY thing that
+ *             makes the server rewind rather than append, comes from a ref
  *             that only the onNew/onEdit paths write. A hand-rolled
  *             `add-message` carrying its own parentId therefore appends, which
  *             would duplicate the user's message instead of retrying it.
@@ -356,7 +356,7 @@ const RetryButton: FC = () => {
   // button silently never renders at all.
   //
   // A number, not an object. useAuiState is useSyncExternalStore, which
-  // compares snapshots with Object.is — a selector returning a fresh object
+  // compares snapshots with Object.is: a selector returning a fresh object
   // every call re-renders forever. Everything else this needs is read
   // imperatively in the handler, where reactivity buys nothing.
   const userIndex = useAuiState((s) => {
@@ -388,7 +388,7 @@ const RetryButton: FC = () => {
 
         // NOT the edit composer. `DefaultEditComposerRuntimeCore.handleSend`
         // guards its append with `if (text !== this._previousText)`, so an edit
-        // that changes nothing is discarded and only `handleCancel()` runs —
+        // that changes nothing is discarded and only `handleCancel()` runs,
         // the composer opens and closes and no request is ever made. That is
         // precisely the flicker-and-nothing-happens symptom, and it means
         // "retry as a no-op edit" cannot work through the composer at all.
@@ -397,7 +397,7 @@ const RetryButton: FC = () => {
         // so this reaches the same place with the guard skipped. Passing a
         // parentId that is not the thread's tail is what routes it to `onEdit`
         // rather than `onNew` (see external-store-thread-runtime-core), and
-        // onEdit is the path that sets the runtime's parentIdRef — which is the
+        // onEdit is the path that sets the runtime's parentIdRef, which is the
         // only reason the request body carries a parentId and the server
         // rewinds instead of appending. See `rewind_prefix` in
         // backend/app/services/transport.py.
@@ -405,19 +405,19 @@ const RetryButton: FC = () => {
           role: "user",
           content: [{ type: "text", text }],
           // The message's own recorded parent rather than arithmetic on the
-          // array — this is exactly what the edit composer passes.
+          // array. This is exactly what the edit composer passes.
           //
           // EXCEPT for the first message, whose parent is null, and null must
           // not be passed here. `toAppendMessage` resolves parentId with
           // `message.parentId ?? messages.at(-1)?.id`, and `??` treats null as
-          // absent — so a null parent silently becomes the thread's TAIL, which
+          // absent, so a null parent silently becomes the thread's TAIL, which
           // routes to onNew and appends a duplicate user message instead of
           // retrying. Retrying the first turn would corrupt the thread.
           //
           // "-1" is the parent of message 0 in an index-keyed scheme, and the
           // ids here are array indices (rewind_prefix documents this: the
           // converter labels each message with its position). The server does
-          // `keep = int(parentId) + 1`, so "-1" keeps nothing — identical to
+          // `keep = int(parentId) + 1`, so "-1" keeps nothing: identical to
           // the null case it cannot receive, and non-null so `??` preserves it.
           parentId: message.parentId ?? "-1",
           sourceId: message.id,
@@ -469,7 +469,7 @@ const UserActionBar: FC = () => {
 
 const EditComposer: FC = () => {
   // Both submit paths again, and `aui.composer()` inside this subtree resolves
-  // to THIS message's edit composer rather than the thread's — so clearing the
+  // to THIS message's edit composer rather than the thread's, so clearing the
   // code clears the edit box, not the message box below.
   //
   // WHAT MAKES CANCEL STILL RESTORE THE ORIGINAL. Entering a code here clears

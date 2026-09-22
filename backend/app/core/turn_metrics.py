@@ -1,14 +1,14 @@
 """Domain metrics for chat turns, separate from HTTP instrumentation.
 
-app/core/metrics.py instruments the *framework* — request rates, latencies,
-in-flight counts — which is the same set any FastAPI service would want. These
+app/core/metrics.py instruments the *framework*, request rates, latencies,
+in-flight counts, which is the same set any FastAPI service would want. These
 are about what a turn does, and most of them only ever move on the worker.
 
 WHY THESE FOUR. Each one exists to answer a question that the HTTP metrics
 cannot, because the work no longer happens inside a request:
 
   turn_commits_total{result}   Did the turn reach Postgres? A failed commit is
-                               invisible from the API side — the user saw their
+                               invisible from the API side: the user saw their
                                build, the stream terminated normally, and only
                                this counter and a retained buffer record that
                                nothing was written.
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 
-# `result` is a bounded label with exactly three values — never the exception
+# `result` is a bounded label with exactly three values, never the exception
 # text, which would mint a series per distinct error message.
 TURN_COMMITS = Counter(
     "palladium_turn_commits_total",

@@ -4,7 +4,7 @@ payload, now that a state can carry several GPUs, drives and fans.
 
 The arithmetic is the point. approx_price is per unit (matching
 pc_build_parts.price_at_build), so a total that forgets the multiplier
-under-reports a four-GPU build by three cards — a silent four-figure error in
+under-reports a four-GPU build by three cards. A silent four-figure error in
 a number the user is asked to spend against.
 """
 
@@ -99,7 +99,7 @@ def test_single_part_build_is_unchanged(db):
 
 def test_four_gpus_are_one_line_priced_four_times(db):
     """Identical cards collapse to one row with a quantity, mirroring
-    BuildPart — but the total still counts all four."""
+    BuildPart, but the total still counts all four."""
     one = _build(_state(), db)["total_approx"]
     four = _build(_state(gpu_count=4), db)["total_approx"]
 
@@ -113,7 +113,7 @@ def test_four_gpus_are_one_line_priced_four_times(db):
 
 def test_multiple_drives_are_separate_lines(db):
     """Storage members differ from each other, so they are distinct rows rather
-    than a quantity — the same split BuildPart makes."""
+    than a quantity. The same split BuildPart makes."""
     build = _build(_state(storage_names=["WD SN850X 2TB", "Seagate Exos 16TB"]), db)
     drives = _by_component(build, "Storage")
     assert [d["model"] for d in drives] == ["WD SN850X 2TB", "Seagate Exos 16TB"]

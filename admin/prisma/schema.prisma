@@ -47,7 +47,7 @@ model PcPart {
 
 // A listing targets exactly one of: a part, or one of the four part groups.
 // The DB enforces that with ck_listings_one_target (see the Alembic migration
-// e5a7c9b1d3f5) — Prisma cannot express "exactly one of these five", so a
+// e5a7c9b1d3f5): Prisma cannot express "exactly one of these five", so a
 // write that sets two or none fails at the database rather than here.
 //
 // Group targeting is for eBay, whose listings are filtered search URLs: one
@@ -114,7 +114,7 @@ model AmazonListing {
   @@map("amazon_listings")
 }
 
-// Component groups — intrinsic spec shared across every purchasable variant of
+// Component groups: intrinsic spec shared across every purchasable variant of
 // the same part. Standalone tables (no pc_parts row / price / listings); each
 // exact PcPart subtype FKs its group.
 
@@ -235,7 +235,7 @@ model Cpu {
   pcieGeneration    Int?     @map("pcie_generation")
   maxMemoryGb       Int?     @map("max_memory_gb")
   series            String?
-  // Server/workstation platform spec — what separates a Threadripper or Xeon
+  // Server/workstation platform spec: what separates a Threadripper or Xeon
   // from a desktop part. Nullable means "not recorded", not "no".
   pcieLanes         Int?     @map("pcie_lanes")
   memoryChannels    Int?     @map("memory_channels")
@@ -382,7 +382,7 @@ model Fan {
 }
 
 // pc_builds and pc_build_parts are managed by the backend (Alembic).
-// role/status are native Postgres enums (build_component_role, build_status) — mapped
+// role/status are native Postgres enums (build_component_role, build_status). Mapped
 // to real Prisma enums below so Prisma casts writes correctly instead of sending text.
 enum BuildComponentRole {
   cpu
@@ -543,7 +543,7 @@ enum BuildSessionStatus {
   @@map("build_session_status")
 }
 
-// DSPy recommender telemetry — one row per pipeline run (the GEPA cohort).
+// DSPy recommender telemetry: one row per pipeline run (the GEPA cohort).
 // Populated once the component pipeline is wired to a live route.
 model BuildSession {
   id                         String             @id @db.Uuid
@@ -565,7 +565,7 @@ model BuildSession {
   @@map("build_sessions")
 }
 
-// One row per Decide* call — the GEPA training example.
+// One row per Decide* call: the GEPA training example.
 model ModuleDecision {
   id               String       @id @db.Uuid
   sessionId        String       @map("session_id") @db.Uuid
@@ -598,7 +598,7 @@ model Game {
   id                String   @id @default(uuid()) @db.Uuid
   title             String   @unique
   slug              String   @unique
-  /// Community names users type: "R6", "Siege". Curated here by hand — the
+  /// Community names users type: "R6", "Siege". Curated here by hand: the
   /// build pipeline matches chat text against these before falling back to
   /// vector search, and re-embeds the row when they change.
   aliases           String[]
@@ -770,7 +770,7 @@ model SoftwareMinimumPart {
 
 // --- AI catalog ---
 // One AiModel row per catalog model; one AiWorkload row per
-// (model x task x precision) cell — see backend app/models/ai_catalog.py.
+// (model x task x precision) cell. See backend app/models/ai_catalog.py.
 
 model AiModel {
   id             String   @id @default(uuid()) @db.Uuid
@@ -824,7 +824,7 @@ model AiWorkload {
   @@map("ai_workloads")
 }
 
-// Parts-discovery staging — managed by the backend (Alembic); mirror only,
+// Parts-discovery staging: managed by the backend (Alembic); mirror only,
 // never prisma migrate. The partial unique index on discovered_items
 // (category, name_normalized) WHERE review_status='pending' is not
 // expressible in Prisma and lives only in the DB.
@@ -872,7 +872,7 @@ model DiscoveredItem {
   fieldProvenance      Json         @map("field_provenance")
   extractionConfidence Json?        @map("extraction_confidence")
   sourceUrls           String[]     @map("source_urls")
-  // Plain uuid fields, not relations — keeps PcPart/GpuChipset free of
+  // Plain uuid fields, not relations. Keeps PcPart/GpuChipset free of
   // discovery back-relations; the queue page resolves names itself.
   matchedPartId        String?      @map("matched_part_id") @db.Uuid
   matchedChipsetId     String?      @map("matched_chipset_id") @db.Uuid

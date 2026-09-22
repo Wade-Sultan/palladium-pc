@@ -8,7 +8,7 @@ persists nothing, so something has to declare them on every boot.
 USES THE APP'S OWN CLIENT LIBRARY, not gcloud or raw REST. The point of running
 an emulator at all is to exercise the real publish/subscribe path, and the parts
 most likely to be wrong are the ones the app depends on and the emulator only
-partly implements — message ordering above all. Creating the subscription
+partly implements: message ordering above all. Creating the subscription
 through google-cloud-pubsub means a gap shows up here, at bootstrap, with a
 clear error, rather than as turns silently running out of order later.
 
@@ -20,7 +20,7 @@ subscription takes. Rather than trimming the request down to the lowest common
 denominator, this asks for production's exact configuration first and falls back
 one field at a time, printing what it lost. A local subscription missing its
 dead-letter policy is fine; one missing message ordering is not, and that is the
-one case here that fails outright instead of degrading — two turns in a
+one case here that fails outright instead of degrading. Two turns in a
 conversation running out of order is precisely the bug local testing exists to
 catch.
 """
@@ -60,7 +60,7 @@ def _wait_for_emulator(publisher: pubsub_v1.PublisherClient, attempts: int = 30)
         try:
             list(publisher.list_topics(request={"project": f"projects/{PROJECT}"}))
             return
-        except Exception as exc:  # noqa: BLE001 — any failure here means "not up yet"
+        except Exception as exc:  # noqa: BLE001. Any failure here means "not up yet"
             last = exc
             print(f"emulator not ready (attempt {n}/{attempts}): {type(exc).__name__}")
             time.sleep(2)
@@ -93,7 +93,7 @@ def _create_subscription(
         # NOT optional, and not a nicety. Two turns published for one
         # conversation must run in order or the second reads a history the first
         # has not finished writing. A real subscription cannot have this added
-        # after creation either — it is delete-and-recreate there too.
+        # after creation either. It is delete-and-recreate there too.
         "enable_message_ordering": ordered,
         "ack_deadline_seconds": ACK_DEADLINE_S,
     }
@@ -109,7 +109,7 @@ def _create_subscription(
         (full, None),
         (
             {k: v for k, v in full.items() if k != "dead_letter_policy"},
-            "emulator rejected dead_letter_policy — a poison turn will redeliver "
+            "emulator rejected dead_letter_policy. A poison turn will redeliver "
             "here instead of dead-lettering. Prod still DLQs it.",
         ),
     ):
@@ -129,7 +129,7 @@ def _create_subscription(
             # Ordering is the one field with no acceptable fallback.
             raise SystemExit(
                 f"emulator could not create subscription {name}: {exc.message}\n"
-                "Message ordering is required — without it a conversation's turns "
+                "Message ordering is required, without it a conversation's turns "
                 "can run out of order, which is the class of bug this local "
                 "environment exists to catch."
             ) from exc
@@ -149,7 +149,7 @@ def main() -> int:
 
     # CLOSED EXPLICITLY, in a finally. Both clients hold gRPC channels with
     # non-daemon background threads, and an interpreter that has finished main()
-    # still waits on those at shutdown — so without this the Job sits in Running
+    # still waits on those at shutdown, so without this the Job sits in Running
     # for minutes after printing "complete". That is not merely untidy: Tilt and
     # `kubectl wait` treat the Job as incomplete for the whole delay, and the
     # worker (which resource_deps on it) starts against a subscription that does

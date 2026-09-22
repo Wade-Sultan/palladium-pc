@@ -4,8 +4,8 @@ metadata:
   name: builder-config
 # Only environment-independent values live here. The overlay patches in
 # ENVIRONMENT, POSTGRES_SERVER, POSTGRES_DB, FRONTEND_HOST,
-# BACKEND_CORS_ORIGINS and FIREBASE_PROJECT_ID. Anything carrying a credential
-# — POSTGRES_PASSWORD, POSTGRES_DB_URL (embeds the password), API keys — goes
+# BACKEND_CORS_ORIGINS and FIREBASE_PROJECT_ID. Anything carrying a credential,
+# POSTGRES_PASSWORD, POSTGRES_DB_URL (embeds the password), API keys, goes
 # in palladium-secrets.
 #
 # POSTGRES_DB is per-overlay on purpose: local is `palladium_local` and prod is
@@ -30,7 +30,7 @@ data:
   # emails sent (commerce is the only service holding RESEND_API_KEY). The bare
   # Service name resolves within the namespace, so this is the same in every
   # overlay. The shared secret that goes with it is COMMERCE_INTERNAL_KEY in
-  # palladium-secrets — commerce reads the same value as INTERNAL_API_KEY.
+  # palladium-secrets. Commerce reads the same value as INTERNAL_API_KEY.
   COMMERCE_INTERNAL_URL: "http://commerce"
   # Whether a price drop actually mails anyone. Off everywhere for now: the
   # pricing ETL still evaluates every subscription and logs what it would have

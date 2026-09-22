@@ -55,7 +55,7 @@ def decide(
     The alert marks a *crossing*, not merely a low price: the old price has to
     have been above the target and the new one at or below it. A part that was
     already under the customer's price when they subscribed has nothing to
-    announce — every subsequent wobble downward would otherwise read as "it
+    announce. Every subsequent wobble downward would otherwise read as "it
     reached your price!" about a price it reached before they asked.
 
     - threshold_cents set     -> fire when the price crosses it from above
@@ -78,7 +78,7 @@ def decide(
 
     old_cents = previous_cents if previous_cents is not None else baseline_cents
     if old_cents is None or old_cents <= new_cents:
-        # Reaching the target without falling is not a price drop — the price
+        # Reaching the target without falling is not a price drop: the price
         # rose into range from below, or never moved. Commerce rejects a
         # non-drop outright, so catching it here keeps that from looking like a
         # dispatch failure.
@@ -87,7 +87,7 @@ def decide(
     if threshold_cents is not None and old_cents <= threshold_cents:
         # Below the threshold before this run and below it after: a drop, but
         # not the crossing the customer asked about. Only checked for an
-        # explicit threshold — with none, the target *is* the subscribe-time
+        # explicit threshold, with none, the target *is* the subscribe-time
         # baseline, and "old is at the baseline and has now fallen under it" is
         # exactly the crossing that "any drop" means.
         return Decision(False, SKIP_ALREADY_BELOW)
@@ -150,14 +150,14 @@ async def process_target(
         outcome.fired += 1
 
         # The flag is the whole "infrastructure without users" posture: with it
-        # off, everything above still runs — the subscriptions are loaded, the
+        # off, everything above still runs, the subscriptions are loaded, the
         # decision is made, the run log shows exactly who would have been
-        # mailed — but nothing leaves the cluster and no row is retired, so
+        # mailed, but nothing leaves the cluster and no row is retired, so
         # flipping it on later alerts the same people it would have today.
         if not settings.PRICE_ALERTS_ENABLED:
             outcome.dry_run += 1
             logger.info(
-                "alerts: DRY RUN — would alert user %s about %s (%s): %s -> %s cents",
+                "alerts: DRY RUN. Would alert user %s about %s (%s): %s -> %s cents",
                 sub.user_id,
                 target_name or target_id,
                 target_kind,

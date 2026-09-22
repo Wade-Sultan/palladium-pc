@@ -5,7 +5,7 @@ DSPy StatusMessageProvider that emits user-facing progress messages for each
 component-selection module and for LM calls.
 
 Registered once per pipeline run via dspy.streamify().  Because it has no
-mutable state it can be a module-level singleton — streamify creates a fresh
+mutable state it can be a module-level singleton: streamify creates a fresh
 MemoryObjectSendStream per call, so concurrent requests stay isolated.
 """
 
@@ -34,11 +34,11 @@ class BuildStatusProvider(StatusMessageProvider):
     """
     Emits two levels of status messages:
 
-    1. module_start — fires when a Decide* module enters forward(), after the
+    1. module_start. Fires when a Decide* module enters forward(), after the
        candidate list has been assembled.  Includes a candidate count when the
        candidates field is a JSON array.
 
-    2. lm_start — fires just before the LLM call, so the user knows the AI
+    2. lm_start. Fires just before the LLM call, so the user knows the AI
        portion is running (the slow part).
 
     Inner modules (ChainOfThought, Predict) return None and are silently
@@ -55,7 +55,7 @@ class BuildStatusProvider(StatusMessageProvider):
         # with_callbacks builds `inputs` via inspect.getcallargs on
         # Module.__call__(self, *args, **kwargs), so our keyword-only calls
         # (candidates=..., use_cases=..., ...) land nested under "kwargs", not
-        # as top-level keys — inputs.get("candidates") was always None here.
+        # as top-level keys. Inputs.get("candidates") was always None here.
         call_kwargs = inputs.get("kwargs") or inputs
         candidates_raw = call_kwargs.get("candidates")
         if candidates_raw:

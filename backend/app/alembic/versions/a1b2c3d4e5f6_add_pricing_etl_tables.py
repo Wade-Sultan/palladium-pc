@@ -1,7 +1,7 @@
 """add the pricing ETL tables
 
 Creates pricing_runs (one row per Cloud Run Job execution, mirrors
-discovery_runs), price_checks (one row per part/group checked — raw SerpAPI
+discovery_runs), price_checks (one row per part/group checked: raw SerpAPI
 results plus computed stats, mirrors discovered_items), and serpapi_quota (a
 one-row-per-month search counter for the 1000/month budget). Also adds
 last_price_checked_at (rotation bookkeeping) to pc_parts and to the four group

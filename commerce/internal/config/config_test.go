@@ -31,7 +31,7 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 
 func TestLoad_DatabaseURLBypassesConnectorVars(t *testing.T) {
 	clearEnv(t)
-	// No INSTANCE_CONNECTION_NAME/DB_IAM_USER/DB_NAME — DATABASE_URL supplies them.
+	// No INSTANCE_CONNECTION_NAME/DB_IAM_USER/DB_NAME: DATABASE_URL supplies them.
 	t.Setenv("DATABASE_URL", "postgresql://palladium_app:pw@localhost:5433/palladium")
 
 	cfg, err := Load()

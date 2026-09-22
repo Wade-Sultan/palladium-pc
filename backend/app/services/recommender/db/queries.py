@@ -4,7 +4,7 @@ queries.py
 Fetches compatible part candidates via the CRUD layer and serializes them to
 JSON strings for DSPy module inputs.
 
-Each public function returns a JSON string — the format DSPy expects for the
+Each public function returns a JSON string: the format DSPy expects for the
 `candidates` input field.  The `_serialize_*` helpers control exactly what
 fields the LLM sees.  Price is always included; raw DB IDs are always excluded.
 """
@@ -28,7 +28,7 @@ def _price(part) -> float | None:
     return round(part.street_price_cents / 100, 2)
 
 
-# --- Serializers — one per component type. ------------------------------------
+# --- Serializers: one per component type. ------------------------------------
 
 
 def _serialize_cpu(p: CPU) -> dict:
@@ -44,12 +44,12 @@ def _serialize_cpu(p: CPU) -> dict:
         "ddr_gen": p.ddr_generation,
         "has_integrated_graphics": p.has_igpu,
         # Server-platform spec. Null on consumer parts, which is itself the
-        # signal — a server build needs the CPU that *has* these numbers.
+        # signal. A server build needs the CPU that *has* these numbers.
         "pcie_lanes": p.pcie_lanes,
         "memory_channels": p.memory_channels,
         "supports_ecc": p.supports_ecc,
         "street_price_usd": _price(p),
-        # Consumed by scoring.score_candidates and stripped there — the raw
+        # Consumed by scoring.score_candidates and stripped there: the raw
         # suite scores never reach the prompt, only the weighted perf_score
         # derived from them.
         "benchmark_scores": p.benchmark_scores,
@@ -103,7 +103,7 @@ def _serialize_gpu_chipset(g) -> dict:  # g: GPUChipset
         "tdp_w": g.tdp_watts,
         "has_ray_tracing": g.has_ray_tracing,
         "street_price_usd": _price(g),
-        # Stripped by scoring.score_candidates — see _serialize_cpu.
+        # Stripped by scoring.score_candidates. See _serialize_cpu.
         "benchmark_scores": g.benchmark_scores,
     }
 
@@ -142,7 +142,7 @@ def _serialize_psu_group(g) -> dict:  # g: PSUGroup
         "form_factor": g.form_factor,
         "modular": g.modular,
         # Wattage alone doesn't say whether a supply can physically feed four
-        # GPUs and a two-EPS workstation board — the connector counts do.
+        # GPUs and a two-EPS workstation board. The connector counts do.
         "pcie_8pin": g.pcie_8pin_connectors,
         "pcie_12pin": g.pcie_12pin_connectors,
         "pcie_16pin": g.pcie_16pin_connectors,
@@ -227,7 +227,7 @@ async def get_cpu_candidates(
     use_cases/answers default to None so every existing caller (and the DDR
     step's own summaries) keeps working; without them scoring falls back to the
     balanced default weights rather than being skipped, so the numbers are
-    still there — just not tilted toward a specific workload.
+    still there: just not tilted toward a specific workload.
     """
     parts = await crud.get_cpu_candidates(session, budget_ceiling_usd, preferences)
     rows = [_serialize_cpu(p) for p in parts]
@@ -240,7 +240,7 @@ async def get_cooler_candidates(
     cpu_tdp_w: int,
     cpu_socket: str,
     budget_ceiling_usd: int,
-    # ACCEPTED AND IGNORED — a known gap, not a leftover parameter.
+    # ACCEPTED AND IGNORED: a known gap, not a leftover parameter.
     # crud.get_cooler_candidates has no form-factor filter, so nothing narrows
     # the candidate set by size and an ITX build can be offered a cooler that
     # does not physically fit its case.
@@ -286,7 +286,7 @@ async def get_ram_candidates(
     resolved deterministically after the group is chosen.
 
     module_types comes from the chosen board and is a hard compatibility
-    filter, not a preference — see crud.get_ram_candidates."""
+    filter, not a preference. See crud.get_ram_candidates."""
     exacts = await crud.get_ram_candidates(
         session, ddr_gen, budget_ceiling_usd, module_types
     )

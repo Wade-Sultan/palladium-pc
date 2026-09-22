@@ -35,7 +35,7 @@ class BuildComponentRole(str, enum.Enum):
 
 class BuildStatus(str, enum.Enum):
     DRAFT = "draft"  # User is still in the configurator
-    RECOMMENDED = "recommended"  # Pipeline finished — parts selected
+    RECOMMENDED = "recommended"  # Pipeline finished. Parts selected
     PRICED = "priced"  # Amazon pricing pipeline has run
     FINALIZED = "finalized"  # User confirmed the build
     ORDERED = "ordered"  # Parts purchased (future)
@@ -60,7 +60,7 @@ REQUIRED_COMPONENT_BY_ROLE = {
 # These three are not arbitrary. A machine built to serve LLMs is defined by
 # hosting several GPUs; storage is routinely split (a fast NVMe boot drive plus
 # bulk capacity for weights and datasets); and fans are bought per case slot.
-# RAM is deliberately NOT here — a memory kit is already a multi-module product
+# RAM is deliberately NOT here. A memory kit is already a multi-module product
 # (ram_groups.modules), so a second RAM row would double-count rather than
 # describe a second thing.
 MULTI_INSTANCE_ROLES = frozenset(
@@ -72,7 +72,7 @@ MULTI_INSTANCE_ROLES = frozenset(
 )
 
 # SQL predicates derived from the set above so the constraints can never drift
-# from it. Sorted for a stable DDL string — an unsorted frozenset would make
+# from it. Sorted for a stable DDL string. An unsorted frozenset would make
 # the generated predicate vary between processes and look like schema drift.
 _MULTI_ROLE_VALUES = ", ".join(sorted(f"'{r.value}'" for r in MULTI_INSTANCE_ROLES))
 IS_MULTI_INSTANCE_ROLE_SQL = f"role IN ({_MULTI_ROLE_VALUES})"
@@ -109,7 +109,7 @@ class PCBuild(Base):
     total_price_cents = Column(
         Integer,
         nullable=True,
-        doc="Sum of all part LINE totals after the pricing pipeline runs — i.e. "
+        doc="Sum of all part LINE totals after the pricing pipeline runs: i.e. "
         "price_at_build * quantity per row, not a sum of unit prices (see "
         "BuildPart.line_total_cents)",
     )
@@ -253,7 +253,7 @@ class BuildPart(Base):
         Integer,
         nullable=True,
         doc="PER-UNIT part price in local cents at the time this build was "
-        "finalized. The line total is price_at_build * quantity — see "
+        "finalized. The line total is price_at_build * quantity. See "
         "line_total_cents. Per-unit rather than per-line so it stays "
         "comparable with pc_parts.street_price_cents, which is what it is "
         "snapshotted from.",
@@ -277,7 +277,7 @@ class BuildPart(Base):
     @property
     def line_total_cents(self) -> int | None:
         """What this row contributes to the build total. Exists so callers
-        summing a build can't quietly forget the quantity multiplier — the
+        summing a build can't quietly forget the quantity multiplier. The
         failure mode is a build that under-reports its own price."""
         if self.price_at_build is None:
             return None

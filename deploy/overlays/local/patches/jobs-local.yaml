@@ -1,7 +1,7 @@
 # The telemetry drain, sped up for a laptop.
 #
 # WHAT THIS IS NOT. It is not the path that gets build telemetry into Postgres
-# in the normal case — turn_runner drains the buffer at the end of every turn,
+# in the normal case: turn_runner drains the buffer at the end of every turn,
 # synchronously, before the stream's terminal entry is written. That is already
 # immediate and this schedule has no bearing on it.
 #
@@ -13,8 +13,8 @@
 #
 # Five minutes rather than every minute: each run starts a pod that imports the
 # backend, so a one-minute schedule spends real laptop CPU on a job that almost
-# always finds an empty buffer. A test should not wait even five minutes anyway
-# — trigger it directly and watch that Job instead:
+# always finds an empty buffer. A test should not wait even five minutes anyway:
+# trigger it directly and watch that Job instead:
 #
 #   kubectl create job --from=cronjob/telemetry-drain drain-now
 apiVersion: batch/v1

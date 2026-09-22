@@ -1,4 +1,4 @@
-# commerce calls firebase.NewApp() during server.New(), before it binds — with
+# commerce calls firebase.NewApp() during server.New(), before it binds, with
 # no Application Default Credentials the pod fails to start at all, not on first
 # request. builder's firebase_admin.initialize_app() has the same dependency.
 # Mirrors the .gcloud mount in docker-compose.dev.yml.
@@ -49,7 +49,7 @@ spec:
               mountPath: /var/run/gcp
               readOnly: true
 ---
-# admin only needs ADC lazily, for blog image uploads to GCS — unlike the two
+# admin only needs ADC lazily, for blog image uploads to GCS, unlike the two
 # above it starts fine without credentials, and only /api/blog/upload fails.
 # Mounted anyway so authoring a post locally behaves the same as in prod, where
 # the credentials come from Workload Identity instead.

@@ -165,7 +165,7 @@ async def set_feedback(
     user: dict = Depends(verify_firebase_token),
     db: AsyncSession = Depends(get_async_db),
 ) -> FeedbackOut:
-    """Record — or change — this user's thumbs up/down on a conversation's build.
+    """Record, or change, this user's thumbs up/down on a conversation's build.
 
     PUT rather than POST because it is idempotent and there is at most one of
     these per user per conversation: clicking thumbs-down twice leaves the same
@@ -179,7 +179,7 @@ async def set_feedback(
 
     # Resolve the client's build_key to a concrete pc_builds row. Falls back to
     # the conversation's own build_id when no key was sent (or the key is not a
-    # reference build), which keeps the rating attributable even then — a null
+    # reference build), which keeps the rating attributable even then. A null
     # build_id only costs the aggregate view, never the vote itself.
     build_id = conversation.build_id
     if body.build_key:
@@ -233,7 +233,7 @@ async def clear_feedback(
     user: dict = Depends(verify_firebase_token),
     db: AsyncSession = Depends(get_async_db),
 ) -> None:
-    """Withdraw a rating — what clicking an already-lit thumb does.
+    """Withdraw a rating. What clicking an already-lit thumb does.
 
     Deleting rather than storing a third "neutral" state: "rated then changed
     their mind" and "never rated" are the same thing to every question this

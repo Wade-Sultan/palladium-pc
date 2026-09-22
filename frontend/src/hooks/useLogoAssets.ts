@@ -9,14 +9,14 @@ import { type SiteMode, useSiteMode } from "@/hooks/useSiteMode"
  * Every logo the app draws, indexed by the two things that select one.
  *
  * TWO DIMENSIONS, NOT ONE. The wordmark has always varied with light/dark; it
- * now also varies with the site mode, and the two are independent — so the
+ * now also varies with the site mode, and the two are independent, so the
  * options are a 2x2 rather than a list. The icon varies with mode only: it is a
  * single-colour mark that reads on either background, which is why there is no
  * light/dark pair of it to choose between.
  *
  * Kept as a table rather than as string interpolation over the filenames on
- * purpose. The naming is not actually regular — "combined" becomes "special",
- * "palladium-logo" becomes "palladium-logo-special" — so a computed path would
+ * purpose. The naming is not actually regular, "combined" becomes "special",
+ * "palladium-logo" becomes "palladium-logo-special", so a computed path would
  * be a 404 discovered in production rather than a missing key discovered here.
  */
 const LOGO_ASSETS = {

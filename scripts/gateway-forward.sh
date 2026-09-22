@@ -2,7 +2,7 @@
 # 127.0.0.1:8081 → the Cilium Gateway. Replaces the old ingress-nginx forward.
 #
 # Why not `kubectl port-forward svc/cilium-gateway-palladium`: that Service is
-# selector-less — Cilium terminates it in eBPF, there are no backing pods to
+# selector-less. Cilium terminates it in eBPF, there are no backing pods to
 # attach to. Instead, relay to the Service's NodePort on the minikube node,
 # which also exercises the kube-proxy-replacement path end to end.
 #

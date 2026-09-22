@@ -3,7 +3,7 @@
 // backing the users and listings features.
 //
 // Same shared Postgres instance/schema as the Python "builder" service and
-// admin's Prisma client — schema changes are Alembic's responsibility
+// admin's Prisma client. Schema changes are Alembic's responsibility
 // (backend/app/alembic/); this package just reads/writes the tables it needs.
 package store
 
@@ -72,7 +72,7 @@ func New(ctx context.Context, cfg *config.Config) (*Store, error) {
 }
 
 // openDirect connects with the plain pgx database/sql driver over a standard
-// Postgres DSN — the local-dev path (cloud-sql-proxy on localhost:5433). It
+// Postgres DSN: the local-dev path (cloud-sql-proxy on localhost:5433). It
 // registers no connector driver, so cleanup is a no-op.
 func openDirect(dsn string) (*sql.DB, func() error, error) {
 	db, err := sql.Open("pgx", dsn)
@@ -203,7 +203,7 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*User, error)
 }
 
 // CreateUser inserts a Firebase-authenticated user. hashed_password has no
-// server default and no real meaning here — "!firebase_oauth" is the
+// server default and no real meaning here. "!firebase_oauth" is the
 // established sentinel (see backend/app/api/routes/chat.py::_save_turn) for
 // accounts that only ever authenticate via Firebase.
 func (s *Store) CreateUser(ctx context.Context, firebaseUID, email string) (*User, error) {
@@ -257,7 +257,7 @@ func (s *Store) DeleteUserByFirebaseUID(ctx context.Context, firebaseUID string)
 // columns are plain nullable fields here rather than a separate type.
 type Listing struct {
 	ID string
-	// Nil when the listing targets a group rather than one part — see
+	// Nil when the listing targets a group rather than one part. See
 	// partOrGroupMatchFmt and the ck_listings_one_target constraint.
 	PartID             *string
 	ListingType        string
@@ -289,7 +289,7 @@ const listingFromJoin = `FROM listings l LEFT JOIN amazon_listings a ON a.id = l
 
 // groupMatchByPartType maps a part_type to the one clause that finds its
 // group's listings. The keys are pc_parts.part_type values, which are
-// SQLAlchemy's polymorphic identities — note "ramkit" and "storagedrive"
+// SQLAlchemy's polymorphic identities. Note "ramkit" and "storagedrive"
 // rather than "ram" and "storage" (backend/app/models/pcparts.py).
 //
 // Only these four part types have a group. A CPU, motherboard, cooler, case or
@@ -310,7 +310,7 @@ var groupMatchByPartType = map[string]string{
 // partOrGroupMatch builds the predicate selecting the listings that apply to
 // one part: its own, plus its group's when it has one.
 //
-// An unknown part id yields the part-only predicate rather than an error —
+// An unknown part id yields the part-only predicate rather than an error,
 // it simply matches nothing, which is what a filter on a nonexistent part
 // should do. Callers that owe the caller a 404 (getListingsByPart) check
 // separately.
@@ -473,7 +473,7 @@ func (s *Store) GetListingsByPartID(ctx context.Context, partID string) ([]*List
 	return listings, rows.Err()
 }
 
-// CreateListingInput mirrors schemas/listing.py's AmazonListingCreate — the
+// CreateListingInput mirrors schemas/listing.py's AmazonListingCreate: the
 // only listing_type actually created in practice today.
 type CreateListingInput struct {
 	PartID       string
@@ -523,7 +523,7 @@ func (s *Store) CreateListing(ctx context.Context, in CreateListingInput) (*List
 	return s.GetListingByID(ctx, id)
 }
 
-// UpdateListingInput mirrors schemas/listing.py's ListingUpdate — all fields
+// UpdateListingInput mirrors schemas/listing.py's ListingUpdate. All fields
 // optional, only non-nil ones are applied.
 type UpdateListingInput struct {
 	URL                *string

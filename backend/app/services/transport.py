@@ -1,14 +1,14 @@
 """assistant-transport adapter: turn events become server-authoritative state.
 
 WHAT CHANGED, CONCEPTUALLY. The old SSE contract streamed *deltas* and left the
-browser to accumulate them — `model-adapter.ts` held `fullText`, pushed progress
+browser to accumulate them: `model-adapter.ts` held `fullText`, pushed progress
 into one Zustand store and the BuildCard into another, and re-yielded the whole
 content array on every token. assistant-transport inverts that: the server owns
 the state, mutations to `controller.state` are diffed and streamed, and the
 client renders whatever it is told.
 
 That inversion is what makes resume cheap. A reconnecting browser does not need
-to have kept anything, and the server does not need to know what it missed —
+to have kept anything, and the server does not need to know what it missed,
 replaying the turn's Valkey stream from the beginning rebuilds the same state,
 because `turn_stream.tail(turn_id, last_id="0")` was always able to replay from
 zero. The Last-Event-ID bookkeeping that used to exist on both sides is gone.
@@ -16,7 +16,7 @@ zero. The Last-Event-ID bookkeeping that used to exist on both sides is gone.
 SERVER-AUTHORITATIVE MEANS *ALL* OF IT, INCLUDING THE USER'S OWN MESSAGE. The
 runtime clears its optimistic echo of the message just typed as soon as the first
 state operation arrives, and it renders only what state says. So the message has
-to be put *into* state by this module — `_append_pending` does it, and
+to be put *into* state by this module. `_append_pending` does it, and
 `messages_from_state` then reads the whole conversation back out of one place.
 Leaving it out does not merely lose a bubble on screen: the thread renders empty
 and drops back to the welcome screen mid-send, and the next turn round-trips a
@@ -24,7 +24,7 @@ history with no user turns in it, so the elicitation model silently answers
 without ever seeing what was asked of it.
 
 OPERATIONS ARE DELTAS AGAINST THE CLIENT'S OWN STATE. `create_run(state=...)`
-does not transmit that state — the browser uses the state it POSTed as the base
+does not transmit that state. The browser uses the state it POSTed as the base
 and applies our ops on top (`AssistantMessageAccumulator`'s `initialMessage` is
 built from its own `agentStateRef`). Two consequences, both load-bearing:
 mutations have to go through `controller.state` so they emit ops, and the base
@@ -60,7 +60,7 @@ def _message(role: str, content: str = "") -> dict[str, Any]:
     `build` hangs off the message that produced it rather than sitting in a
     top-level slot. A conversation can contain several builds, and a top-level
     slot both loses the older ones and re-attaches the survivor to whichever
-    assistant message happens to be last — so asking a follow-up question after
+    assistant message happens to be last, so asking a follow-up question after
     a build would drag the card down onto the reply.
 
     `case_options` hangs off the message for the same reason: it is the case
@@ -73,7 +73,7 @@ def initial_state(messages: list[ChatMessage] | None = None) -> dict[str, Any]:
     """The state shape both ends agree on.
 
     `build` and `pipeline` are first-class state rather than side effects, which
-    is the substantive change from the SSE adapter — a resumed run reconstructs
+    is the substantive change from the SSE adapter: a resumed run reconstructs
     the BuildCard and the progress line for free, because they were never
     client-side accumulations to begin with.
     """
@@ -86,11 +86,11 @@ def initial_state(messages: list[ChatMessage] | None = None) -> dict[str, Any]:
 def ensure_shape(state: Any) -> dict[str, Any]:
     """Coerce whatever the client sent into the shape the drivers mutate.
 
-    The client round-trips state it was given, so this is normally a no-op — but
+    The client round-trips state it was given, so this is normally a no-op, but
     it is the boundary with a browser, and a missing `messages` list would fail
     deep inside the run with a KeyError rather than here.
 
-    CALL THIS ON THE PLAIN DICT, BEFORE `create_run` — never on a live
+    CALL THIS ON THE PLAIN DICT, BEFORE `create_run`, never on a live
     `controller.state`. That is a `StateProxy`, and its `__getitem__` returns
     further proxies rather than the underlying list, so `isinstance(messages,
     list)` reads False against a perfectly good message list and this function
@@ -119,7 +119,7 @@ def command_messages(commands: list[dict]) -> list[dict[str, Any]]:
     """The messages this request's `add-message` commands are asking us to add.
 
     Returned rather than folded into the state here, because they have to be
-    appended *through the controller* once the run starts — see the note on
+    appended *through the controller* once the run starts. See the note on
     deltas at the top of this module. Appending them to the plain dict
     beforehand would leave the client's copy without them and shift every
     subsequent message index by one.
@@ -139,7 +139,7 @@ def rewind_prefix(
 ) -> list[dict[str, Any]] | None:
     """The messages that survive an edit, or None to keep the whole history.
 
-    WHAT `parentId` IS. assistant-transport has no "edit" command — editing a
+    WHAT `parentId` IS. assistant-transport has no "edit" command. Editing a
     message sends the same `add-message` any send does, and the only thing that
     marks it as an edit is `parentId`: the id of the message the new one is
     being appended *after*. So replacing history rather than appending to it is
@@ -149,7 +149,7 @@ def rewind_prefix(
     message with its position (`fromThreadMessageLike(joined, idx.toString())`),
     and our converter emits exactly one message per state message, so index i in
     this list is id "i". Editing message i therefore arrives as parent "i-1",
-    and everything from i onward — the message and every turn it led to — is
+    and everything from i onward, the message and every turn it led to, is
     what the edit discards. A null parent means the first message was edited and
     nothing survives.
 
@@ -177,7 +177,7 @@ def rewind_prefix(
 def to_chat_messages(messages: Any) -> list[ChatMessage]:
     """Convert state messages into what the pipeline consumes.
 
-    Assistant messages with empty content are dropped — a turn cancelled
+    Assistant messages with empty content are dropped. A turn cancelled
     mid-stream leaves one behind, and feeding it back would show the extraction
     model a blank assistant reply.
     """
@@ -215,7 +215,7 @@ def _rewind(controller: RunController, keep: list[dict[str, Any]] | None) -> Non
     far along.
 
     A whole-list `set` rather than a removal because the op vocabulary is only
-    `set` and `append-text` — see assistant_stream/state.py. `keep` must be
+    `set` and `append-text`. See assistant_stream/state.py. `keep` must be
     plain values sliced from the request, never read back out of
     `controller.state`, whose `__getitem__` hands back further proxies.
     """
@@ -228,7 +228,7 @@ def _append_pending(controller: RunController, pending: list[dict[str, Any]]) ->
     """Put this turn's incoming messages into state, as operations.
 
     Through `controller.state` on purpose: that is what emits `set` ops the
-    browser can apply. It is also what keeps the user's message on screen — the
+    browser can apply. It is also what keeps the user's message on screen: the
     runtime drops its optimistic echo the moment the first operation lands.
     """
     for message in pending:
@@ -238,7 +238,7 @@ def _append_pending(controller: RunController, pending: list[dict[str, Any]]) ->
 def _begin_assistant_turn(controller: RunController, *, resuming: bool = False) -> int:
     """Open the assistant message this turn streams into, and return its index.
 
-    Appended up front so text can stream into it in place — assistant-stream
+    Appended up front so text can stream into it in place. Assistant-stream
     diffs the state tree, so mutating this dict is what produces token-by-token
     output on the client.
 
@@ -263,7 +263,7 @@ def _begin_assistant_turn(controller: RunController, *, resuming: bool = False) 
 def _apply_event(controller: RunController, index: int, event: dict) -> bool:
     """Map one pipeline event onto state. False means it was internal.
 
-    Shared by the streamed and inline drivers so the two cannot drift — they are
+    Shared by the streamed and inline drivers so the two cannot drift. They are
     the same contract reached by different routes, and a divergence would show up
     only on whichever path the test suite does not exercise.
     """
@@ -301,7 +301,7 @@ def _apply_case_options(
 
     Emitted twice, and by two different turns. The turn that pauses emits it
     open (`chosen` null) and it belongs to that turn's own message. The turn
-    the user's pick starts emits it resolved — and that one belongs to the
+    the user's pick starts emits it resolved, and that one belongs to the
     EARLIER message, the one showing the cards being clicked, not to the new
     message the finished build is streaming into.
 
@@ -332,7 +332,7 @@ async def stream_turn_into(
     """Drive a run's state from a turn's Valkey event stream.
 
     Always replays from the beginning by default. That is not laziness about
-    resumption — it is the mechanism: state snapshots are absolute, so rebuilding
+    resumption. It is the mechanism: state snapshots are absolute, so rebuilding
     from zero is both the first attach and the reconnect, with no delta
     bookkeeping to get wrong in either direction.
 
@@ -341,7 +341,7 @@ async def stream_turn_into(
     turn_runner writes one: a browser waiting on a stream that never terminates
     is worse than a visible error.
 
-    `controller.state` is assumed already shaped — see `ensure_shape`, which the
+    `controller.state` is assumed already shaped. See `ensure_shape`, which the
     route calls on the plain dict before handing it to `create_run`.
     """
     # Before the append, so the pending message lands at the index the rewound
@@ -371,7 +371,7 @@ async def stream_turn_into(
             # which means no worker ever wrote to this stream. Indistinguishable
             # from a normal finish except by having produced nothing.
             logger.warning(
-                "transport reader for turn %s saw no events — no worker wrote "
+                "transport reader for turn %s saw no events: no worker wrote "
                 "to this stream. Check the worker Deployment and that both pods "
                 "point at the same Valkey.",
                 turn_id,
@@ -403,7 +403,7 @@ async def run_turn_inline_into(
     """Drive a run directly from the pipeline, with no Valkey in between.
 
     The local-development and no-Valkey path. It is the only chat path exercised
-    in the test suite and on a laptop, so it has to keep working — but it is not
+    in the test suite and on a laptop, so it has to keep working, but it is not
     a production mode: the turn dies with this request, which is precisely what
     dispatch exists to prevent.
 

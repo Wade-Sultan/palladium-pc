@@ -31,7 +31,7 @@ router = APIRouter(tags=["price-subscriptions"])
 # are recorded and evaluated, and no mail leaves the cluster.
 #
 # Every target the client names is a pc_parts id, because that is the only
-# identifier a build carries — resolve_price_target redirects the grouped types
+# identifier a build carries: resolve_price_target redirects the grouped types
 # to the row the ETL actually prices, so what gets stored is always watchable.
 
 
@@ -174,8 +174,8 @@ async def list_price_subscriptions(
     return out
 
 
-# How many parts one lookup will resolve. A build card asks about its own parts
-# — eight or so — and the cap is here so a hand-written URL cannot turn one
+# How many parts one lookup will resolve. A build card asks about its own parts,
+# eight or so, and the cap is here so a hand-written URL cannot turn one
 # request into an unbounded fan-out of per-target queries.
 _LOOKUP_LIMIT = 40
 
@@ -193,7 +193,7 @@ async def lookup_price_targets(
     is filled in only for a signed-in caller, so the same request serves the
     shared-build page and the chat.
 
-    Parts that resolve to nothing — unpriced, or an exact with no group — are
+    Parts that resolve to nothing, unpriced, or an exact with no group, are
     omitted rather than returned empty. The card hides the bell for those,
     which is better than offering an alert that could never fire.
     """
@@ -206,7 +206,7 @@ async def lookup_price_targets(
             ids.append(uuid.UUID(raw))
         except ValueError:
             # A build can carry "" for a name the catalog never resolved. Skip
-            # it — one unresolvable part is not a bad request for the rest.
+            # it. One unresolvable part is not a bad request for the rest.
             continue
         if len(ids) >= _LOOKUP_LIMIT:
             break
@@ -285,8 +285,8 @@ async def get_target_subscriber_count(
 ) -> TargetSubscriberCount:
     """How many people are watching one part.
 
-    Unauthenticated because it is an aggregate over a public catalog entry —
-    the same reason listing reads are public — and it identifies nobody.
+    Unauthenticated because it is an aggregate over a public catalog entry,
+    the same reason listing reads are public, and it identifies nobody.
     """
     active, total = await crud.get_counts(db, target_kind, target_id)
     return TargetSubscriberCount(

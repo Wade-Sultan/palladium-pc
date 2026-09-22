@@ -5,9 +5,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 
 /**
  * Path that PostHog traffic is relayed through. Kept in sync with
- * POSTHOG_HOST in src/lib/analytics.ts — the rewrites below are the server
- * half of that setting, and changing one without the other silently drops
- * every event.
+ * POSTHOG_HOST in src/lib/analytics.ts. The rewrites below are the server half
+ * of that setting, and changing one without the other silently drops every
+ * event.
  *
  * Deliberately not PostHog's suggested "/ingest": that literal string is now
  * itself a blocklist entry in several filter lists, which defeats the point of
@@ -24,7 +24,7 @@ const NextConfig = {
   /**
    * PostHog's API endpoints end in a trailing slash (`/e/`, `/flags/`). Next's
    * default is to 308-redirect those to the slashless form, which turns every
-   * capture into a redirect PostHog's client does not follow — events vanish
+   * capture into a redirect PostHog's client does not follow, so events vanish
    * with no error anywhere.
    *
    * The cost is that this is a global switch: `/about/` no longer redirects to
@@ -38,8 +38,8 @@ const NextConfig = {
    *
    * The page files behind them call `redirect()`, but those routes are
    * statically prerendered, so that redirect resolves in the browser after
-   * hydration rather than over HTTP — the server answers 200 with the whole
-   * app shell first. Two costs: every visitor downloads and hydrates a page
+   * hydration rather than over HTTP: the server answers 200 with the whole app
+   * shell first. Two costs: every visitor downloads and hydrates a page
    * they are about to leave, and the analytics tags in the root layout mount
    * while the URL is still `/`, racing the redirect. Whichever wins decides
    * whether the visit is attributed to `/` or `/build/new`, so entry-page data
@@ -68,8 +68,8 @@ const NextConfig = {
 
   async rewrites() {
     return [
-      // Order matters — Next matches sequentially, and the catch-all below
-      // would otherwise swallow the asset routes. Static assets and the
+      // Order matters, because Next matches sequentially and the catch-all
+      // below would otherwise swallow the asset routes. Static assets and the
       // snippet array live on a different origin from the ingestion API.
       {
         source: `${POSTHOG_RELAY_PATH}/static/:path*`,

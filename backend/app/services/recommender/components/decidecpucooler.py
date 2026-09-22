@@ -24,7 +24,7 @@ class CoolerSelection(dspy.Signature):
     cpu_name: str = dspy.InputField(desc="The chosen CPU (drives TDP expectations)")
     cpu_tdp_w: int = dspy.InputField(desc="CPU TDP in watts")
     budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on cooler in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on cooler in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     candidates: str = dspy.InputField(
         desc="JSON list of compatible coolers. Fields: name, type, max_tdp_w, "
@@ -42,7 +42,7 @@ class CoolerSelection(dspy.Signature):
 
 
 class DecideCPUCooler(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideCPUCooler"
     signature_version = 1

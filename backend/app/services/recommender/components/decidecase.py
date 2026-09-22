@@ -23,7 +23,7 @@ class CaseOptions(dspy.Signature):
         desc="Required motherboard form factor support"
     )
     budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on case in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on case in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     candidates: str = dspy.InputField(
         desc="JSON list of compatible cases. Fields: name, size, supported_mobo_sizes, "
@@ -31,18 +31,18 @@ class CaseOptions(dspy.Signature):
         "street_price_usd"
     )
 
-    option_1: str = dspy.OutputField(desc="Best value pick — exact product name")
+    option_1: str = dspy.OutputField(desc="Best value pick: exact product name")
     option_1_reason: str = dspy.OutputField(desc="One sentence.")
-    option_2: str = dspy.OutputField(desc="Alternative pick — exact product name")
+    option_2: str = dspy.OutputField(desc="Alternative pick: exact product name")
     option_2_reason: str = dspy.OutputField(desc="One sentence.")
     option_3: str = dspy.OutputField(
-        desc="Third option (different size or style) — exact product name"
+        desc="Third option (different size or style): exact product name"
     )
     option_3_reason: str = dspy.OutputField(desc="One sentence.")
 
 
 class DecideCase(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     # output_name_field is the primary (best-value) option; user picks later.
     signature_name = "DecideCase"

@@ -1,13 +1,13 @@
 """listings can target a part group, not just one part
 
 An eBay listing is a filtered search URL, and a search for "RTX 3090" is right
-for every partner board of that chipset — there is nothing board-specific in it
+for every partner board of that chipset. There is nothing board-specific in it
 to get wrong. Before this, one had to be entered per pc_parts row, which meant
 re-entering the same URL for each board and missing every board added later.
 
 A listing now points at exactly one of five things: a part, or one of the four
 groups the catalog already models (gpu_chipsets, psu_groups, ram_groups,
-storage_groups — the same groups that carry street_price_cents for the same
+storage_groups: the same groups that carry street_price_cents for the same
 reason). The CHECK constraint enforces "exactly one", so a row cannot mean two
 things or nothing.
 
@@ -51,7 +51,7 @@ _ONE_TARGET = " + ".join(f"({c} IS NOT NULL)::int" for c in TARGET_COLUMNS) + " 
 
 def upgrade():
     # part_id stops being mandatory, but only in the sense that another target
-    # may take its place — the CHECK below still requires one of the five.
+    # may take its place: the CHECK below still requires one of the five.
     op.alter_column(
         "listings", "part_id", existing_type=UUID(as_uuid=True), nullable=True
     )
@@ -75,7 +75,7 @@ def upgrade():
     # Resolving a part's listings now reads the subtype table that holds its
     # group id, so commerce needs those four tables as well as the ones it
     # already had. This grant lives in the migration rather than the role
-    # runbook because it is this migration's query that creates the need —
+    # runbook because it is this migration's query that creates the need,
     # split them up and the read path 500s with "permission denied for table
     # gpus" the moment the new commerce build ships.
     #

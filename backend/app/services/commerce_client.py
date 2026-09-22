@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Builder -> commerce calls.
 #
 # Commerce owns transactional email (internal/email, Resend) and is the only
-# service holding RESEND_API_KEY — see the per-service secret scoping in
+# service holding RESEND_API_KEY. See the per-service secret scoping in
 # deploy/overlays/prod/patches/secrets-scoped.yaml. Rather than duplicate that
 # credential and the templates into the builder image, the builder asks
 # commerce to send.
@@ -31,13 +31,13 @@ _ALERT_PATH = "/internal/v1/price-alerts"
 _DIGEST_PATH = "/internal/v1/listing-failure-digest"
 _TIMEOUT_S = 15.0
 # The digest queries and renders before it sends, and a large backlog makes
-# both slower — it gets its own, longer budget rather than widening the one
+# both slower. It gets its own, longer budget rather than widening the one
 # every call uses.
 _DIGEST_TIMEOUT_S = 60.0
 
 
 class CommerceError(RuntimeError):
-    """A call to commerce did not succeed. Callers treat this as retryable —
+    """A call to commerce did not succeed. Callers treat this as retryable,
     the pricing ETL leaves the subscription active and tries again next run."""
 
 
@@ -68,7 +68,7 @@ async def send_price_alert(
     genuinely accepted.
 
     marketplace and url are optional because the ETL's price is a market-wide
-    median across retailers, not one listing — commerce renders the message
+    median across retailers, not one listing: commerce renders the message
     without the "at <retailer>" clause and without the CTA button when they are
     absent. They exist for a future alert sourced from a specific listing.
     """
@@ -91,8 +91,8 @@ async def trigger_listing_failure_digest() -> dict:
     """Ask commerce to mail the operator about parts the listings API could not
     produce a listing for, and to mark those parts reported.
 
-    Commerce owns the whole operation — it holds the email credential, the
-    templates, and the same database the failures are recorded in — so this is
+    Commerce owns the whole operation, it holds the email credential, the
+    templates, and the same database the failures are recorded in, so this is
     a trigger, not a data transfer: nothing about the failures crosses the wire
     in either direction. The trigger lives out here because commerce runs more
     than one replica, and an in-process timer would send one digest per pod.

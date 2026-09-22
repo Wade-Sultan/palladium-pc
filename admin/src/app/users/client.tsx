@@ -112,7 +112,7 @@ export function UserTable({ data }: { data: User[] }) {
   const columns: ColumnDef<User>[] = [
     { accessorKey: 'email', header: 'Email', enableSorting: true },
     { accessorKey: 'username', header: 'Username', enableSorting: true,
-      cell: ({ getValue }) => getValue<string | null>() ?? '—' },
+      cell: ({ getValue }) => getValue<string | null>() ?? '-' },
     { accessorKey: 'createdAt', header: 'Joined', enableSorting: true,
       cell: ({ getValue }) => formatDate(getValue<Date>()) },
     { accessorKey: 'isActive', header: 'Active',

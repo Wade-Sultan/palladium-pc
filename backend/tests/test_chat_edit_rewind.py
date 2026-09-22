@@ -4,9 +4,9 @@ WHY THIS NEEDS A TEST AT THE HTTP BOUNDARY. assistant-transport has no "edit"
 command. An edit arrives as exactly the same `add-message` any send does, and
 the only thing distinguishing it is a sibling `parentId` field naming the
 message the new one goes after. So "this is an edit" is a server-side inference
-from one field, and every guard around it — the alias that field parses under,
+from one field, and every guard around it, the alias that field parses under,
 the absent-versus-null distinction, the refusal to rewind on a parent that does
-not resolve — is load bearing in a way that unit-testing `rewind_prefix` alone
+not resolve, is load bearing in a way that unit-testing `rewind_prefix` alone
 would not catch. The dangerous failure is silent and destructive: read a normal
 send as an edit and the turn deletes the conversation it was appending to.
 """
@@ -47,8 +47,8 @@ class Dispatches:
     """The chat route with its dispatch captured instead of reaching Pub/Sub.
 
     Only the published payload is asserted on. It is written before streaming
-    begins, so the response body — which would otherwise read a Valkey stream
-    nobody is writing to — never has to be consumed.
+    begins, so the response body, which would otherwise read a Valkey stream
+    nobody is writing to, never has to be consumed.
     """
 
     def __init__(self, client: TestClient) -> None:
@@ -128,7 +128,7 @@ def test_an_ordinary_send_does_not_rewind(dispatches) -> None:
     """The runtime sends parentId on every turn, not just edits.
 
     A normal send names the last message as its parent, which resolves to "keep
-    everything" — so the flag must come out False or every turn would tell the
+    everything", so the flag must come out False or every turn would tell the
     worker to start deleting.
     """
     dispatches.post(
@@ -176,7 +176,7 @@ def test_the_unaliased_spelling_does_not_rewind(dispatches) -> None:
 
     The field parses under its alias only, so an unaliased `parent_id` leaves it
     None. But `extra` is "allow", so that key is kept as an extra and its name
-    joins `model_fields_set` — making a set-ness test alone read this body as
+    joins `model_fields_set`. Making a set-ness test alone read this body as
     "parent is null, keep nothing" and delete the history it meant to append to.
     Any value at all triggers it, including one that would never resolve to an
     index, so the unresolvable-parent guard below is no protection either.
@@ -239,13 +239,13 @@ def test_rewind_prefix_treats_minus_one_as_the_parent_of_the_first_message() -> 
     THE RETRY BUTTON DEPENDS ON THIS and cannot express it any other way. It
     re-runs a turn by calling the runtime's `append` with the parent of the user
     message being retried, but assistant-ui's `toAppendMessage` resolves
-    `message.parentId ?? messages.at(-1)?.id` — and `??` treats null as absent.
+    `message.parentId ?? messages.at(-1)?.id`, and `??` treats null as absent.
     A null parent would therefore be rewritten to the thread's TAIL, which
     routes to onNew and appends a duplicate message instead of retrying.
 
     So retrying the first turn sends "-1" instead: one before index 0, non-null
     so it survives `??`, and `keep = int(parent) + 1 = 0` here. Note "-2" is in
-    the declining case above — only exactly one before the start is meaningful.
+    the declining case above. Only exactly one before the start is meaningful.
     """
     messages = _state("a", "b", "c", "d")["messages"]
     assert transport.rewind_prefix(messages, "-1") == []

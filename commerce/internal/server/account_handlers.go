@@ -80,7 +80,7 @@ func (h *handlers) syncAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Welcome email only for genuinely new rows — not re-syncs or rows that
+	// Welcome email only for genuinely new rows, not re-syncs or rows that
 	// existed before (auto-provisioned by builder's chat pipeline) and just
 	// got their firebase_uid linked.
 	if created {
@@ -92,7 +92,7 @@ func (h *handlers) syncAccount(w http.ResponseWriter, r *http.Request) {
 // deleteAccount replaces DELETE /users/me. Conversations cascade at the DB
 // level; a user who still owns a PCBuild gets a clean 409 instead of the 500
 // the old Python route would raise (pc_builds.owner_id has no ondelete
-// clause) — a small, deliberate improvement bundled into this port.
+// clause): a small, deliberate improvement bundled into this port.
 func (h *handlers) deleteAccount(w http.ResponseWriter, r *http.Request) {
 	token, ok := FirebaseTokenFromContext(r.Context())
 	if !ok {

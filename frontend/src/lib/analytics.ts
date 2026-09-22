@@ -1,17 +1,17 @@
 /**
- * Analytics configuration — Google Analytics (GA4) and PostHog — plus the
+ * Analytics configuration for Google Analytics (GA4) and PostHog, plus the
  * internal-traffic exclusion both of them share.
  *
  * Three things here are deliberate:
  *
  * 1. Both vendor credentials are literal defaults rather than required env
  *    vars. Both `.env` files are gitignored, so a missing Vercel variable would
- *    mean "analytics silently off in production" — the failure nobody notices
+ *    mean "analytics silently off in production", the failure nobody notices
  *    for a month. A GA measurement ID and a PostHog project token are both
  *    public write-only ingestion keys that ship in the client bundle either
  *    way, so committing them costs nothing and removes a deploy-time footgun.
  *    Neither is a secret; do not treat them as one, and do not put anything
- *    that *is* a secret in this file — it is all client-side.
+ *    that *is* a secret in this file, because it is all client-side.
  *
  * 2. The env vars still win where they are set, which is what makes a scratch
  *    GA property or a throwaway PostHog project possible without a code change.
@@ -42,7 +42,7 @@ export const POSTHOG_KEY =
  * PostHog is addressed through a first-party path, not `us.i.posthog.com`
  * directly: that hostname is on every mainstream blocklist, and this audience
  * blocks more than most. The rewrites in `next.config.mjs` are the other half
- * of this — the path here must match POSTHOG_RELAY_PATH there or every event
+ * of this: the path here must match POSTHOG_RELAY_PATH there, or every event
  * 404s silently.
  *
  * Relative, so it follows whatever origin the app is served from. It is
@@ -58,14 +58,14 @@ export const POSTHOG_HOST =
 
 /**
  * Where the SDK sends you for "view in PostHog" links (the toolbar, session
- * recordings). Not an ingestion endpoint, so it is never proxied — the relay
+ * recordings). Not an ingestion endpoint, so it is never proxied: the relay
  * path would not serve the app UI.
  */
 export const POSTHOG_UI_HOST = "https://us.posthog.com"
 
 /**
  * Manual kill switch, so internal traffic can also be excluded when signed out.
- * One key for both vendors — a browser is either counted or it isn't.
+ * One key for both vendors, because a browser is either counted or it isn't.
  */
 const OPT_OUT_KEY = "palladium:analytics-optout"
 
@@ -137,7 +137,7 @@ export function applyOptOutFromQuery(search: string): boolean {
 
 /**
  * GA's documented per-property kill switch. Honoured at send time, so flipping
- * it after gtag.js has loaded still stops every subsequent hit — which is what
+ * it after gtag.js has loaded still stops every subsequent hit, which is what
  * makes "internal user signs in mid-session" work.
  */
 export function setGaDisabled(disabled: boolean): void {

@@ -1,6 +1,6 @@
 name: Test Backend
 
-# `main`, not `master` — see the note in lint-backend.yml. This job had never
+# `main`, not `master`. See the note in lint-backend.yml. This job had never
 # run on a push, which is how three separate breakages below survived unnoticed.
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
     #
     # If a test ever genuinely needs a live key, give it its own job, mark it
     # `if: github.event.pull_request.head.repo.full_name == github.repository`,
-    # and pull the key from secrets there — do not promote this block.
+    # and pull the key from secrets there. Do not promote this block.
     env:
       PROJECT_NAME: Palladium
       # localhost, not `db`: these steps run on the runner itself, and compose
@@ -54,13 +54,13 @@ jobs:
         with:
           # Keep in step with backend/Dockerfile and requires-python.
           python-version: "3.12"
-      # 0.9.28, not 0.4.15. The dev tools this job needs — coverage, pytest —
+      # 0.9.28, not 0.4.15. The dev tools this job needs, coverage, pytest,
       # live in `[dependency-groups]` in backend/pyproject.toml (PEP 735).
       # uv 0.4.15 predates `default-groups`, so `uv run` installed the project
       # and nothing else: the "Run tests" step got as far as
       #   scripts/test.sh: line 6: coverage: command not found
-      # It is a confusing failure because 0.4.15 *reads* the section fine —
-      # `uv tree` and `uv export` both list coverage — it just never syncs it
+      # It is a confusing failure because 0.4.15 *reads* the section fine,
+      # `uv tree` and `uv export` both list coverage, it just never syncs it
       # into the environment `uv run` hands to the script.
       #
       # Keep this at the version that wrote backend/uv.lock (`revision = 3`).
@@ -70,7 +70,7 @@ jobs:
           version: "0.9.28"
           enable-cache: true
 
-      # Postgres for the suite, from the root compose file. Only `db` — the
+      # Postgres for the suite, from the root compose file. Only `db`. The
       # template's `mailcatcher` service used to be named here and does not
       # exist in docker-compose.yml, so this step failed outright on any run
       # that reached it.
@@ -96,7 +96,7 @@ jobs:
           include-hidden-files: true
 
       # A RATCHET, NOT A TARGET. The inherited value was 90, against actual
-      # coverage of ~46% — so this step failed every single run, which is
+      # coverage of ~46%, so this step failed every single run, which is
       # tolerable while nothing enforces the workflow and fatal the moment it
       # becomes a required check.
       #

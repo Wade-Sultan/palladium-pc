@@ -8,7 +8,7 @@
  * See pipeline-steps.ts.
  *
  * WHY THERE IS A GAP TO FILL AT ALL. The backend emits a `progress` event only
- * once a turn is known to be building — `collect()` in
+ * once a turn is known to be building. `collect()` in
  * backend/app/services/graph/nodes.py deliberately stays silent, because a
  * progress event is what tells the client the turn is on the recommend path, and
  * that is not decided until the router runs. So every turn opens with a stretch
@@ -35,7 +35,7 @@ import type { SiteMode } from "@/hooks/useSiteMode"
  * one list with special cases in it.
  *
  * `firstTurn` is distinct from `thinking` because the first turn is the one wait
- * the user has no context for yet — nothing is on screen, so the copy carries
+ * the user has no context for yet. Nothing is on screen, so the copy carries
  * the weight of "something is happening" rather than "still going".
  *
  * The pools are deliberately NOT required to be the same length. Picking scales
@@ -74,7 +74,7 @@ const STATUS_MESSAGES = {
 /**
  * One phrase from whichever pool fits this turn and this mode.
  *
- * Call this once per message rather than per render — it is random, so a caller
+ * Call this once per message rather than per render. It is random, so a caller
  * that invokes it in a render body deals a fresh phrase on every token that
  * arrives.
  */

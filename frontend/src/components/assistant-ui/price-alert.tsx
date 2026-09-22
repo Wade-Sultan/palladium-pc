@@ -31,16 +31,16 @@ import { cn, formatCents } from "@/lib/utils"
  * "Tell me when this gets cheaper", per part.
  *
  * The bell sits outside each part row's box (see build-card.tsx) so it reads as
- * an action on the part rather than a third place to buy it. It rings on hover
- * — .bell-btn in index.css, which is also where the reduced-motion opt-out
- * lives — and switches to a struck bell once the part is being watched, so the
+ * an action on the part rather than a third place to buy it. It rings on hover,
+ * .bell-btn in index.css, which is also where the reduced-motion opt-out
+ * lives, and switches to a struck bell once the part is being watched, so the
  * card shows existing alerts without being opened.
  */
 
 /**
  * Resolve a card's parts to their price targets in one request, keyed by
  * part_id. Absent entries mean "nothing watchable here" and the card renders no
- * bell — see lookupPriceTargets.
+ * bell. See lookupPriceTargets.
  *
  * The setter is returned alongside so the dialog can write back the
  * subscription it just created or canceled; re-fetching the whole card to

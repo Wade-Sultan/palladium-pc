@@ -1,7 +1,7 @@
 """Guards the deterministic PDF export (services/build_pdf.py).
 
-Determinism is the contract the feature was specified around — the document is
-produced by layout code from a frozen snapshot, never generated — so the tests
+Determinism is the contract the feature was specified around, the document is
+produced by layout code from a frozen snapshot, never generated, so the tests
 pin byte-for-byte stability rather than appearance.
 """
 
@@ -34,7 +34,7 @@ _BUILD = {
         {
             "component": "case",
             "brand": "Fractal",
-            "model": "North — Chalk White",
+            "model": "North: Chalk White",
             "approx_price": None,
             "quantity": 1,
         },

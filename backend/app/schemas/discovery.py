@@ -35,7 +35,7 @@ class DiscoverySweepRequest(BaseModel):
     """A sweep names a category, not a part. `hint` narrows the search ("2026
     Nvidia", "budget AM5"); omitted, the search pins the current year.
 
-    For ai_model the hint is a Hub search term ("qwen", "flux") — that sweep
+    For ai_model the hint is a Hub search term ("qwen", "flux"): that sweep
     queries the Hugging Face API rather than searching the open web."""
 
     category: DiscoveryCategoryLiteral

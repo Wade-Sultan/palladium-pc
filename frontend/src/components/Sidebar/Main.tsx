@@ -49,7 +49,7 @@ const items: Item[] = [
 type MoreItem = {
   icon: LucideIcon | typeof FaGithub
   title: string
-  /** Internal route (Next <Link>) — mutually exclusive with `href`. */
+  /** Internal route (Next <Link>): mutually exclusive with `href`. */
   path?: string
   /** External URL, opened in a new tab. */
   href?: string

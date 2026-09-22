@@ -7,7 +7,7 @@ export type FeedbackRating = "up" | "down"
 /**
  * The thumbs up/down a user has left on a conversation's recommended build.
  *
- * One per conversation per user, so this is a single value rather than a list —
+ * One per conversation per user, so this is a single value rather than a list,
  * clicking the lit thumb clears it, and clicking the other one switches it. The
  * server enforces the same shape with a unique constraint, so a double click
  * cannot leave two rows behind.
@@ -33,7 +33,7 @@ export class FeedbackError extends Error {
 async function failed(res: Response): Promise<FeedbackError> {
   // Body included because the two interesting failures are indistinguishable
   // from the status alone: 404 is both "no such conversation" and "not yours"
-  // (deliberately — see the route), and a 500 here is nearly always the
+  // (deliberately. See the route), and a 500 here is nearly always the
   // build_feedback table not existing yet on that database.
   const body = await res.text().catch(() => "")
   return new FeedbackError(res.status, body.slice(0, 200))
@@ -62,7 +62,7 @@ export async function setBuildFeedback(
   if (!res.ok) throw await failed(res)
 }
 
-/** Withdraw a rating — what clicking an already-lit thumb does. */
+/** Withdraw a rating. What clicking an already-lit thumb does. */
 export async function clearBuildFeedback(
   conversationId: string,
 ): Promise<void> {

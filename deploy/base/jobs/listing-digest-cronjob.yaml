@@ -30,7 +30,7 @@ spec:
               image: palladium/builder
               # A trigger, not the digest itself: commerce holds the email
               # credential, the templates and the same database, so it does the
-              # whole job. What it cannot do is decide when — it runs more than
+              # whole job. What it cannot do is decide when. It runs more than
               # one replica, and an in-process timer would send one digest per
               # pod. See backend/app/jobs/listing_failure_digest.py.
               command: ["python", "-m", "app.jobs.listing_failure_digest"]

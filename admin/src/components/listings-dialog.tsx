@@ -25,7 +25,7 @@ import {
 } from '@/lib/listings';
 
 /**
- * The group this part belongs to, when it has one — a GPU's chipset, a PSU's
+ * The group this part belongs to, when it has one: a GPU's chipset, a PSU's
  * group, and so on. Present only for the four part types the catalog groups;
  * absent for a CPU or a case, which are one-of-a-kind.
  */
@@ -235,7 +235,7 @@ export function ListingsDialog({ partId, partName, group, listings }: { partId: 
       </Button>
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setAddingType(null); setEditingListing(null); } }}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Listings — {partName}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Listings: {partName}</DialogTitle></DialogHeader>
 
           {showingForm ? (
             addingType === 'ebay' || editingListing?.marketplace === 'ebay' ? (
@@ -304,14 +304,14 @@ export function ListingsDialog({ partId, partName, group, listings }: { partId: 
                       <TableCell>
                         <Badge variant="secondary" className="capitalize">{l.marketplace}</Badge>
                       </TableCell>
-                      <TableCell>{l.amazonListing?.asin ?? '—'}</TableCell>
-                      <TableCell>{l.amazonListing?.brand ?? '—'}</TableCell>
+                      <TableCell>{l.amazonListing?.asin ?? '-'}</TableCell>
+                      <TableCell>{l.amazonListing?.brand ?? '-'}</TableCell>
                       <TableCell className="max-w-[220px]">
                         {l.url ? (
                           <a href={l.url} target="_blank" rel="noreferrer" className="block truncate text-primary hover:underline" title={l.url}>
                             {l.url}
                           </a>
-                        ) : '—'}
+                        ) : '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 justify-end">

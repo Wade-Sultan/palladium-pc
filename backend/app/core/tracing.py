@@ -5,8 +5,8 @@
             └─► OTLP to LangSmith, scope-filtered ─────► LangSmith
 
 WHY TWO PIPES RATHER THAN A COLLECTOR FAN-OUT. Managed OpenTelemetry for GKE
-cannot export to third-party backends — it writes to Google Cloud Observability
-and nowhere else — and it owns OTEL_EXPORTER_OTLP_ENDPOINT in the pod, so it
+cannot export to third-party backends, it writes to Google Cloud Observability
+and nowhere else, and it owns OTEL_EXPORTER_OTLP_ENDPOINT in the pod, so it
 cannot be pointed at LangSmith either. Reaching both means either self-hosting a
 collector that fans out, or attaching a second span processor here. This is the
 second, which costs no infrastructure to run.
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Instrumentation scopes whose spans are worth sending to LangSmith. Matched as
 # prefixes, because these libraries version their scope names ("langsmith",
 # "langsmith.client", "opentelemetry.instrumentation.openai_v2" and so on) and
-# pinning exact strings would silently stop matching on an upgrade — a failure
+# pinning exact strings would silently stop matching on an upgrade: a failure
 # that looks like "tracing just stopped working" with nothing in the logs.
 _LLM_SCOPE_PREFIXES = (
     "langsmith",
@@ -55,7 +55,7 @@ def _build_scope_filter_processor(inner):
     """Wrap a span processor so only LLM/graph spans reach it.
 
     Defined inside a function so the opentelemetry.sdk import stays off the
-    module's import path — this module is imported by main.py at startup, and
+    module's import path. This module is imported by main.py at startup, and
     the SDK is not needed at all when tracing is unconfigured.
     """
     from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor
@@ -66,7 +66,7 @@ def _build_scope_filter_processor(inner):
         Filtering on end rather than on start: a span's scope is known at both
         points, but dropping at on_start would also drop the matching on_end and
         leave the wrapped BatchSpanProcessor with an unbalanced view. on_start
-        is forwarded unconditionally and is cheap — the batch processor does
+        is forwarded unconditionally and is cheap. The batch processor does
         nothing with it.
         """
 
@@ -96,14 +96,14 @@ def _instrument_infra(fastapi_app) -> None:
     These are the spans the scope filter deliberately keeps out of LangSmith:
     the inbound request, the SQL it runs, the Valkey checkpoint reads, the
     outbound HTTP. They exist for Cloud Trace, and they are the reason the
-    Google pipe is worth turning on at all — without them it carries the same
+    Google pipe is worth turning on at all, without them it carries the same
     LLM spans LangSmith already has and nothing else.
 
     Managed OpenTelemetry for GKE does not supply any of this. It runs a
     collector and injects OTEL_EXPORTER_OTLP_ENDPOINT; instrumenting the
     process is still the process's job.
 
-    Each instrumentor is caught separately — a missing optional dependency or
+    Each instrumentor is caught separately. A missing optional dependency or
     a version skew in one should not cost the others.
     """
     if fastapi_app is not None:
@@ -137,7 +137,7 @@ def _instrument_infra(fastapi_app) -> None:
 
         # Catches ChatOpenRouter too, which reaches OpenRouter over a bare httpx
         # client rather than the openai SDK. Those spans carry no prompt or
-        # token counts — they are transport timing, which is what Cloud Trace
+        # token counts. They are transport timing, which is what Cloud Trace
         # wants and what the LangSmith scope filter is right to drop.
         HTTPXClientInstrumentor().instrument()
     except Exception:
@@ -148,7 +148,7 @@ def _instrument_llm_clients(langsmith_enabled: bool) -> None:
     """Attach span emission to the LLM calls LangChain does not already cover.
 
     The chat pipeline's own calls go through ChatOpenRouter and are traced by
-    LangChain itself — nothing to do for those. What is left is the recommender:
+    LangChain itself. Nothing to do for those. What is left is the recommender:
     DSPy's ten build steps reach OpenRouter through litellm, and they are where
     most of a completed build's spend goes, so leaving them out would make the
     per-conversation total in LangSmith an understatement rather than a number.
@@ -166,7 +166,7 @@ def _instrument_llm_clients(langsmith_enabled: bool) -> None:
     try:
         import litellm
 
-        # Appended, not assigned — DSPy installs its own callbacks and
+        # Appended, not assigned. DSPy installs its own callbacks and
         # overwriting them would break its LM history, which
         # app/services/recommender/recording.py reads for cost capture.
         if "otel" not in litellm.callbacks:
@@ -187,7 +187,7 @@ def configure_tracing(service_name: str, fastapi_app=None) -> None:
     """Install the tracer provider for this process. Idempotent.
 
     service_name distinguishes the API pod from the worker pod in both
-    backends — they run the same image and the same pipeline, so without it a
+    backends: they run the same image and the same pipeline, so without it a
     trace gives no clue which one produced it.
 
     fastapi_app is the object to attach request instrumentation to; the worker
@@ -256,7 +256,7 @@ def configure_tracing(service_name: str, fastapi_app=None) -> None:
         )
         # Attaches LangChain's tracer to every chain, graph node and model call.
         # Without it LangChain never instruments anything and the LangSmith pipe
-        # below carries only the DSPy/litellm spans — ChatOpenRouter subclasses
+        # below carries only the DSPy/litellm spans. ChatOpenRouter subclasses
         # BaseChatModel over raw httpx, so the openai instrumentor does not see
         # the chat pipeline either, and the graph goes entirely untraced.
         os.environ["LANGSMITH_TRACING"] = "true"
@@ -298,14 +298,14 @@ def shutdown_tracing() -> None:
         logger.debug("tracing shutdown failed (exiting anyway)", exc_info=True)
 
 
-# --- Run metadata — the join key between LangSmith and our own telemetry ------
+# --- Run metadata: the join key between LangSmith and our own telemetry ------
 #
 # LangSmith's OTel ingestion promotes span attributes named
 # `langsmith.metadata.<key>` into a run's metadata, and groups runs into Threads
 # on the metadata keys `thread_id` / `session_id` / `conversation_id`. Without
 # one of those set, every chat turn arrives as an isolated trace and no
 # multi-turn question ("how many turns to a build?", "did they abandon?") can be
-# asked at all — which is the whole reason this exists.
+# asked at all, which is the whole reason this exists.
 #
 # Several aliases are written rather than one, because which key LangSmith
 # groups on has changed across versions and writing three costs nothing.
@@ -313,7 +313,7 @@ def shutdown_tracing() -> None:
 # THE JOIN. `build_session_id` is not a LangSmith concept; it is the primary key
 # of our own `build_sessions` row. Putting it in run metadata is what lets a bad
 # trace in LangSmith be traced back to the exact candidate sets and chosen parts
-# in `module_decisions`, and — with conversation_id on both sides — back again.
+# in `module_decisions`, and, with conversation_id on both sides, back again.
 _THREAD_METADATA_ALIASES = ("thread_id", "session_id", "conversation_id")
 
 
@@ -341,7 +341,7 @@ def attach_run_metadata(**values: object) -> None:
 def attach_thread(conversation_id: object) -> None:
     """Mark the current span as belonging to a conversation Thread.
 
-    Writes every alias LangSmith has used for thread grouping — see
+    Writes every alias LangSmith has used for thread grouping. See
     _THREAD_METADATA_ALIASES.
     """
     if conversation_id is None:

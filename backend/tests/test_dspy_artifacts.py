@@ -2,7 +2,7 @@
 
 A release is only ever loaded whole. A manifest that names a module the
 runtime does not have, omits one it does, or carries a module whose signature
-no longer matches the code is rejected before any module is used — because
+no longer matches the code is rejected before any module is used, because
 serving half a release is the kind of drift the manifest exists to prevent.
 """
 
@@ -32,7 +32,7 @@ def _fresh_release(monkeypatch):
 
 def _optimized_cpu(tmp_path: Path) -> Path:
     """A DecideCPU whose instructions GEPA 'rewrote', saved like a training
-    run would, with an LM baked in — the thing the loader must strip."""
+    run would, with an LM baked in. The thing the loader must strip."""
     program = DecideCPU()
     for _, predictor in program.named_predictors():
         predictor.signature = predictor.signature.with_instructions(
@@ -154,8 +154,8 @@ def test_a_release_missing_a_module_is_refused(tmp_path, monkeypatch):
 
 
 def test_a_signature_change_since_export_is_refused(tmp_path, monkeypatch):
-    """The schema hash covers field names, roles and types — the shape GEPA
-    must not change — and a bundle exported against an older shape is stale."""
+    """The schema hash covers field names, roles and types. The shape GEPA
+    must not change, and a bundle exported against an older shape is stale."""
     out = tmp_path / "rel"
     build_manifest(out, {}, None)
     manifest = json.loads((out / "manifest.json").read_text())

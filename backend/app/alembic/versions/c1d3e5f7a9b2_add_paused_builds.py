@@ -1,4 +1,4 @@
-"""add paused_builds — pipelines stopped at the case step
+"""add paused_builds: pipelines stopped at the case step
 
 Durable backstop for the case-pick pause. Valkey holds the fast copy; this is
 what a resume falls back to after an eviction or a TTL, because losing the

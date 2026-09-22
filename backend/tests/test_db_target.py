@@ -3,7 +3,7 @@ Database target resolution (app.core.db._resolve_db_target).
 
 This exists because of a real incident: CLOUD_SQL_INSTANCE used to win
 unconditionally, so exporting POSTGRES_DB_URL to aim a migration at a scratch
-database did nothing, and the migration ran against Cloud SQL instead — no
+database did nothing, and the migration ran against Cloud SQL instead: no
 error, no log line naming the target. The tests below pin the two properties
 that would have prevented it: contradictory settings are refused, and the
 escape hatch named in the refusal actually works.

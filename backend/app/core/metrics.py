@@ -8,7 +8,7 @@ here pushes anywhere.
 WHY A SEPARATE PORT. The metrics endpoint listens on METRICS_PORT, not on the
 API port, and that port is deliberately absent from the Service. Both
 HTTPRoutes in deploy/base/ have a rule with no `matches:`, which in Gateway API
-means "match every path" — so a /metrics mounted on the API app would be served
+means "match every path", so a /metrics mounted on the API app would be served
 straight to the public internet, publishing every route name, request count and
 latency distribution the service has. GMP scrapes pod IPs directly and never
 goes through the Service or the Gateway, so a port that exists only on the pod
@@ -30,7 +30,7 @@ METRICS_PORT = int(os.environ.get("METRICS_PORT", "9090"))
 def instrument(app: FastAPI) -> None:
     """Attach request instrumentation to `app`.
 
-    Collection only — this deliberately does not call `Instrumentator.expose()`,
+    Collection only. This deliberately does not call `Instrumentator.expose()`,
     which would mount /metrics on the public API app. Serving is start_exporter's
     job, on its own port.
     """
@@ -42,14 +42,14 @@ def instrument(app: FastAPI) -> None:
         excluded_handlers=["/api/v1/healthz", "/api/v1/readyz"],
         # THE IMPORTANT ONE FOR THIS SERVICE. /chat streams SSE for up to
         # _DSPY_CHAT_TIMEOUT_S (180s), and by default the duration histogram
-        # measures until the stream *closes* — so a normal, healthy build
+        # measures until the stream *closes*, so a normal, healthy build
         # records as a 180-second request. Left at the default, /chat alone
         # would drag p95 into the minutes and make the latency panels useless
         # for spotting real regressions. True measures time-to-first-byte
         # instead, which for an SSE endpoint is the number that means anything.
         should_exclude_streaming_duration=True,
         # Concurrency gauge. Worth having here specifically because builder is
-        # mostly blocked on OpenRouter rather than CPU — the HPA's CPU target
+        # mostly blocked on OpenRouter rather than CPU. The HPA's CPU target
         # understates load (see overlays/prod/hpa.yaml), and in-flight request
         # count is the signal that would actually show saturation.
         should_instrument_requests_inprogress=True,
@@ -70,7 +70,7 @@ def start_exporter() -> None:
         # uvicorn worker: prometheus_client's default registry is per-process,
         # so each worker would need its own port (or multiprocess mode). The
         # Dockerfile pins --workers 1, which is why this is a warning and not a
-        # hard failure — losing metrics must not take the API down with it.
+        # hard failure. Losing metrics must not take the API down with it.
         logger.warning(
             "metrics exporter could not bind port %d; metrics are NOT being "
             "exported from this process. If --workers was raised above 1, "

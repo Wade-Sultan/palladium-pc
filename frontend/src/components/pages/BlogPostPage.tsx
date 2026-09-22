@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm"
 import { type BlogPostDetail, formatPublishedDate } from "@/lib/blog"
 
 // react-markdown does not render raw HTML unless rehype-raw is added, so the
-// admin-authored Markdown is rendered as text-only structure — no sanitiser
+// admin-authored Markdown is rendered as text-only structure: no sanitiser
 // needed here.
 const components: Components = {
   h1: ({ children }) => (

@@ -72,12 +72,12 @@ class Conversation(Base):
         Boolean,
         nullable=False,
         server_default="false",
-        doc="True once this conversation produced a recommended build — used to "
+        doc="True once this conversation produced a recommended build: used to "
         "distinguish 'cost per completed build' from 'cost per chat'",
     )
 
     # Resolved once (either as the budget-still-unknown price estimate, or
-    # alongside a completed DSPy run) and never re-resolved afterward — the
+    # alongside a completed DSPy run) and never re-resolved afterward: the
     # guaranteed, free-to-fetch reference build for the rest of this
     # conversation, including as the DSPy-failure fallback. Mirrors
     # BuildSession.reference_build_key/reference_build.

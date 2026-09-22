@@ -13,7 +13,7 @@ WHAT TO LOOK FOR:
 
   * A correct match ABOVE the cutoff (distance > 0.45) is a silent miss. The
     build proceeds with no requirements attached and nothing anywhere says so.
-    Common for abbreviations and community nicknames — the embedded text is
+    Common for abbreviations and community nicknames. The embedded text is
     built from the catalog's own title and genre, so "R6" only resolves to
     Rainbow Six Siege if the embedding model already knew that association.
   * A WRONG match below the cutoff is worse than a miss: it attaches real
@@ -72,7 +72,7 @@ async def main() -> int:
     args = parser.parse_args()
 
     if not client.is_configured():
-        print("OPENAI_API_KEY is not set — nothing to probe with.", file=sys.stderr)
+        print("OPENAI_API_KEY is not set. Nothing to probe with.", file=sys.stderr)
         return 1
 
     async with AsyncSessionLocal() as db:
@@ -93,7 +93,7 @@ async def main() -> int:
         )
         if catalog_total == 0:
             print(
-                "\nNo catalog vectors at all — run `python -m app.jobs.embeddings` "
+                "\nNo catalog vectors at all. Run `python -m app.jobs.embeddings` "
                 "first.\nEvery probe below would return nothing regardless of "
                 "phrasing.",
                 file=sys.stderr,

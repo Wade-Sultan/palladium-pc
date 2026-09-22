@@ -190,7 +190,7 @@ func TestListingLookupRecording(t *testing.T) {
 	})
 
 	t.Run("an unfiltered listing sweep blames no part", func(t *testing.T) {
-		// Without a part_id there is nothing to record against — an empty
+		// Without a part_id there is nothing to record against. An empty
 		// catalog-wide result is not one part's problem.
 		st := newFailureStore()
 		rec := httptest.NewRecorder()
@@ -368,7 +368,7 @@ func TestListingFailureDigestTruncatesAHugeBacklog(t *testing.T) {
 	}
 }
 
-// Nothing may be marked notified unless the mail actually went out — a row
+// Nothing may be marked notified unless the mail actually went out. A row
 // stamped after a failed send would never appear in another digest.
 func TestListingFailureDigestDoesNotMarkNotifiedOnFailure(t *testing.T) {
 	for _, tt := range []struct {

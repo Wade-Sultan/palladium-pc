@@ -1,6 +1,6 @@
 """Pub/Sub publisher for chat turn requests.
 
-WHAT CROSSES THIS BOUNDARY. Only a request to run a turn — never the turn's
+WHAT CROSSES THIS BOUNDARY. Only a request to run a turn, never the turn's
 output. Events go to Valkey (app/services/turn_stream.py), because Pub/Sub cannot
 deliver to a browser and its at-least-once redelivery would duplicate tokens
 mid-sentence. This topic is the control plane; the stream is the data plane.
@@ -9,7 +9,7 @@ ORDERING KEY IS THE CONVERSATION ID. Two turns published for one conversation
 must run in order or the second will read a message history the first has not
 finished writing. Ordering keys give per-key FIFO with no global bottleneck, so
 unrelated conversations still run fully in parallel. Note that ordering requires
-the publisher and subscription to agree — the subscription must be created with
+the publisher and subscription to agree. The subscription must be created with
 `--enable-message-ordering` or the guarantee is silently lost.
 
 THE PUBLISHER CLIENT IS SYNC AND THREADED. google-cloud-pubsub has no asyncio
@@ -74,7 +74,7 @@ def _get_publisher() -> tuple[Any, str] | None:
                 # Pub/Sub carries its own OTel support rather than having an
                 # instrumentation package, and it ships off. On, it injects
                 # trace context into the message so the worker's turn continues
-                # the API request's trace instead of starting an orphan — which
+                # the API request's trace instead of starting an orphan, which
                 # is the whole reason a queued turn is traceable end to end.
                 enable_open_telemetry_tracing=True,
             )
@@ -83,7 +83,7 @@ def _get_publisher() -> tuple[Any, str] | None:
     except Exception:
         _unavailable = True
         logger.exception(
-            "Pub/Sub publisher unavailable — /chat will run turns inline for the "
+            "Pub/Sub publisher unavailable. /chat will run turns inline for the "
             "life of this process (turns will not survive client disconnect)."
         )
         return None
@@ -113,7 +113,7 @@ async def publish_turn(
     data = json.dumps(payload, default=str).encode("utf-8")
 
     # Ordering is per conversation. Guest turns have no conversation, and no
-    # ordering requirement either — each is a standalone request — so they key on
+    # ordering requirement either, each is a standalone request, so they key on
     # the turn id, which keeps every message ordered-but-independent rather than
     # funnelling all guests through one FIFO queue.
     ordering_key = conversation_id or turn_id
@@ -130,7 +130,7 @@ async def publish_turn(
         )
         # wrap_future bridges the publisher's own thread to this event loop.
         # Awaited rather than fired-and-forgotten so a topic that does not exist
-        # surfaces here — where the inline fallback can still take over — instead
+        # surfaces here, where the inline fallback can still take over, instead
         # of after the response has been sent.
         message_id = await asyncio.wrap_future(future)
     except Exception:
@@ -157,7 +157,7 @@ def _resume_ordering(client: Any, path: str, ordering_key: str) -> None:
     Pub/Sub deliberately fails every subsequent publish on an ordering key once
     one has failed, to avoid delivering out of order. Without this call, a single
     transient error would permanently break dispatch for that conversation while
-    every other conversation kept working — an unusually confusing failure.
+    every other conversation kept working: an unusually confusing failure.
     """
     try:
         client.resume_publish(path, ordering_key)

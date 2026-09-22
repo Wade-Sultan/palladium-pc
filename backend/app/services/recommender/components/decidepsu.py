@@ -12,7 +12,7 @@ class PSUSelection(dspy.Signature):
     Select the best PSU *group* (spec) for this build from the candidates.
 
     Each candidate is a PSU spec (wattage / efficiency / form factor), not a
-    specific product — the exact branded unit is resolved deterministically
+    specific product. The exact branded unit is resolved deterministically
     afterwards. Choose at the spec level here. All candidates already meet the
     minimum wattage and form factor requirements. Choose the best
     efficiency/price/headroom combination. Prefer Gold or better efficiency
@@ -30,7 +30,7 @@ class PSUSelection(dspy.Signature):
         desc="Minimum wattage required by the system in watts"
     )
     budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on PSU in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on PSU in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     candidates: str = dspy.InputField(
         desc="JSON list of PSU groups with the group's street price. Fields: "
@@ -45,7 +45,7 @@ class PSUSelection(dspy.Signature):
 
 
 class DecidePSU(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecidePSU"
     # v2: chooses a PSU group (spec), not an exact unit name; the branded unit is
@@ -55,7 +55,7 @@ class DecidePSU(dspy.Module):
     output_name_field = "psu_group"
 
     def __init__(self) -> None:
-        # Plain Predict — no chain-of-thought needed for this slot
+        # Plain Predict: no chain-of-thought needed for this slot
         self.predict = dspy.Predict(PSUSelection)
 
     def forward(self, required_wattage, budget_ceiling, candidates):

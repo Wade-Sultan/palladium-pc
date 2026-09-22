@@ -30,8 +30,8 @@ func AmazonURL(storedURL *string, asin, associateTag string) string {
 // amazon.com parity), so it's a constant rather than configuration.
 const ebayUSRotationID = "711-53200-19255-0"
 
-// EbayURL wraps a stored eBay URL — typically a search-results page whose
-// filters were configured via eBay Partner Network — with EPN custom-link
+// EbayURL wraps a stored eBay URL, typically a search-results page whose
+// filters were configured via eBay Partner Network, with EPN custom-link
 // tracking query params so clicks are attributed to campaignID. Mirrors
 // AmazonURL's spirit: the link works without a campaign id (just unattributed),
 // and a URL that's already wrapped (already carries campid) is returned

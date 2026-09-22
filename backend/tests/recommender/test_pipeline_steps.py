@@ -6,7 +6,7 @@ Pure-logic tests: the DB layer (get_*_candidates queries + crud_components
 lookups) and the LLM layer (_run_step, which normally runs a Decide* module
 against OpenRouter) are all mocked, so nothing here needs Postgres or a network.
 Each test drives one async step via asyncio.run and asserts on the resulting
-DSPyBuildState — the compatibility wiring the recent work changed: DDR set
+DSPyBuildState: the compatibility wiring the recent work changed: DDR set
 matching, socket carry-through, and the group→exact resolution for
 GPU/RAM/Storage/PSU.
 """
@@ -58,7 +58,7 @@ def _chipset(
     price=120000,
     benchmarks=None,
 ):
-    # Stands in for a GPUChipset (group) row — street price lives here now.
+    # Stands in for a GPUChipset (group) row. Street price lives here now.
     # benchmarks defaults to None (the catalog's state for an unmeasured
     # chipset), which scoring.py treats as "unscorable" rather than as zero.
     return SimpleNamespace(
@@ -130,7 +130,7 @@ def _patch_run_step(monkeypatch, prediction, capture: dict | None = None):
 
 
 def test_pick_exact_returns_first():
-    # Price now lives on the group, so members are priced identically — the
+    # Price now lives on the group, so members are priced identically. The
     # resolver just returns the first active member.
     exacts = [_exact("a", 9000), _exact("b", 8000), _exact("c", 12000)]
     assert dp._pick_exact(exacts).name == "a"
@@ -140,7 +140,7 @@ def test_pick_exact_empty_returns_none():
     assert dp._pick_exact([]) is None
 
 
-# --- _resolve_gpu_variant — chipset → exact board -----------------------------
+# --- _resolve_gpu_variant. Chipset → exact board -----------------------------
 
 
 def test_resolve_gpu_variant_picks_first_that_fits(monkeypatch):
@@ -264,7 +264,7 @@ def test_resolve_gpu_variant_no_constraints_when_case_and_psu_unknown(monkeypatc
     assert state.gpu_name == "long-cheap"
 
 
-# --- _step_gpu — chooses a chipset, sizes PSU on chipset TDP ------------------
+# --- _step_gpu: chooses a chipset, sizes PSU on chipset TDP ------------------
 
 
 def test_step_gpu_sets_chipset_and_tdp(monkeypatch):
@@ -315,7 +315,7 @@ def test_step_gpu_not_required_leaves_chipset_empty(monkeypatch):
     assert state.gpu_chipset == ""
 
 
-# --- RAM / Storage / PSU — pick a group, resolve the cheapest exact -----------
+# --- RAM / Storage / PSU: pick a group, resolve the cheapest exact -----------
 
 
 def test_step_ram_picks_group_and_resolves_first_kit(monkeypatch):
@@ -395,7 +395,7 @@ def test_step_psu_picks_group_and_resolves_first_unit(monkeypatch):
     assert state.psu_name == "Corsair RM850x"
 
 
-# --- Group-candidate aggregation (queries.py) — one row per group -------------
+# --- Group-candidate aggregation (queries.py): one row per group -------------
 
 
 def test_gpu_chipset_candidates_aggregates_one_row_per_chipset(monkeypatch):
@@ -446,7 +446,7 @@ def test_ram_candidates_aggregates_one_row_per_group(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# _step_cpu — socket carry-through, DDR set, platform-pick reconciliation
+# _step_cpu. Socket carry-through, DDR set, platform-pick reconciliation
 # (CPU is not split; unchanged behaviour, kept as a regression guard)
 # ---------------------------------------------------------------------------
 
@@ -494,7 +494,7 @@ def test_step_cpu_raises_when_cpu_not_found(monkeypatch):
         asyncio.run(dp._step_cpu(state, object(), BUDGET, object(), None))
 
 
-# --- _step_motherboard — passes the CPU's full DDR set, records the board's gen ---
+# --- _step_motherboard: passes the CPU's full DDR set, records the board's gen ---
 
 
 def test_step_motherboard_passes_ddr_set_and_records_board_gen(monkeypatch):
@@ -561,7 +561,7 @@ def test_step_ram_uses_chosen_board_generation(monkeypatch):
     assert capture["ddr_gen"] == "ddr5"
 
 
-# --- _ensure_candidates — empty candidate list fails the step -----------------
+# --- _ensure_candidates. Empty candidate list fails the step -----------------
 
 
 def test_step_motherboard_empty_candidates_raises(monkeypatch):
@@ -580,7 +580,7 @@ def test_step_motherboard_empty_candidates_raises(monkeypatch):
 
 def test_parse_name_list_dedupes_and_caps():
     """A repeated name means the model repeated itself, not that the build wants
-    two — UNIQUE (build_id, role, part_id) would reject the second anyway."""
+    two. UNIQUE (build_id, role, part_id) would reject the second anyway."""
     assert dp._parse_name_list("A, B , A,, C", limit=10) == ["A", "B", "C"]
     assert dp._parse_name_list("a, A", limit=10) == ["a"]
     assert dp._parse_name_list("A, B, C", limit=2) == ["A", "B"]
@@ -720,7 +720,7 @@ def test_psu_respects_the_chipsets_own_recommendation(monkeypatch):
 
 
 def test_psu_keeps_the_tdp_figure_when_it_is_the_larger_one(monkeypatch):
-    """The vendor recommendation is a floor, not an override — a multi-card build
+    """The vendor recommendation is a floor, not an override. A multi-card build
     can exceed it on TDP alone."""
     state = _state(cpu_tdp_w=350, gpu_tdp_w=575, gpu_count=4)
     state.gpu_recommended_psu_w = 0
@@ -923,7 +923,7 @@ def test_variant_resolver_prefers_a_board_narrow_enough_to_stack(monkeypatch):
 
 
 def test_variant_resolver_ignores_width_for_a_single_card(monkeypatch):
-    """A 3.5-slot card is the better card when only one is being fitted — the
+    """A 3.5-slot card is the better card when only one is being fitted. The
     stacking preference must not push single-GPU builds toward blowers."""
     wide = _gpu(
         "Triple-slot 5090",

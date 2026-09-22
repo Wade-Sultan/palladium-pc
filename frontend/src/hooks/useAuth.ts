@@ -18,7 +18,7 @@ import { auth } from "@/lib/firebase"
 
 /**
  * Fire-and-forget sync of the Postgres users row (via the commerce service)
- * after any successful authentication. Failures are ignored — chat
+ * after any successful authentication. Failures are ignored: chat
  * auto-provisions the row as a fallback.
  */
 function syncBackendAccount(user: User) {

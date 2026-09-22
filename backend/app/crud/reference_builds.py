@@ -84,8 +84,8 @@ async def market_drift_factor(db: AsyncSession) -> float | None:
     build (entry and mid 1440p gaming are both '1440_mid'), so anchoring
     directly would silently collapse tiers that today differ by $500 and would
     hand a server profile whatever the two server builds happen to cost. The
-    ladder's *shape* — the spacing between tiers, and the server ladder sitting
-    above the desktop one — is hand-tuned and worth keeping.
+    ladder's *shape*, the spacing between tiers, and the server ladder sitting
+    above the desktop one, is hand-tuned and worth keeping.
 
     So this measures only what the constants cannot know: which direction the
     market has moved since someone last reviewed them. Callers scale the whole
@@ -96,7 +96,7 @@ async def market_drift_factor(db: AsyncSession) -> float | None:
     that has gone end-of-life and spiked should not drag every tier up with it.
 
     Returns None when nothing can be measured (no active builds, no live prices
-    backfilled, a query failure) — callers then use the constants unscaled,
+    backfilled, a query failure). Callers then use the constants unscaled,
     which is exactly today's behaviour.
     """
     from app.crud.components import resolve_part_price_cents

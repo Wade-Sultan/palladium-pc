@@ -1,14 +1,14 @@
 # The prod half of the Gateway API split. The HTTPRoutes in deploy/base are
 # byte-identical to what runs locally against Cilium; only this file differs.
 #
-# Listener names MUST stay `api` and `commerce` — the base HTTPRoutes bind to
+# Listener names MUST stay `api` and `commerce`: the base HTTPRoutes bind to
 # them by sectionName, and a rename silently detaches the routes (the Gateway
 # still reports Programmed, you just get 404s).
 #
 # admin has no listener here, exactly as in the local overlay: it is reached
 # only by `kubectl port-forward -n palladium svc/admin 3000:80`, which replaces
 # the GCE IAP tunnel. The remote port is the Service's 80, not the container's
-# 3000 — port-forward matches the Service port, so `3000:3000` fails outright.
+# 3000. Port-forward matches the Service port, so `3000:3000` fails outright.
 # Nothing about admin is exposed to the internet, so there is no
 # IAP/OAuth backend config to maintain and no way to misconfigure it open.
 apiVersion: gateway.networking.k8s.io/v1
@@ -16,7 +16,7 @@ kind: Gateway
 metadata:
   name: palladium
   annotations:
-    # Certificate Manager, NOT the ManagedCertificate CRD — that CRD only works
+    # Certificate Manager, NOT the ManagedCertificate CRD. That CRD only works
     # with Ingress and is silently ignored by the Gateway controller. The cert
     # map must exist before this applies; TLS is resolved entirely through this
     # annotation, which is why the listeners below carry no `tls` block.
@@ -25,7 +25,7 @@ spec:
   gatewayClassName: gke-l7-global-external-managed
   addresses:
     # A static address, reserved before the Gateway exists. Pinning it is what
-    # lets DNS — and therefore certificate provisioning — be done in advance,
+    # lets DNS, and therefore certificate provisioning, be done in advance,
     # instead of waiting on an ephemeral LB address.
     - type: NamedAddress
       value: palladium-ingress-ip
@@ -59,7 +59,7 @@ spec:
   #
   # Every entry here MUST have a matching HTTPS listener above. A hostname
   # listed without one redirects http:// to an https:// endpoint that does not
-  # exist, so the request fails at connect rather than returning a clean 404 —
+  # exist, so the request fails at connect rather than returning a clean 404,
   # strictly worse than not redirecting it. That is why k8s-api.palladiumtech.ai
   # came out of this list at the same time as its listener.
   hostnames:

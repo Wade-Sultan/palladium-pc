@@ -35,7 +35,7 @@ export function usdToCents(usd: number | null): number | null {
 
 export function formatUsd(cents: number | null): string {
   return cents == null
-    ? '—'
+    ? '-'
     : (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
@@ -47,8 +47,8 @@ export function slugify(value: string): string {
 }
 
 // Pull the 11-character video ID out of any of the YouTube link shapes you get
-// from a browser address bar or a share button. Returns null for anything else
-// — a non-YouTube link is still a valid guide entry, it just renders as an
+// from a browser address bar or a share button. Returns null for anything else.
+// A non-YouTube link is still a valid guide entry, it just renders as an
 // outbound link instead of an embed.
 export function extractYouTubeId(url: string): string | null {
   let parsed: URL;
@@ -98,7 +98,7 @@ export const asinSchema = z
   .refine((v) => /^[A-Z0-9]{10}$/i.test(v), { message: 'ASIN must be 10 characters (letters/numbers)' });
 
 // eBay listings store either a filtered search-results URL or one of EPN's
-// shortened https://ebay.us/aBcDeF links. Both pass the host check below —
+// shortened https://ebay.us/aBcDeF links. Both pass the host check below,
 // `^ebay\.` matches the shortener's bare domain as well as www.ebay.com.
 //
 // The two are handled differently downstream: commerce appends EPN tracking to

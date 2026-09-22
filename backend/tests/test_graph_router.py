@@ -4,8 +4,8 @@ TWO THINGS ARE LOAD-BEARING HERE.
 
 First, `is_profile_complete()` is the only thing allowed to decide the turn is
 ready to build. The router calls a model, but only ever to pick which of several
-already-known-missing items to raise next. If that boundary ever slips — if the
-model's answer can shorten intake or trigger a build — a hallucination stops
+already-known-missing items to raise next. If that boundary ever slips, if the
+model's answer can shorten intake or trigger a build, a hallucination stops
 costing an awkward question and starts costing a build recommended against a
 profile the user never stated.
 
@@ -202,7 +202,7 @@ def test_a_field_the_user_changes_this_turn_is_overwritten():
 
 
 def test_unknown_never_overwrites_a_known_use_case_or_tier():
-    """'unknown' is a sentinel, not an answer — it must not clobber a real one."""
+    """'unknown' is a sentinel, not an answer. It must not clobber a real one."""
     merged = merge_profile(
         _profile(), _profile(primary_use="unknown", budget_tier="unknown")
     )
@@ -358,7 +358,7 @@ def test_usage_accumulates_across_every_node(in_memory_graph, stub_router, monke
 
 def test_a_turn_after_a_presented_build_enters_discussion_not_intake():
     """Once a build is on screen, ordinary questions must not rebuild it. The
-    entry edge branches on the presence of that build and nothing else — a
+    entry edge branches on the presence of that build and nothing else: a
     complete profile alone used to send every later turn back to the builder."""
     payload = {"label": "Custom Build", "parts": [], "total_approx": 0}
     assert nodes.entry_stage(_state(_profile(), proposed_build=payload)) == "discuss"

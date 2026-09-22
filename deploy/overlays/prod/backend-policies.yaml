@@ -54,12 +54,12 @@ spec:
         requestPath: /readyz
         portSpecification: USE_SERVING_PORT
 ---
-# The GCLB backend response timeout. This is not belt-and-braces — on GKE it is
+# The GCLB backend response timeout. This is not belt-and-braces, on GKE it is
 # the ONLY way to set it. The Gateway controller rejects HTTPRoute
 # `timeouts.request` with "Error GWCER104: ... timeouts are not supported", and
 # because one invalid route marks the entire Gateway Programmed=False, using it
 # takes down every listener rather than just that route. (Cilium does support
-# the field, which is why local sets it there instead — see
+# the field, which is why local sets it there instead. See
 # base/builder/httproute.yaml.)
 #
 # This one matters more than it looks: the GCLB default is 30s, which would cut

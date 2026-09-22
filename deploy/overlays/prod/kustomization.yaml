@@ -13,7 +13,7 @@ resources:
   - backend-policies.yaml
   - hpa.yaml
   # builder scales on CPU (hpa.yaml); the worker scales on Pub/Sub queue depth,
-  # because CPU does not move when it saturates. Needs KEDA installed — see the
+  # because CPU does not move when it saturates. Needs KEDA installed. See the
   # file header.
   - keda-worker.yaml
   - pdb.yaml
@@ -28,7 +28,7 @@ patches:
 # The worker's replica count must equal keda-worker.yaml's minReplicaCount.
 # Every `kubectl apply` writes spec.replicas, so a Deployment whose manifest
 # disagrees with its autoscaler's floor gets reset on each deploy and dragged
-# back by the autoscaler afterwards — a pod started and killed for nothing, on
+# back by the autoscaler afterwards: a pod started and killed for nothing, on
 # every build. Base carries replicas: 2 as the environment-independent default;
 # prod overrides it here rather than in base so the local overlay (which runs
 # the worker at 0, with no Pub/Sub) is unaffected.
@@ -37,8 +37,8 @@ patches:
 # on one workload, and patches/ is already four files deep.
 #
 # 0, matching the scale-to-zero floor in keda-worker.yaml. Prod and local now
-# ask for the same count for completely different reasons — local because it
-# has no Pub/Sub to subscribe to, prod because KEDA wakes the pool on demand —
+# ask for the same count for completely different reasons, local because it
+# has no Pub/Sub to subscribe to, prod because KEDA wakes the pool on demand,
 # so do not "simplify" this by deleting the transformer and letting base's
 # replicas: 2 through. A deploy would then start two pods that KEDA immediately
 # scales back to zero, on every build.
@@ -46,20 +46,20 @@ replicas:
   - name: worker
     count: 0
 
-# NOTE: no secretGenerator here, deliberately — unlike the local overlay there
+# NOTE: no secretGenerator here, deliberately, unlike the local overlay there
 # is no .env.prod to read. The three palladium-secrets-* Secrets are created
 # out-of-band from Secret Manager, so no prod credential is ever on a
 # developer's disk or in a kustomize build output.
 #
 # Three, not one: patches/secrets-scoped.yaml narrows each workload to the keys
 # it actually reads, so commerce cannot see OPENROUTER_API_KEY and builder
-# cannot see the affiliate tags. Local keeps a single Secret — one dev database
+# cannot see the affiliate tags. Local keeps a single Secret: one dev database
 # and one throwaway key set make scoping there pure friction.
 
 # Cloud Build overrides these per commit:
 #   kustomize edit set image palladium/builder=$_IMG/builder:$SHORT_SHA
 # The :latest here is a placeholder so `kustomize build` works locally; never
-# rely on it for a real rollout — an immutable SHA tag is what makes a rollback
+# rely on it for a real rollout. An immutable SHA tag is what makes a rollback
 # legible.
 images:
   # newName is `backend`, not `builder`: that is the Artifact Registry path the
@@ -67,7 +67,7 @@ images:
   # migration so the layer cache carried over and so both stacks ran the *same
   # image digest* during the parallel run. Cloud Run is gone now, but renaming
   # the repository would still throw away the cache and orphan every existing
-  # SHA tag — which is what a rollback reaches for. Leave it.
+  # SHA tag, which is what a rollback reaches for. Leave it.
   - name: palladium/builder
     newName: us-central1-docker.pkg.dev/PROJECT_ID/palladium/backend
     newTag: latest

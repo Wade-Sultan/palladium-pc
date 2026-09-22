@@ -41,7 +41,7 @@ type FormData = z.infer<typeof formSchema>
  * established. They just need to set their new password via
  * `updateUser({ password })`.
  *
- * No token parsing needed — Supabase's JS client picks up the
+ * No token parsing needed: Supabase's JS client picks up the
  * session from the URL fragment automatically.
  */
 export default function ResetPasswordPage() {

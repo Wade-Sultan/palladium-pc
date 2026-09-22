@@ -12,7 +12,7 @@ Four deployables plus one shared Postgres:
 
 | Dir | Stack | Role | Where it runs |
 |---|---|---|---|
-| `backend/` | FastAPI + SQLModel/SQLAlchemy, Python 3.12, uv | `builder` (HTTP API, HPA 2–4) **and** `worker` (Pub/Sub subscriber, KEDA 1–8) — same image, different command | GKE Autopilot, `api.palladiumtech.ai` |
+| `backend/` | FastAPI + SQLModel/SQLAlchemy, Python 3.12, uv | `builder` (HTTP API, HPA 2–4) **and** `worker` (Pub/Sub subscriber, KEDA 1–8): same image, different command | GKE Autopilot, `api.palladiumtech.ai` |
 | `frontend/` | Next.js 16 App Router, React 19, Tailwind 4, assistant-ui | Public site and chat UI | **Vercel**, not GKE |
 | `admin/` | Next.js 16 + Prisma | Internal catalog/CMS over the same Postgres | GKE, port-forward only |
 | `commerce/` | Go 1.25 | Retail listings, affiliate links, account sync, price-alert email (Resend) | GKE, `commerce.palladiumtech.ai` |
@@ -31,7 +31,7 @@ uv run pytest tests/test_turn_stream.py            # one file
 uv run pytest tests/recommender/test_scoring.py -k dominance   # one test
 uv run bash scripts/lint.sh               # THE lint gate: ruff check + ruff format --check
 bash scripts/format.sh                    # ruff --fix + format
-uv run mypy app                           # by hand only — see below
+uv run mypy app                           # by hand only. See below
 uv run alembic upgrade head               # migrations
 uv run alembic revision --autogenerate -m "..."
 ```
@@ -39,7 +39,7 @@ uv run alembic revision --autogenerate -m "..."
 `mypy` is deliberately **not** in `scripts/lint.sh`: `strict = true` is set but the codebase has
 never satisfied it. Don't add it back to the gate; do run it when working on types.
 
-CI enforces `coverage report --fail-under=45` — a ratchet just under today's number, not a target.
+CI enforces `coverage report --fail-under=45`: a ratchet just under today's number, not a target.
 
 The test suite needs a Postgres. CI starts one with `docker compose up -d db` from the repo root and
 runs `scripts/prestart.sh` before the tests.
@@ -49,14 +49,14 @@ runs `scripts/prestart.sh` before the tests.
 ```bash
 npm run dev          # :3000
 npm run build
-npm run lint         # biome check --write — REWRITES files
+npm run lint         # biome check --write. REWRITES files
 npx biome ci ./      # what CI runs: read-only, non-zero on any finding
 npx tsc --noEmit     # CI type gate, uses tsconfig.json (includes tests)
 ```
 
 Node version comes from `frontend/.nvmrc` (24).
 
-`npm run generate-client` and `scripts/generate-client.sh` are template leftovers — there is no
+`npm run generate-client` and `scripts/generate-client.sh` are template leftovers. There is no
 `openapi-ts.config.ts` and no generated client. The frontend calls the API through hand-written
 fetch wrappers in `frontend/src/lib/*.ts`, all keyed off `NEXT_PUBLIC_API_URL`.
 
@@ -76,7 +76,7 @@ Both are gated by `.github/workflows/test-unit.yml`.
 ## Local development: minikube, not docker compose
 
 The supported loop is a local Kubernetes cluster driven by Tilt. The frontend is **not** in the
-cluster — it stays on the host.
+cluster. It stays on the host.
 
 ```bash
 ./scripts/minikube-cilium-up.sh      # cold-boot the cluster (DESTRUCTIVE: deletes the profile)
@@ -84,7 +84,7 @@ tilt up                              # backend, worker, commerce, admin, postgre
 cd frontend && npm run dev           # host, :3000
 ```
 
-Never run a bare `minikube start` to repair the cluster — it can wipe `/etc/kubernetes` and leave an
+Never run a bare `minikube start` to repair the cluster. It can wipe `/etc/kubernetes` and leave an
 unrecoverable control plane. `minikube-cilium-up.sh` is the only supported way to (re)create it; its
 header explains why.
 
@@ -103,7 +103,7 @@ Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres 
 Things that will bite:
 
 - **`allow_k8s_contexts('minikube')`** guards the Tiltfile, and `mk-smoke.sh` refuses any other
-  context. Keep it that way — without it a stray kubectl context deploys to prod.
+  context. Keep it that way, without it a stray kubectl context deploys to prod.
 - **Seed runs before migrate, never after.** `pg_restore --clean` drops `alembic_version`, so
   reversing the order silently pins local to production's schema at dump time.
 - **Only `backend/app` is live-synced.** Editing anything else under `backend/` (tests, scripts,
@@ -115,7 +115,7 @@ Things that will bite:
   cluster looks correct.
 - **The pubsub emulator persists nothing.** If its pod restarts, re-trigger `pubsub-setup` by hand
   or the worker logs `NotFound` forever.
-- `pricing-etl` and `discovery` CronJobs are deployed but manual-trigger locally — the pricing ETL
+- `pricing-etl` and `discovery` CronJobs are deployed but manual-trigger locally: the pricing ETL
   burns SerpAPI quota.
 - The local seed currently has no games/benchmark rows and no embeddings, and `OPENAI_API_KEY` is
   unset locally, so game-spec lookups and pgvector search need seeding before they can be exercised.
@@ -143,13 +143,13 @@ POST /api/v1/chat            app/api/routes/chat.py        (assistant-transport 
 **Dispatch degrades, it does not fail.** If Pub/Sub or Valkey is unconfigured, `/chat` runs the turn
 inline in the API process. That fallback is the only path the pytest suite exercises, so `run_turn`
 is deliberately one implementation shared by both callers and the fallback has to keep working. It
-also means a test that only asserts "a build came back" proves nothing about dispatch —
+also means a test that only asserts "a build came back" proves nothing about dispatch,
 `mk-smoke.sh` exists to assert a *worker* ran the turn, read from the Valkey claim key. The local
 overlay runs 1 worker against the Pub/Sub emulator and a real Valkey, so the dispatched path *is*
 exercisable locally.
 
 **Why a Redis Stream and not pub/sub for events.** The browser attaches after `POST /chat` returns.
-A stream is a durable log, so a reader can replay from `0` — that is what makes both the initial
+A stream is a durable log, so a reader can replay from `0`. That is what makes both the initial
 attach and a mid-build reconnect work. The last entry is always `{"type": "end"}`, written only
 after persistence commits.
 
@@ -169,7 +169,7 @@ START → collect → route ─┬─ (incomplete) → ask ───────
                                                   └─ (paused) → finalize → END
 ```
 
-`build` is **one** node wrapping the whole component pipeline — the DSPy steps have their own
+`build` is **one** node wrapping the whole component pipeline. The DSPy steps have their own
 sequencing, budget allocation and telemetry, and nothing branches between them. Checkpointing is a
 hand-written `BaseCheckpointSaver` on Valkey (`graph/checkpoint.py`); `langgraph-checkpoint-redis`
 is deliberately not a dependency because Memorystore for Valkey ships no Redis modules.
@@ -200,14 +200,14 @@ LLM calls go through OpenRouter (`app/services/llm/`) so every call returns unif
 figures, billed to the conversation. `RECOMMEND_MODEL` overrides the Decide* model.
 
 **Load-test mode**: a request carrying `X-Palladium-Load-Test` matching `LOAD_TEST_SECRET` is served
-by in-process stub LMs (`app/core/loadtest.py`) — the full pipeline runs against the real catalog
+by in-process stub LMs (`app/core/loadtest.py`). The full pipeline runs against the real catalog
 with no provider spend. An empty secret (the default) disables the header entirely. This is how
 `mk-smoke.sh` and `deploy/loadtest/` (Locust) work.
 
 ### Batch jobs
 
 CronJobs in `deploy/base/jobs/`, each `python -m app.jobs.<name>`: `discovery` (LLM-driven catalog
-expansion — fetch, extract, dedup, evidence-check, validate, reconcile), `pricing_etl` (SerpAPI →
+expansion: fetch, extract, dedup, evidence-check, validate, reconcile), `pricing_etl` (SerpAPI →
 retail listings), `embeddings` (pgvector), `benchmarks`, `telemetry_drain`,
 `listing_failure_digest`.
 
@@ -215,12 +215,12 @@ retail listings), `embeddings` (pgvector), `benchmarks`, `telemetry_drain`,
 
 **Alembic is the only migration authority.** `deploy/base/jobs/migrate-job.yaml` runs
 `alembic upgrade head` and every service waits on it. `admin/prisma/schema.prisma` is a *mapped view*
-of that same schema (`@map` onto snake_case columns), not a source of truth — a schema change means
+of that same schema (`@map` onto snake_case columns), not a source of truth. A schema change means
 an Alembic revision first, then updating the Prisma models. Be careful with `npm run db:push` in
 `admin/`: it writes to whatever `DATABASE_URL` points at.
 
 `app/models/__init__.py` and `app/crud/__init__.py` re-export everything and carry a `F401` ignore.
-Those imports are what register models with SQLAlchemy metadata — drop one and
+Those imports are what register models with SQLAlchemy metadata. Drop one and
 `alembic revision --autogenerate` quietly produces an empty migration instead of an error.
 
 `app/core/config.py` builds `settings` at **import time** from `../.env` (repo root, gitignored).
@@ -234,23 +234,23 @@ applied.
 
 One Cloud Build pipeline, `deploy/cloudbuild.yaml`, one trigger, on pushes to `main`. It deploys
 builder, worker, commerce and admin to GKE Autopilot via `kustomize build deploy/overlays/prod`.
-The frontend deploys separately on Vercel and is filtered out of the trigger by `--included-files`
-— that filter is correctness, not an optimisation, since a frontend-only push would otherwise run a
+The frontend deploys separately on Vercel and is filtered out of the trigger by `--included-files`.
+That filter is correctness, not an optimisation, since a frontend-only push would otherwise run a
 migration Job and roll production. Any reference to `backend/cloudbuild.yaml`,
 `commerce/cloudbuild.yaml` or `admin/cloudbuild.yaml` is stale.
 
 Stages: three images build and push in parallel → `render` (kustomize + SHA substitution) →
 `credentials` (cluster auth, Secret preflight) → `migrate` → `deploy` → `rollout`. **The migration
 is a gate, not a step**: it runs as Job `migrate-$SHORT_SHA` and must complete before any Deployment
-rolls. A migration that actually ran and raised does not auto-retry — the failure is deterministic.
+rolls. A migration that actually ran and raised does not auto-retry. The failure is deterministic.
 
 Every build pushes an immutable `:$SHORT_SHA` alongside `:latest`; roll back by pinning a SHA, never
-to `:latest`. If the bad deploy carried a migration, do **not** just roll pods back — old code
+to `:latest`. If the bad deploy carried a migration, do **not** just roll pods back. Old code
 against a migrated schema fails worse and less obviously.
 
 Some operator runbooks (GCP console setup, Pub/Sub topology, tracing, RLS roles) are deliberately
 gitignored, so they may exist in a working copy but are not part of a fresh clone. Don't cite them
-by path from tracked files — `.gitignore` explains why: carry the fact itself instead, so a
+by path from tracked files. `.gitignore` explains why: carry the fact itself instead, so a
 checkout without them reads as complete.
 
 ## Conventions
@@ -258,5 +258,10 @@ checkout without them reads as complete.
 - Run `uv run pre-commit install` once. Hooks: ruff, ruff-format, and `biome check` for `frontend/`.
 - `print()` is banned in backend code by ruff `T201`; `app/seeds/*` is the only exception.
 - The dense module-header docstrings across `backend/app/services/` record *why* a design is the way
-  it is — several of them exist because the obvious alternative failed silently in production. Read
+  it is. Several of them exist because the obvious alternative failed silently in production. Read
   the header before changing a module, and keep the note updated rather than deleting it.
+- **No em-dashes anywhere.** Not in code comments, docstrings, commit messages, documentation, or
+  user-facing copy. This binds every agent working in this repo, not just one tool. Rewrite the
+  sentence with a comma, a colon, parentheses, or a full stop rather than substituting `--` or an
+  en-dash. Existing text predates the rule; fix it when you are already editing that line, not in a
+  sweep of its own.

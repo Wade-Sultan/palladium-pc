@@ -28,7 +28,7 @@
    mkdir -p .gcloud
    cp ~/.config/gcloud/application_default_credentials.json .gcloud/
    ```
-   The `.gcloud/` directory is gitignored — credentials will never be committed.
+   The `.gcloud/` directory is gitignored. Credentials will never be committed.
 3. Your production `.env` file at the project root (already exists)
 
 ## Quick Start
@@ -128,7 +128,7 @@ docker compose -f docker-compose.dev.yml up prestart
 
 ## Optional: Local Postgres Instead of Production DB
 
-If you want a sandbox database instead of hitting production, swap the Cloud SQL Proxy for a local Postgres container. See `docker-compose.yml` for reference — it has a `db` service running PostgreSQL 17 locally.
+If you want a sandbox database instead of hitting production, swap the Cloud SQL Proxy for a local Postgres container. See `docker-compose.yml` for reference. It has a `db` service running PostgreSQL 17 locally.
 
 To use that instead:
 1. Comment out/remove the `cloud-sql-proxy` service in `docker-compose.dev.yml`

@@ -9,19 +9,19 @@ WHY THIS EXISTS. All eleven modules carried the same call:
     dspy.GEPA(metric=metric, num_iterations=num_iterations)
 
 `num_iterations` is not a GEPA parameter, so every one of them raised TypeError
-on the first call — the optimizers had never actually been run. Fixing it in
+on the first call. The optimizers had never actually been run. Fixing it in
 eleven places would have left eleven places to get it wrong again.
 
 WHAT GEPA ACTUALLY NEEDS, none of which the old call supplied:
 
-  A BUDGET. `auto`, `max_full_evals` or `max_metric_calls` — all default to None
+  A BUDGET. `auto`, `max_full_evals` or `max_metric_calls`: all default to None
   and GEPA refuses to start without exactly one. This is the knob that decides
   what an optimization run costs, so it is deliberately explicit rather than
   buried at a default.
 
   A REFLECTION LM. GEPA's mechanism is reading the *textual feedback* a metric
   returns and proposing a rewritten instruction from it. That reflection wants a
-  strong model, and it does not have to be — should not be — the small model the
+  strong model, and it does not have to be, should not be, the small model the
   module runs on in production. Optimizing a Gemma-31B prompt using Gemma-31B to
   do the reflecting caps the quality of the rewrite at the reasoning ability of
   the thing being improved.
@@ -42,7 +42,7 @@ import dspy
 logger = logging.getLogger(__name__)
 
 # Model that reads the metric's feedback and proposes new instructions. Kept
-# separate from RECOMMEND_MODEL on purpose — see the module docstring. Routed
+# separate from RECOMMEND_MODEL on purpose. See the module docstring. Routed
 # through OpenRouter like everything else so the spend lands in one dashboard,
 # or through LLM_BASE_URL when one is set. Worth noting that reflection is the
 # step least suited to a small local model: it rewrites instruction blocks, and
@@ -53,7 +53,7 @@ REFLECTION_MODEL = os.getenv(
 )
 
 # GEPA's own preset budgets: "light", "medium", "heavy". Light is the right
-# default for a first run — it is enough to tell whether the metric is measuring
+# default for a first run. It is enough to tell whether the metric is measuring
 # anything real, which is the thing worth knowing before paying for heavy.
 DEFAULT_BUDGET = os.getenv("GEPA_BUDGET", "light")
 
@@ -62,7 +62,7 @@ def build_reflection_lm(model: str | None = None) -> dspy.LM:
     """The LM GEPA reflects with.
 
     max_tokens is generous because the output is a rewritten instruction block,
-    not a field value — truncating it produces a malformed prompt that GEPA then
+    not a field value: truncating it produces a malformed prompt that GEPA then
     scores badly and discards, which looks like "optimization did nothing".
     """
     from app.core.config import settings
@@ -103,7 +103,7 @@ def run_gepa(
     """
     if not trainset:
         raise ValueError(
-            "GEPA needs a non-empty trainset — build one from module_decisions "
+            "GEPA needs a non-empty trainset: build one from module_decisions "
             "(see scripts/score_appropriateness.py for reading that table)"
         )
 

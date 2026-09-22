@@ -6,7 +6,7 @@ Thin async wrapper over the OpenAI embeddings endpoint.
 Deliberately not routed through OpenRouter: OpenRouter proxies chat completions
 and exposes no embeddings endpoint, so this is the one LLM-adjacent call in the
 codebase that talks to a provider directly. That also means it does not appear
-in the OpenRouter cost telemetry the recommender relies on — embedding spend is
+in the OpenRouter cost telemetry the recommender relies on. Embedding spend is
 tracked by row count instead (see EmbeddingResult.total_tokens).
 
 DEGRADES TO None, NEVER RAISES UPWARD. Every caller of this module treats an
@@ -91,7 +91,7 @@ async def _embed_batch(texts: list[str]) -> tuple[list[list[float] | None], int]
                 dimensions=settings.EMBEDDING_DIMS,
             )
             # The API documents data as input-ordered, but it carries an
-            # explicit index and reordering here is free — relying on the
+            # explicit index and reordering here is free. Relying on the
             # documented order would fail silently and unrepeatably.
             vectors: list[list[float] | None] = [None] * len(texts)
             for item in response.data:
@@ -124,7 +124,7 @@ async def embed_texts(texts: list[str]) -> EmbeddingResult:
         return EmbeddingResult(model=settings.EMBEDDING_MODEL)
     if not is_configured():
         logger.warning(
-            "OPENAI_API_KEY is unset — skipping %d embedding(s). Semantic "
+            "OPENAI_API_KEY is unset: skipping %d embedding(s). Semantic "
             "matching stays disabled until it is configured.",
             len(texts),
         )
@@ -142,7 +142,7 @@ async def embed_texts(texts: list[str]) -> EmbeddingResult:
 
 
 async def embed_one(text: str) -> list[float] | None:
-    """Embed a single text — the query path. None if unavailable."""
+    """Embed a single text: the query path. None if unavailable."""
     if not text or not text.strip():
         return None
     result = await embed_texts([text])

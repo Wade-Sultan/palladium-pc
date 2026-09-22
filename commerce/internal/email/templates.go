@@ -163,7 +163,7 @@ func PriceAlertMessage(a PriceAlert) (Message, error) {
 type ListingFailureRow struct {
 	PartName    string
 	PartType    string
-	Reason      string // human-readable, not the stored enum — see reasonLabel
+	Reason      string // human-readable, not the stored enum. See reasonLabel
 	Occurrences int
 }
 

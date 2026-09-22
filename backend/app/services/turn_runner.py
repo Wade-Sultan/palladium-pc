@@ -64,7 +64,7 @@ def messages_to_write(
 
     Reconciling by content rather than by count is the whole point. The previous
     implementation counted stored rows and sliced `incoming` at that number,
-    which silently wrote nothing at all once the two drifted out of step — and
+    which silently wrote nothing at all once the two drifted out of step, and
     they did drift, because the transport was dropping user turns from the state
     it round-tripped.
 
@@ -86,7 +86,7 @@ def messages_to_drop(
     have to leave the database or the conversation reloads with the branch the
     user just discarded sitting under the one that replaced it.
 
-    ONLY EVER CALL THIS WHEN THE TURN REALLY IS AN EDIT — `save_turn` gates it on
+    ONLY EVER CALL THIS WHEN THE TURN REALLY IS AN EDIT: `save_turn` gates it on
     `rewound`, which originates at the one place that knows, the `parentId` check
     in api/routes/chat.py. Every other kind of turn can legitimately present a
     shorter or reordered history (a cancelled turn, a redelivery, one of the
@@ -181,7 +181,7 @@ def save_turn(
     whole point of the signature change from the original: this function swallows
     its exceptions so a save failure cannot break a stream, which means "it
     returned" carries no information about whether anything was written. The
-    caller evicts the Valkey buffer on True and only on True — evicting on mere
+    caller evicts the Valkey buffer on True and only on True. Evicting on mere
     completion would throw away the sole remaining copy of a turn that failed to
     persist.
     """
@@ -242,13 +242,13 @@ def save_turn(
             db.flush()
 
         # WHAT THIS USED TO DO, AND WHY IT LOST MESSAGES. It counted the rows
-        # already stored and then sliced the incoming list at that number —
+        # already stored and then sliced the incoming list at that number,
         # a row count used as a list index. That is only correct while the
         # incoming list is exactly the stored sequence, and it silently was not:
         # the transport dropped user turns from the state it round-tripped, so
         # the count ran ahead of the list, `messages[saved_count:]` came back
         # empty, and every user message after the first was never written. No
-        # error, no log line — just a conversation missing half of itself.
+        # error, no log line: just a conversation missing half of itself.
         #
         # Reconciling against the stored rows themselves has no such failure
         # mode. Whatever is in the incoming conversation but not in the database
@@ -275,7 +275,7 @@ def save_turn(
         stored = [(m.role, m.content or "") for m in existing]
         to_write, to_drop = _reconcile(stored, incoming)
 
-        # An edit does not add to the conversation, it rewrites it — so the rows
+        # An edit does not add to the conversation, it rewrites it, so the rows
         # it replaced have to go, or /conversations/{id} rehydrates the discarded
         # branch and the edit appears to have been undone by a page reload.
         #
@@ -299,7 +299,7 @@ def save_turn(
 
         # Explicit, strictly increasing timestamps. `created_at` defaulted to
         # server_default=func.now(), which in Postgres is the *transaction*
-        # timestamp — identical for every row of a turn — and the relationship
+        # timestamp, identical for every row of a turn, and the relationship
         # orders by that column, so a turn's own messages came back in whatever
         # order the planner felt like. The reply could sort above the question
         # that prompted it.
@@ -313,7 +313,7 @@ def save_turn(
             )
             # An unresolved picker (chosen still null) belongs to the turn that
             # showed it. A resolved one is an update to whichever earlier
-            # message showed it, applied separately below — attaching it here
+            # message showed it, applied separately below. Attaching it here
             # would put a second picker under the finished build.
             metadata: dict | None = None
             opening_picker = (
@@ -373,7 +373,7 @@ def save_turn(
 
         # Cache the reference build resolved for this conversation (the
         # budget-still-unknown estimate, or the one resolved alongside a
-        # completed turn) so it's never re-resolved — the guaranteed,
+        # completed turn) so it's never re-resolved: the guaranteed,
         # free-to-fetch fallback for the rest of the conversation.
         if ref_estimate_key and not conversation.reference_build_key:
             conversation.reference_build_key = ref_estimate_key
@@ -383,7 +383,7 @@ def save_turn(
         # Mirror the graph's final checkpoint. Overwritten every turn rather
         # than appended: only the latest matters here, because Valkey holds the
         # history and this column exists for the case where Valkey no longer
-        # does. Written inside this transaction on purpose — a checkpoint that
+        # does. Written inside this transaction on purpose. A checkpoint that
         # committed while its messages did not would describe a conversation
         # that, as far as Postgres is concerned, never had that turn.
         if graph_checkpoint is not None:
@@ -423,8 +423,8 @@ async def run_turn(
     """Run one turn end to end, emitting into the turn's Valkey stream.
 
     `case_pick` is (token, case_name) when this turn exists to finish a build
-    that paused at the case step. Such a turn adds no user message — the pick
-    was a click on a card, not something said — and resumes the saved pipeline
+    that paused at the case step. Such a turn adds no user message, the pick
+    was a click on a card, not something said, and resumes the saved pipeline
     instead of running the graph. Everything after the events are produced
     (buffering, persistence, the terminal entry) is identical, which is why it
     shares this function rather than getting its own.
@@ -510,7 +510,7 @@ async def _run_turn(
             elif etype == "part":
                 part_data = event.get("data")
             elif etype == "build":
-                # The recommend path emitted a build — this conversation is a completed build.
+                # The recommend path emitted a build. This conversation is a completed build.
                 reached_recommendation = True
                 build_data = event.get("data")
                 build_key = event.get("key")
@@ -611,7 +611,7 @@ async def _run_turn(
 
     # Build telemetry, persisted here rather than by the recorder that produced
     # it. The recorder runs inside the `build` graph node, and that path is not
-    # allowed to write to Postgres — it buffers to Valkey and this drains it.
+    # allowed to write to Postgres: it buffers to Valkey and this drains it.
     # Outside the `persistable` branch on purpose: a guest turn's telemetry is
     # still worth having (it is GEPA training data, not user data), and it would
     # otherwise sit buffered until a job picked it up.

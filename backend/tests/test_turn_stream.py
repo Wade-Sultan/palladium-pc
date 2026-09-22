@@ -1,7 +1,7 @@
 """Guards the Valkey-backed turn stream and the evict-on-commit buffer.
 
-These are durability tests. A regression here does not break a page — the stream
-still renders, the build still appears — it silently makes turns non-recoverable
+These are durability tests. A regression here does not break a page, the stream
+still renders, the build still appears, it silently makes turns non-recoverable
 again, which only shows up as users reporting a build that "disappeared" after
 their phone locked. So the negative cases (Valkey down, commit failed, duplicate
 delivery) matter more than the happy path here.
@@ -142,8 +142,8 @@ def fake(monkeypatch) -> FakeValkey:
     monkeypatch.setattr(chat_buffer, "get_client", _get_client)
     # tail() reads through the BLOCKING client, which is a separate pool with a
     # socket timeout longer than its own XREAD block (app/core/valkey.py). The
-    # fake stands in for both — the split is about socket timeouts, which a fake
-    # has none of — but it has to be patched explicitly or tail() sees None and
+    # fake stands in for both, the split is about socket timeouts, which a fake
+    # has none of, but it has to be patched explicitly or tail() sees None and
     # returns as if Valkey were unreachable.
     monkeypatch.setattr(valkey, "get_blocking_client", _get_client)
     monkeypatch.setattr(turn_stream, "get_blocking_client", _get_client)
@@ -152,7 +152,7 @@ def fake(monkeypatch) -> FakeValkey:
 
 @pytest.fixture
 def no_valkey(monkeypatch):
-    """Valkey unreachable — every accessor returns None."""
+    """Valkey unreachable. Every accessor returns None."""
 
     async def _get_client():
         return None
@@ -216,7 +216,7 @@ def test_tail_stops_at_terminal_entry_not_at_pipeline_done():
     """`done` is emitted before persistence; only `end` means it is safe to leave.
 
     If the tail stopped on `done`, a client could disconnect while the turn was
-    still committing — and the buffer eviction that follows would then run under
+    still committing, and the buffer eviction that follows would then run under
     a reader that had not finished.
     """
 
@@ -474,7 +474,7 @@ def test_guest_turns_are_streamed_but_never_buffered(fake, monkeypatch):
 
 
 def test_pipeline_error_still_terminates_the_stream(fake, monkeypatch):
-    """A reader blocked on a stream that never ends is a hung browser tab —
+    """A reader blocked on a stream that never ends is a hung browser tab,
     a worse failure than a visible error."""
     from app.schemas.chat import ChatMessage
     from app.services import turn_runner
@@ -609,7 +609,7 @@ def test_inflight_gauge_returns_to_zero_even_when_a_turn_is_cancelled(monkeypatc
 # in this file, because a fake client has no socket and therefore no socket
 # timeout. tail() issues XREAD BLOCK 15000; redis-py enforces the pool's
 # socket_timeout on that parked read like any other, so reading through the
-# ordinary 5s client aborted the block, retried, and finally raised — which
+# ordinary 5s client aborted the block, retried, and finally raised, which
 # stream_turn_into reports as "That build didn't start."
 #
 # It stayed hidden while the worker pool had a warm floor: an event always
@@ -628,7 +628,7 @@ def test_tail_block_stays_under_the_blocking_clients_socket_timeout():
     )
     assert default_block_ms / 1000 < BLOCKING_READ_TIMEOUT_S, (
         f"tail() blocks for {default_block_ms}ms but its client aborts reads at "
-        f"{BLOCKING_READ_TIMEOUT_S}s — every read would fail before the block elapsed"
+        f"{BLOCKING_READ_TIMEOUT_S}s. Every read would fail before the block elapsed"
     )
 
 
@@ -706,7 +706,7 @@ def test_a_dispatched_turn_makes_the_pool_look_needed():
 
 @pytest.mark.usefixtures("fake")
 def test_pickup_clears_the_turn_so_the_pool_can_scale_back_down():
-    """Cleared at pickup, not completion — the pod already exists by then."""
+    """Cleared at pickup, not completion. The pod already exists by then."""
 
     async def scenario():
         await turn_stream.push_wake("t31")
@@ -737,7 +737,7 @@ def test_a_redelivered_turn_cannot_leave_a_straggler_holding_a_pod_up():
 def test_an_undrained_queue_expires_rather_than_pinning_a_pod_forever(fake):
     """The one leak this design allows, and its backstop.
 
-    A turn that no worker ever receives keeps the pool awake — correct, but
+    A turn that no worker ever receives keeps the pool awake. Correct, but
     unbounded without a TTL, which would quietly undo scale-to-zero.
     """
 

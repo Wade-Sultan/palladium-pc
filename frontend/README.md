@@ -125,13 +125,13 @@ The frontend code is structured as follows:
 ## Linting
 
 CI runs `npx biome ci ./` (read-only) and `npx tsc --noEmit`. Run the same
-locally with `npx biome ci ./` — note that `npm run lint` uses
+locally with `npx biome ci ./`. Note that `npm run lint` uses
 `biome check --write --unsafe`, which rewrites files and always exits 0, so it
 tells you nothing about whether the gate will pass.
 
 Two notes on `biome.json`:
 
-* **Do not put comments in it.** Biome does not reject an unparseable config —
+* **Do not put comments in it.** Biome does not reject an unparseable config,
   it silently falls back to defaults. The visible symptom is not an error
   message but the opposite: `biome ci` walking `.next` (>1GB), running out of
   memory, and exiting **0** having printed nothing. A silent, clean-looking

@@ -51,8 +51,8 @@ export default function PrivacyPage() {
               <span className="font-medium text-foreground">Your account.</span>{" "}
               Sign-in is handled by Firebase Authentication, a Google service.
               It holds your email address, your display name if you set one, and
-              your password. Palladium never sees your password — if you sign in
-              with Google, no password exists here at all. Alongside that,
+              your password. Palladium never sees your password, and if you sign
+              in with Google, no password exists here at all. Alongside that,
               Palladium stores your email address and display name in its own
               database so builds can be attached to you.
             </p>
@@ -63,7 +63,8 @@ export default function PrivacyPage() {
               Every message you send and every reply you get is stored, along
               with the parts list produced from it. Kept with each conversation
               are the model names used, token counts and what the turn cost to
-              run — the figures that tell us whether the system is working.
+              run. Those are the figures that tell us whether the system is
+              working.
             </p>
             <p>
               <span className="font-medium text-foreground">
@@ -171,22 +172,22 @@ export default function PrivacyPage() {
                 <span className="font-medium text-foreground">
                   Google Cloud
                 </span>{" "}
-                and <span className="font-medium text-foreground">Vercel</span>{" "}
-                — hosting and databases. Everything Palladium stores lives here.
+                and <span className="font-medium text-foreground">Vercel</span>:
+                hosting and databases. Everything Palladium stores lives here.
               </li>
               <li>
                 <span className="font-medium text-foreground">
                   Firebase Authentication
                 </span>{" "}
-                (Google) — accounts and sign-in.
+                (Google): accounts and sign-in.
               </li>
               <li>
                 <span className="font-medium text-foreground">OpenRouter</span>{" "}
-                and the model providers it routes to — your conversations, as
+                and the model providers it routes to: your conversations, as
                 described above.
               </li>
               <li>
-                <span className="font-medium text-foreground">Resend</span> —
+                <span className="font-medium text-foreground">Resend</span>:
                 sends the price-drop emails, and so receives your email address
                 when one goes out.
               </li>
@@ -194,8 +195,9 @@ export default function PrivacyPage() {
                 <span className="font-medium text-foreground">
                   Google Analytics
                 </span>{" "}
-                and <span className="font-medium text-foreground">PostHog</span>{" "}
-                — usage measurement.
+                and <span className="font-medium text-foreground">PostHog</span>
+                {": "}
+                usage measurement.
               </li>
             </ul>
             <p>
@@ -208,7 +210,7 @@ export default function PrivacyPage() {
           <Section title="Builds you share">
             <p>
               Sharing a build creates a link that anyone holding it can open
-              without an account — that is the point of it. The page shows the
+              without an account, which is the point of it. The page shows the
               parts list and nothing about you, but treat the link itself as
               public once you have sent it.
             </p>
@@ -249,7 +251,7 @@ export default function PrivacyPage() {
               Depending on where you live, you may have the right to see a copy
               of what Palladium holds about you, to have it corrected, to have
               it deleted, and to object to it being used for measurement. Ask
-              and it will be done — no charge, and no need to explain why.
+              and it will be done, at no charge and with no need to explain why.
             </p>
             <p>
               Palladium is an independent site run from the United States, and
@@ -276,8 +278,8 @@ export default function PrivacyPage() {
 
           <Section title="Getting in touch">
             <p>
-              For anything on this page — a copy of your data, deletion, or a
-              question — email{" "}
+              For anything on this page, whether a copy of your data, deletion,
+              or a question, email{" "}
               <a
                 href="mailto:privacy@palladiumtech.ai"
                 className="font-medium text-foreground underline underline-offset-4"

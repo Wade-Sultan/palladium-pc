@@ -158,7 +158,7 @@ function CaseForm({ item, onSuccess }: { item: CaseWithPart | null; onSuccess: (
         />
         {/* Product image + attribution. Credit/source/license travel with the
             image because displaying manufacturer imagery under attribution is
-            the licensing basis for using it — see pc_parts image_* columns. */}
+            the licensing basis for using it. See pc_parts image_* columns. */}
         <div className="rounded-md border p-3 space-y-3">
           <div className="flex items-center gap-3">
             {form.watch('imageUrl') ? (

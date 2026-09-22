@@ -37,7 +37,7 @@ func newFakeStore() *fakeStore {
 }
 
 // seed registers an existing row. Pass an empty uid for a row that has no
-// firebase_uid yet — the auto-provisioned-by-builder case.
+// firebase_uid yet: the auto-provisioned-by-builder case.
 func (f *fakeStore) seed(id, uid, addr string) *store.User {
 	u := &store.User{ID: id, Email: addr, IsActive: true}
 	if uid != "" {
@@ -203,7 +203,7 @@ func TestSyncAccountWelcomeEmail(t *testing.T) {
 
 	// The row already existed (builder's chat pipeline auto-provisions by
 	// email) and this sync only attaches the firebase_uid. Not a signup, so no
-	// welcome — this is the branch the created flag exists to exclude.
+	// welcome. This is the branch the created flag exists to exclude.
 	t.Run("linking an auto-provisioned row sends no email", func(t *testing.T) {
 		st, m := newFakeStore(), newFakeMailer()
 		st.seed("u2", "", "prior@example.com")

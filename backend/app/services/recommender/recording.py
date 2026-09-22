@@ -5,8 +5,8 @@ Best-effort telemetry for the DSPy recommender pipeline.
 
 A `BuildRecorder` accumulates one `build_sessions` row plus one
 `module_decisions` row per `Decide*` call, then hands the lot to a write-behind
-buffer on Valkey. `drain_pending()` — called from turn_runner after save_turn,
-and by the telemetry-drain job — is what actually writes them to Postgres.
+buffer on Valkey. `drain_pending()`, called from turn_runner after save_turn,
+and by the telemetry-drain job, is what actually writes them to Postgres.
 
 WHY THE BUFFER IS IN THE MIDDLE. The recorder is driven from inside a LangGraph
 node, and that path may read from Postgres but never write to it; persistence is
@@ -22,7 +22,7 @@ The per-decision snapshot is captured *verbatim* (candidate set, input state,
 prompt hash) so a GEPA replay months later isn't corrupted by drift in
 pc_parts pricing/inventory.
 
-If a pipeline run has no recorder, none of this runs — zero behavior change.
+If a pipeline run has no recorder, none of this runs: zero behavior change.
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ from app.services import telemetry_buffer
 logger = logging.getLogger(__name__)
 
 # Stands in for model_name on decisions no model made. Filter it out of any GEPA
-# extraction query — see BuildRecorder.record_deterministic_decision.
+# extraction query. See BuildRecorder.record_deterministic_decision.
 DETERMINISTIC_MODEL_NAME = "deterministic/dominance-gate"
 
 
@@ -83,7 +83,7 @@ class _DecisionRecord:
     chosen_price_usd: float | None
     # WHEN THE DECISION ACTUALLY HAPPENED, not when it reached Postgres. The two
     # used to be the same thing; now telemetry is buffered on Valkey and drained
-    # afterwards, so the column's server_default would stamp drain time — which
+    # afterwards, so the column's server_default would stamp drain time, which
     # for anything a dead worker left behind is whenever the backstop job next
     # ran. That would be wrong twice over: it reorders a build's decisions
     # against other builds, and module_decisions.created_at is part of
@@ -194,7 +194,7 @@ class BuildRecorder:
     ) -> None:
         self.session_id = uuid.uuid4()
         # When the build STARTED, captured now rather than left to the column's
-        # server_default — which, with telemetry buffered on Valkey and drained
+        # server_default, which, with telemetry buffered on Valkey and drained
         # afterwards, would record when the row was written instead of when the
         # build ran. See _DecisionRecord.recorded_at for why that distinction
         # has teeth.
@@ -211,7 +211,7 @@ class BuildRecorder:
         # Coerced rather than stored raw: build_sessions.conversation_id is a
         # UUID column, and a guest turn's thread id is the synthetic string
         # "turn:<uuid>" (see chat_pipeline.run_chat_turn). Passing that straight
-        # through would fail the whole telemetry flush on a DataError — and
+        # through would fail the whole telemetry flush on a DataError, and
         # telemetry is never allowed to break a build. Anything unparseable
         # becomes NULL, which is already the guest case's correct answer.
         self.conversation_id: uuid.UUID | None = None
@@ -234,7 +234,7 @@ class BuildRecorder:
         self._decisions: list[_DecisionRecord] = []
         # Hardware floors resolved from the catalogs for what the user named.
         # Held on the recorder rather than passed per decision because they are
-        # a property of the build, not of any one step — every decision in a run
+        # a property of the build, not of any one step. Every decision in a run
         # was made under the same requirements, and copying them onto each row
         # is what lets a single decision be scored without a join.
         self.catalog_requirements: dict | None = None
@@ -249,7 +249,7 @@ class BuildRecorder:
         finished later as ONE build_sessions row rather than two.
 
         Carrying the recorder across the pause is not merely tidier than
-        flushing twice — it is the only thing that works. The drain upserts
+        flushing twice. It is the only thing that works. The drain upserts
         with `on_conflict_do_nothing` on the session id (see _drain), so a row
         written at pause time would win permanently and the completed build's
         decisions would be silently dropped.
@@ -275,7 +275,7 @@ class BuildRecorder:
         """Rebuild a recorder from to_dict().
 
         Bypasses __init__ rather than feeding it stand-in arguments, because
-        __init__'s job is to *start* a run — it mints a session id and stamps
+        __init__'s job is to *start* a run. It mints a session id and stamps
         started_at, both of which would overwrite the values being restored.
         Its two side effects are re-applied deliberately below: the resume runs
         in a different process than the pause, and its log lines and spans
@@ -317,7 +317,7 @@ class BuildRecorder:
         chosen_name: str | None,
         latency_ms: int | None,
     ) -> None:
-        """Capture one Decide* call. Never raises — telemetry must not break the run."""
+        """Capture one Decide* call. Never raises. Telemetry must not break the run."""
         try:
             candidate_set = _parse_candidates(candidates_json)
             tokens_in, tokens_out, cost, model, prompt_hash = extract_usage(
@@ -376,14 +376,14 @@ class BuildRecorder:
         Written by the dominance gate in app/services/recommender/scoring.py,
         which short-circuits a step when one candidate is both cheaper and
         faster than every alternative. The row is recorded so the session's
-        decision trail stays complete — a missing `cpu` or `gpu` row would read
+        decision trail stays complete. A missing `cpu` or `gpu` row would read
         as a pipeline failure rather than as a step that had nothing to decide.
 
         model_name is the sentinel DETERMINISTIC_MODEL_NAME rather than NULL, so
         GEPA extraction can exclude these rows explicitly. They must be excluded:
         there is no prompt and no model output here, so as training examples
         they would teach the optimizer to imitate a rule it does not have.
-        Token/cost fields stay NULL because nothing was spent — that is what
+        Token/cost fields stay NULL because nothing was spent. That is what
         makes the saving visible in the per-session cost aggregate.
         """
         try:
@@ -483,13 +483,13 @@ class BuildRecorder:
 
         Buffers to Valkey rather than writing to Postgres, because this is
         called from inside a LangGraph node and that path is not allowed to
-        write to the database — see app/services/telemetry_buffer.py. The
+        write to the database. See app/services/telemetry_buffer.py. The
         Postgres insert happens in drain_pending(), off the graph path.
         """
         try:
             asyncio.create_task(self._buffer(status))
         except RuntimeError:
-            # No running loop (e.g. sync test context) — buffer synchronously.
+            # No running loop (e.g. sync test context): buffer synchronously.
             asyncio.run(self._buffer(status))
 
     # -- internal ----------------------------------------------------------
@@ -500,7 +500,7 @@ class BuildRecorder:
         Note what is NOT done here: chosen_name is not resolved to a part id.
         That resolution is a SELECT against pc_parts, and doing it at drain time
         keeps this path free of database access altogether rather than merely
-        free of writes — which is a much easier property to keep true.
+        free of writes, which is a much easier property to keep true.
         """
         try:
             await telemetry_buffer.push(self._payload(status))
@@ -570,7 +570,7 @@ class BuildRecorder:
         }
 
 
-# --- Drain — the only place build telemetry reaches Postgres ------------------
+# --- Drain: the only place build telemetry reaches Postgres ------------------
 # Called from turn_runner after save_turn, and by the telemetry-drain job as a
 # backstop for anything a dead worker left buffered. Never called from a graph
 # node: that is the whole point of the buffer sitting in front of it.
@@ -586,8 +586,8 @@ async def drain_pending(limit: int = DRAIN_BATCH) -> int:
     IDEMPOTENT BY SESSION ID. Every insert is ON CONFLICT DO NOTHING against
     build_sessions.id, and a session already present skips its decisions
     entirely. That is what makes the peek/commit/trim cycle safe without
-    consumer groups: a payload delivered twice — because a trim failed, or two
-    workers drained concurrently — becomes a no-op rather than a duplicate row
+    consumer groups: a payload delivered twice, because a trim failed, or two
+    workers drained concurrently, becomes a no-op rather than a duplicate row
     or an integrity error.
 
     Never raises. A drain failure must not affect the turn that triggered it;
@@ -617,7 +617,7 @@ async def drain_pending(limit: int = DRAIN_BATCH) -> int:
         logger.warning("telemetry drain failed; entries stay buffered", exc_info=True)
         return 0
 
-    # Trim by how many were READ, not how many were written — a payload that
+    # Trim by how many were READ, not how many were written. A payload that
     # failed to parse or was already present must still leave the queue, or it
     # blocks everything behind it forever.
     await telemetry_buffer.ack(len(payloads))
@@ -637,7 +637,7 @@ def _as_uuid(value: Any) -> uuid.UUID | None:
 
 
 def _as_decimal(value: Any) -> Decimal | None:
-    """Same story for Numeric columns — _payload stringifies Decimal to survive
+    """Same story for Numeric columns. _payload stringifies Decimal to survive
     JSON, and handing that string to the driver is not the same as handing it a
     number."""
     if value is None:
@@ -652,7 +652,7 @@ def _as_datetime(value: Any) -> datetime | None:
     """Parse a buffered ISO timestamp back into an aware datetime.
 
     Returns None on anything unparseable, which lets the column's server_default
-    take over — a slightly wrong timestamp beats a failed insert, and the loss is
+    take over. A slightly wrong timestamp beats a failed insert, and the loss is
     visible because it will be the only row stamped at drain time.
     """
     if not value:
@@ -693,7 +693,7 @@ async def _persist_session(db, payload: dict) -> bool:
     decisions = payload.get("decisions") or []
 
     # Resolve chosen part ids here rather than at record time, so the graph path
-    # touches the database not at all — see BuildRecorder._buffer.
+    # touches the database not at all. See BuildRecorder._buffer.
     final_build: dict[str, str] = {}
     resolved: list[str | None] = []
     for d in decisions:

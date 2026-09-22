@@ -1,5 +1,5 @@
 # The Locust master: the web UI, and the process that aggregates every worker's
-# statistics. Exactly one — the master is a singleton by design, and a second
+# statistics. Exactly one. The master is a singleton by design, and a second
 # replica would be a second, separate test run with its own numbers.
 apiVersion: apps/v1
 kind: Deployment
@@ -34,7 +34,7 @@ spec:
             #
             # The trade-off, stated plainly because the UI lets you change it:
             # this path skips the Gateway, so it measures the service and not
-            # the edge — no TLS termination, no Cloud Load Balancer, no
+            # the edge: no TLS termination, no Cloud Load Balancer, no
             # GCPBackendPolicy timeout. To include all of that, put
             # https://api.palladiumtech.ai in the UI's Host field instead. The
             # locustfile works unchanged either way; only the blast radius
@@ -115,7 +115,7 @@ spec:
       port: 8089
       targetPort: web
     # Workers connect here. Locust 2.x multiplexes control and statistics over
-    # this single port — the second port older guides mention (5558) no longer
+    # this single port. The second port older guides mention (5558) no longer
     # exists.
     - name: master
       port: 5557

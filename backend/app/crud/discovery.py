@@ -166,7 +166,7 @@ async def get_incomplete_items(
     These are the catalog's real gaps: the subtype columns backing
     REQUIRED_FIELDS are all nullable=False, so an approved pc_parts row cannot
     be missing one. What *can* be incomplete is an item staged for review whose
-    extraction came up short — a re-run gets it a fresh set of sources.
+    extraction came up short. A re-run gets it a fresh set of sources.
 
     Returns (search_query, category). The query prefers the original name from
     extracted_fields over name_normalized, which has been lowercased and

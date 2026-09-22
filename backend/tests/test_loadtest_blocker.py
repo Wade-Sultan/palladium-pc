@@ -1,7 +1,7 @@
 """Guards the OpenRouter blocker used by the Locust load tests.
 
 These are cost tests, not feature tests. A regression here does not break a
-page — it silently bills real OpenRouter tokens for every simulated user in a
+page: it silently bills real OpenRouter tokens for every simulated user in a
 load run, which is exactly the kind of failure nobody notices until the
 invoice. Hence asserting the negative cases (no header, wrong secret, secret
 unset) as carefully as the positive one.
@@ -89,8 +89,8 @@ def test_flag_does_not_leak_between_requests(client: TestClient) -> None:
 def test_chat_publishes_the_load_test_flag(monkeypatch) -> None:
     """The regression that costs money: a payload without `load_test`.
 
-    Nothing about such a turn looks wrong — it streams, it persists, the load
-    test reports healthy latency — except that the worker called OpenRouter for
+    Nothing about such a turn looks wrong, it streams, it persists, the load
+    test reports healthy latency, except that the worker called OpenRouter for
     real, once per build step, for every simulated user.
     """
     from app.api.routes import chat as chat_route
@@ -156,7 +156,7 @@ def test_load_test_scope_refuses_when_secret_unset(monkeypatch) -> None:
     """Safe-by-default, enforced on the worker side too.
 
     The worker takes the flag from a message body rather than a validated
-    header, so the check has to be re-done here — otherwise a replayed or stale
+    header, so the check has to be re-done here, otherwise a replayed or stale
     message could put a worker into stub mode in a deployment where the feature
     is switched off entirely, and real users would get fabricated builds.
     """
@@ -190,7 +190,7 @@ def test_stub_chat_model_streams_like_chatopenrouter() -> None:
     text, sink = asyncio.run(drive())
 
     assert text.strip()
-    # A stubbed turn is free, and must record as free rather than as unknown —
+    # A stubbed turn is free, and must record as free rather than as unknown,
     # the conversations table sums this column. Non-None also means
     # _finalize_usage will skip the network lookup entirely, which is the point.
     assert sink["cost_usd"] == 0.0
@@ -199,7 +199,7 @@ def test_stub_chat_model_streams_like_chatopenrouter() -> None:
 
 
 def test_stub_chat_model_answers_a_non_streaming_call() -> None:
-    """The router calls ainvoke, not astream — a stub that only streams would
+    """The router calls ainvoke, not astream. A stub that only streams would
     make every load-test turn fall back to priority ordering and never exercise
     the router at all."""
     from app.core.loadtest_stubs import StubChatModel
@@ -219,7 +219,7 @@ def test_stub_lm_satisfies_typed_signatures() -> None:
 
     Literal is imported at module scope on purpose: this file uses
     `from __future__ import annotations`, so DSPy resolves the annotation
-    strings against module globals — a function-local import would leave it
+    strings against module globals. A function-local import would leave it
     unresolvable and the Literal field would silently degrade to str.
     """
     import dspy
@@ -248,7 +248,7 @@ def test_stub_lm_satisfies_typed_signatures() -> None:
 def test_branch_fields_produce_a_complete_profile() -> None:
     """primary_use/budget_tier drive which path a /chat turn takes. If the
     generic "stub" placeholder reaches them, is_profile_complete() is False and
-    a load test never leaves elicitation — so the expensive eleven-module build
+    a load test never leaves elicitation, so the expensive eleven-module build
     path, the one most worth load testing, goes unexercised."""
     from app.core.loadtest_stubs import _BRANCH_FIELDS, _placeholder
 

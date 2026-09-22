@@ -16,7 +16,7 @@ unchanged catalog costs one indexed SELECT per entity type and zero API calls.
 Cost scales with churn, not with catalog size.
 
 Runs to completion and exits, reusing the backend image with an overridden
-command — same shape as app.jobs.discovery and app.jobs.ai_models.
+command: same shape as app.jobs.discovery and app.jobs.ai_models.
 """
 
 import asyncio
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # everything, which is the intended default.
 _TYPES = os.getenv("EMBEDDING_RECONCILE_TYPES") or ""
 
-# Cap on rows embedded per type per run. Unset means no cap — correct for the
+# Cap on rows embedded per type per run. Unset means no cap. Correct for the
 # steady state, where a run has a handful of changes to make. Set it for the
 # first backfill of a large catalog if you want to spread the initial spend
 # across several runs rather than paying it in one.
@@ -71,7 +71,7 @@ async def run() -> int:
         # Exit non-zero: an unconfigured key is a deployment error, not a quiet
         # no-op, and a green CronJob would hide it indefinitely.
         logger.error(
-            "OPENAI_API_KEY is not set — embeddings cannot be generated and "
+            "OPENAI_API_KEY is not set. Embeddings cannot be generated and "
             "semantic catalog matching stays disabled"
         )
         return 1

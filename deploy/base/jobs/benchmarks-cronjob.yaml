@@ -4,7 +4,7 @@ metadata:
   name: benchmarks
 spec:
   # Weekly, Sunday 05:00. Unlike the embeddings sweep this is NOT free when
-  # idle in the way that one is — it is, however, idempotent and self-limiting:
+  # idle in the way that one is. It is, however, idempotent and self-limiting:
   # it only ever selects rows where benchmark_scores is NULL or {}, so once
   # coverage is complete a run finds nothing and makes no calls at all. Weekly
   # is about picking up parts added since the last pass.
@@ -38,7 +38,7 @@ spec:
                     name: builder-config
                 - secretRef:
                     name: palladium-secrets
-              # Same shape as discovery — search, HTTP fetch, LLM extraction,
+              # Same shape as discovery: search, HTTP fetch, LLM extraction,
               # one part's documents in memory at a time.
               resources:
                 requests:
@@ -53,5 +53,5 @@ spec:
 #
 # Feeds services/recommender/scoring.py. Its dominance gate refuses to fire
 # unless EVERY candidate in a set is scored, so partial coverage is not a
-# partial benefit — one unmeasured chipset in a budget band disables the LLM
+# partial benefit: one unmeasured chipset in a budget band disables the LLM
 # bypass for every build landing in that band.

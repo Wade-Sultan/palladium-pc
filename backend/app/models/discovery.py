@@ -20,12 +20,12 @@ from sqlalchemy.sql import func
 from app.db.base import Base
 
 # The parts-discovery staging area. Nothing here ever writes to pc_parts
-# directly — a discovered item sits in the queue until a human approves it in
+# directly. A discovered item sits in the queue until a human approves it in
 # the admin panel, and approval performs the typed pc_parts insert. Staging
 # rows are JSONB on purpose: typed columns exist only on the pc_parts subtypes,
 # so the approval-time insert is the structural enforcement boundary.
 #
-# `extracted_fields` and `field_provenance` are snapshots, not references —
+# `extracted_fields` and `field_provenance` are snapshots, not references,
 # same philosophy as `candidate_set` on module_decisions. The reviewer must see
 # exactly what the model saw even if the source page changes later.
 
@@ -62,8 +62,8 @@ class DiscoveryCategory(str, enum.Enum):
 
 
 # Categories whose approval creates a pc_parts row plus (or reusing) a *_groups
-# row. Discovery always targets the purchasable SKU — that is what a spec page
-# is written about and what a buyer searches for — and the group's intrinsic
+# row. Discovery always targets the purchasable SKU, that is what a spec page
+# is written about and what a buyer searches for, and the group's intrinsic
 # spec is extracted alongside it, so approval can find-or-create the group.
 GROUPED_CATEGORIES = frozenset({"ram_kit", "storage_drive", "psu"})
 
@@ -162,11 +162,11 @@ class DiscoveredItem(Base):
     # Keys are exactly pc_parts + subtype column names (plus `chipset_name` for
     # gpu_variant), so approval can cast this straight into the insert.
     extracted_fields = Column(JSONB, nullable=False)
-    # {field: {"source_url": ..., "snippet": ...}} — kept separate from the
+    # {field: {"source_url": ..., "snippet": ...}}. Kept separate from the
     # payload so approval doesn't have to strip provenance back out.
     field_provenance = Column(JSONB, nullable=False)
     # Multi-source disagreement flags: {field: {"agreement": ..., "n_sources": ...,
-    # "values": {url: value, ...}}} — "values" present only where sources disagree.
+    # "values": {url: value, ...}}}: "values" present only where sources disagree.
     extraction_confidence = Column(JSONB, nullable=True)
     source_urls = Column(ARRAY(Text), nullable=False)
 

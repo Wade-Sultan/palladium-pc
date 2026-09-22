@@ -3,8 +3,8 @@
 # WHY THIS EXISTS AT ALL. /chat picks between two very different paths, and the
 # check is reachability, not configuration (api/routes/chat.py `_dispatch`):
 # Valkey AND Pub/Sub both have to answer before a turn is handed to a worker.
-# With Valkey alone the API takes a middle path — an in-process background task
-# writing to the stream — so the worker, the turn claim, ack/nack, redelivery
+# With Valkey alone the API takes a middle path, an in-process background task
+# writing to the stream, so the worker, the turn claim, ack/nack, redelivery
 # and ordering keys are never exercised. Everything the worker Deployment exists
 # to do would be untested locally, which is how a bug reaches production through
 # a green local run.
@@ -14,11 +14,11 @@
 # are no real ack deadlines under load, no genuine at-least-once redelivery
 # pressure, and its dead-letter support is partial (bootstrap_pubsub.py prints
 # loudly if it had to drop that half). What it does cover is the part the app
-# actually depends on — publish with an ordering key, streaming pull, ack, nack,
+# actually depends on: publish with an ordering key, streaming pull, ack, nack,
 # and the message shape crossing the process boundary.
 #
 # PERSISTS NOTHING. Every restart of this pod comes back empty, so the bootstrap
-# Job below has to run again — it is idempotent for exactly that reason. If the
+# Job below has to run again. It is idempotent for exactly that reason. If the
 # worker starts logging NotFound on the subscription, that is what happened;
 # re-trigger `pubsub-setup` in Tilt.
 apiVersion: v1

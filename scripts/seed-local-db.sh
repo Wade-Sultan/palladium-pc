@@ -5,8 +5,8 @@
 # populated catalog.
 #
 # RUNS BEFORE THE MIGRATE JOB, NOT AFTER, and the ordering is load-bearing.
-# `pg_restore --clean` below drops and recreates every object in the dump —
-# including the alembic_version row — so running this after a migration silently
+# `pg_restore --clean` below drops and recreates every object in the dump,
+# including the alembic_version row, so running this after a migration silently
 # reverts it and leaves the database on whatever revision production was on when
 # the dump was taken. Nothing reports that; it shows up later as the ORM writing
 # a column Postgres does not have. Tilt therefore orders postgres -> seed-db ->
@@ -28,7 +28,7 @@ SEED_DIR="${PALLADIUM_SEED_DIR:-$REPO_ROOT/.local-seed}"
 DUMP_FILE="${PALLADIUM_SEED_DUMP:-$SEED_DIR/palladium.dump}"
 PG_PORT="${PALLADIUM_LOCAL_PG_PORT:-5433}"
 # Must match POSTGRES_DB in deploy/overlays/local/patches/config-local.yaml.
-# Deliberately not `palladium` — that is the Cloud SQL database, and the dump
+# Deliberately not `palladium`. That is the Cloud SQL database, and the dump
 # restored here came from it, so identical names invite restoring in the wrong
 # direction.
 PG_DB="${PALLADIUM_LOCAL_PG_DB:-palladium_local}"
@@ -36,7 +36,7 @@ FORCE="${PALLADIUM_SEED_FORCE:-0}"
 [ "${1:-}" = "--force" ] && FORCE=1
 
 if [ ! -f "$DUMP_FILE" ]; then
-  echo "No seed dump at $DUMP_FILE — starting with an empty schema."
+  echo "No seed dump at $DUMP_FILE: starting with an empty schema."
   echo "Create one with: ./scripts/dump-prod-db.sh"
   # Exit 0 on purpose: an empty database is a working cluster, and failing here
   # would turn a missing convenience into a red Tilt resource.
@@ -53,7 +53,7 @@ export PGPASSWORD="$LOCAL_PW"
 PSQL=(psql -h 127.0.0.1 -p "$PG_PORT" -U palladium_app -d "$PG_DB")
 
 # Tilt starts this once the migrate Job finishes, but the port-forward is
-# established independently — wait rather than race it.
+# established independently: wait rather than race it.
 echo "Waiting for Postgres on 127.0.0.1:$PG_PORT ..."
 for _ in $(seq 1 60); do
   pg_isready -h 127.0.0.1 -p "$PG_PORT" -q 2>/dev/null && break
@@ -68,7 +68,7 @@ fi
 if [ "$FORCE" != "1" ]; then
   EXISTING="$("${PSQL[@]}" -tAc "SELECT count(*) FROM pc_parts" 2>/dev/null || echo 0)"
   if [ "${EXISTING:-0}" -gt 0 ]; then
-    echo "Catalog already has $EXISTING pc_parts rows — skipping restore (--force to override)."
+    echo "Catalog already has $EXISTING pc_parts rows: skipping restore (--force to override)."
     exit 0
   fi
 fi
@@ -104,7 +104,7 @@ USERS="$("${PSQL[@]}" -tAc 'SELECT count(*) FROM users')"
 echo "  pc_parts=$PARTS  listings=$LISTINGS  reference_builds=$REFS  users=$USERS"
 
 if [ "$PARTS" -eq 0 ]; then
-  echo "ERROR: restore finished but pc_parts is empty — check the dump." >&2
+  echo "ERROR: restore finished but pc_parts is empty. Check the dump." >&2
   exit 1
 fi
 if [ "$USERS" -ne 0 ]; then

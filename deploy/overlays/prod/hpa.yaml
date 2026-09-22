@@ -18,7 +18,7 @@ spec:
         name: cpu
         target:
           type: Utilization
-          # 150, not 70 — and this is the subtle part of combining bursting with
+          # 150, not 70, and this is the subtle part of combining bursting with
           # an HPA. Utilization is measured against the *request* (250m), not
           # the limit, so 100% means "using the billed baseline" and the pod can
           # legitimately reach 400%. A 70% target would scale out at 175m, well
@@ -33,6 +33,6 @@ spec:
       # protects long SSE streams from being drained mid-build.
       stabilizationWindowSeconds: 300
 # Caveat worth re-checking against real traffic: builder is mostly blocked on
-# OpenRouter, so CPU understates load — a pod can be saturated on in-flight
+# OpenRouter, so CPU understates load. A pod can be saturated on in-flight
 # requests while looking idle. If p95 latency degrades before this HPA reacts,
 # the answer is concurrency-based scaling (KEDA), not a lower CPU target.

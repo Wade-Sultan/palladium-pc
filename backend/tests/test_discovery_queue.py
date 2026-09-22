@@ -5,7 +5,7 @@ catalog has no row, the build is sized without it, and nothing records that we
 were asked. Now the term is counted, and the next sweep goes looking.
 
 The ordering is the design. With roughly ten searches per sweep, spending them
-on the most-asked-for terms rather than the earliest-typed is the entire value —
+on the most-asked-for terms rather than the earliest-typed is the entire value,
 so most of these tests are about the score, not the plumbing.
 """
 
@@ -168,7 +168,7 @@ def test_the_display_spelling_is_what_gets_searched(fake):
     assert asyncio.run(queue.take(queue.KIND_AI_MODEL, 10)) == ["Gemma 4 31B"]
 
 
-# --- Guards — this is unauthenticated input that eventually reaches a paid API ---
+# --- Guards. This is unauthenticated input that eventually reaches a paid API ---
 
 
 @pytest.mark.parametrize("junk", ["", " ", "!", "!!!!!", "12345", "x" * 200])
@@ -188,7 +188,7 @@ def test_nothing_is_evicted_below_the_high_water_mark(fake, monkeypatch):
 
 def test_a_trim_leaves_headroom_for_new_terms(fake, monkeypatch):
     """THE BUG THIS PINS. Cutting back to exactly the cap evicts each new term
-    the instant it arrives — it enters at score 1 and is always the coldest — so
+    the instant it arrives, it enters at score 1 and is always the coldest, so
     the queue freezes with whatever got in first and never learns anything new.
     Cutting below the cap is what gives a newcomer a window to earn a second
     mention."""
@@ -208,7 +208,7 @@ def test_a_trim_leaves_headroom_for_new_terms(fake, monkeypatch):
 
 
 def test_a_flood_evicts_the_coldest_not_the_established(fake, monkeypatch):
-    """Over capacity, score-order eviction protects real demand — which is
+    """Over capacity, score-order eviction protects real demand, which is
     exactly what a flood is trying to displace."""
     monkeypatch.setattr(queue, "_MAX_TRACKED", 8)
     monkeypatch.setattr(queue, "_TRIM_TARGET", 5)

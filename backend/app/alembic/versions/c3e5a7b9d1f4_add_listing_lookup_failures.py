@@ -1,6 +1,6 @@
 """add listing lookup failures
 
-One row per part the listings API could not produce a listing for — either a
+One row per part the listings API could not produce a listing for. Either a
 coverage gap (the part is recommended but has nothing active to buy) or a
 genuine lookup error. Written by commerce; read by the admin page and by the
 digest email commerce sends.
@@ -53,7 +53,7 @@ def upgrade():
         sa.Column("resolved_at", sa.DateTime(timezone=True), nullable=True),
     )
 
-    # Both readers — the admin page and the digest — want open rows only, so
+    # Both readers, the admin page and the digest, want open rows only, so
     # the index is partial rather than covering resolved history nobody scans.
     op.create_index(
         "ix_listing_lookup_failures_open",

@@ -1,8 +1,8 @@
-"""Build telemetry goes to Valkey first, Postgres second — never from the graph.
+"""Build telemetry goes to Valkey first, Postgres second, never from the graph.
 
 THE INVARIANT UNDER TEST. The LangGraph turn reads from Postgres but writes only
 to Valkey; persistence belongs to save_turn, which runs after the graph stream
-has drained. `BuildRecorder` used to be the sole exception — it opened a session
+has drained. `BuildRecorder` used to be the sole exception: it opened a session
 inside the `build` node and committed there. These tests pin the fix, including
 the one that matters most: that `finish()` reaches no database at all.
 
@@ -99,7 +99,7 @@ def test_push_then_peek_round_trips(fake):
 
 
 def test_peek_does_not_remove(fake):
-    """Entries leave only on ack, after Postgres confirms — same discipline as
+    """Entries leave only on ack, after Postgres confirms: same discipline as
     chat_buffer's evict-on-commit."""
 
     async def scenario():
@@ -172,7 +172,7 @@ def _recorder() -> rec.BuildRecorder:
 
 def test_finish_never_opens_a_database_session(fake, monkeypatch):
     """THE REGRESSION. finish() runs inside the `build` graph node; if it can
-    reach Postgres at all, the invariant is not enforced — it is merely being
+    reach Postgres at all, the invariant is not enforced. It is merely being
     observed. Any DB access here should fail loudly."""
 
     def _explode(*a, **kw):
@@ -222,7 +222,7 @@ def test_finish_buffers_the_whole_run(fake):
 # module_decisions.created_at is part of ix_module_decisions_category_pipeline_created,
 # the index every GEPA extraction windows on. If the buffer let it default to
 # now(), a run drained hours later by the backstop job would land in the wrong
-# cohort — a silent data-quality bug rather than a visible failure.
+# cohort: a silent data-quality bug rather than a visible failure.
 
 
 def test_the_payload_carries_build_time_not_drain_time(fake):

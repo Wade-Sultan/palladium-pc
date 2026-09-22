@@ -18,7 +18,7 @@ class FanSelection(dspy.Signature):
     fan_quantity is a count of the chosen product as it is sold, which is not
     the same as a count of fans: candidates carry pack_count, so a 3-pack
     filling three empty slots is fan_quantity 1, not 3. Never order more than
-    empty_fan_slots worth of fans — airflow the case cannot mount is money
+    empty_fan_slots worth of fans. Airflow the case cannot mount is money
     spent on nothing.
 
     Size the count to the heat actually being removed. A build with several
@@ -35,11 +35,11 @@ class FanSelection(dspy.Signature):
         desc="Number of fans included with the case"
     )
     empty_fan_slots: int = dspy.InputField(
-        desc="Mounting points left after the included fans — the hard ceiling on "
+        desc="Mounting points left after the included fans. The hard ceiling on "
         "how many additional fans can be fitted"
     )
     budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on additional fans in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on additional fans in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     candidates: str = dspy.InputField(
         desc="JSON list of compatible fans. Fields: name, size_mm, airflow_cfm, "
@@ -57,7 +57,7 @@ class FanSelection(dspy.Signature):
 
 
 class DecideFans(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideFans"
     # v2: adds fan_quantity and the empty_fan_slots ceiling it is bounded by,

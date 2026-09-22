@@ -28,7 +28,7 @@ type Config struct {
 
 	// DatabaseURL, when set, is a plain Postgres DSN (e.g.
 	// "postgresql://user:pass@localhost:5433/palladium") used for local dev via
-	// the cloud-sql-proxy — mirroring admin's DATABASE_URL. It bypasses the
+	// the cloud-sql-proxy: mirroring admin's DATABASE_URL. It bypasses the
 	// Cloud SQL connector + IAM auth, so the connector-only vars below
 	// (InstanceConnectionName, DBIAMUser, DBName) aren't required when it's set.
 	DatabaseURL string
@@ -72,7 +72,7 @@ type Config struct {
 	ResendAPIKey string
 	EmailFrom    string
 
-	// InternalAPIKey is the shared secret guarding /internal/* — the
+	// InternalAPIKey is the shared secret guarding /internal/*. The
 	// service-to-service surface the builder calls to have transactional mail
 	// sent (commerce is the only service holding RESEND_API_KEY). Mirrors the
 	// builder's own DISCOVERY_API_KEY: empty is not a validation failure, it
@@ -80,14 +80,14 @@ type Config struct {
 	// still boots.
 	InternalAPIKey string
 
-	// OpsEmail receives operational mail — today, the digest of parts the
+	// OpsEmail receives operational mail. Today, the digest of parts the
 	// listings API could not produce a listing for. Empty disables the digest
 	// (the endpoint answers 503), which is the right default for a checkout
 	// that has no operator to mail.
 	OpsEmail string
 
 	// AdminURL is the admin panel's base URL, used to link the digest at the
-	// listing-failures page. Empty just omits the link — admin is
+	// listing-failures page. Empty just omits the link. Admin is
 	// port-forward-only today, so there is often no URL worth putting in an
 	// email.
 	AdminURL string

@@ -81,7 +81,7 @@ def downgrade():
     """LOSSY. Restoring UNIQUE (build_id, role) requires there to be one row per
     role, so any build that used the capability this migration added has to give
     those rows up. The oldest row in each (build_id, role) is kept and the rest
-    are deleted — a four-GPU build comes back as a one-GPU build.
+    are deleted. A four-GPU build comes back as a one-GPU build.
 
     Done explicitly rather than left to fail on the constraint: a downgrade that
     errors out halfway leaves the schema in neither state, which is worse than a

@@ -58,7 +58,11 @@ _LATENCY = re.compile(r"\bcl[\s-]*(\d{2,3})\b")
 def _normalize(title: str) -> str:
     title = title.replace("™", "").replace("®", "")
     title = unicodedata.normalize("NFKC", title).casefold()
-    return re.sub(r"[‐‑‒–—−]", "-", title)
+    # Every Unicode dash variant collapses to ASCII "-" so retail titles match.
+    # Written as escapes, not literals, to keep the no-em-dash rule mechanical:
+    # U+2010 hyphen, U+2011 non-breaking hyphen, U+2012 figure dash,
+    # U+2013 en dash, U+2014 em dash, U+2212 minus.
+    return re.sub("[\u2010\u2011\u2012\u2013\u2014\u2212]", "-", title)
 
 
 def normalize_for_similarity(title: str) -> str:

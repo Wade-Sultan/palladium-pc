@@ -164,7 +164,7 @@ async def find_part(db, query: str, category: str) -> dict | None:
         part = None
     if part is None:
         # Name-token matches first, then semantic neighbours. The former
-        # answers most "show me the X" requests on its own — and it is all
+        # answers most "show me the X" requests on its own, and it is all
         # there is wherever embeddings are not configured.
         hits = [
             SimpleNamespace(entity_id=i)

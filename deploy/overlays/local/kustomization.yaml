@@ -5,7 +5,7 @@ resources:
   - ../../base
   - postgres-statefulset.yaml
   # The two stand-ins for managed GCP services. Together they are what makes the
-  # DISPATCHED turn path — publish, worker, claim, event stream, resume — run
+  # DISPATCHED turn path, publish, worker, claim, event stream, resume, run
   # locally at all; with either missing, /chat falls back to running the turn
   # inline in the API process.
   - valkey.yaml
@@ -29,7 +29,7 @@ patches:
       kind: HTTPRoute
       name: builder
 
-# Secrets are generated from a gitignored .env.local — never a committed Secret
+# Secrets are generated from a gitignored .env.local, never a committed Secret
 # manifest. Base64 is encoding, not encryption, and a committed dev credential
 # reads exactly like a committed prod one to anyone reviewing the repo.
 secretGenerator:
@@ -48,7 +48,7 @@ configMapGenerator:
 generatorOptions:
   # Deployments reference this Secret by a fixed name via envFrom, so the
   # content hash suffix would break the reference. The tradeoff: editing
-  # .env.local does not itself roll the pods — restart them explicitly.
+  # .env.local does not itself roll the pods: restart them explicitly.
   disableNameSuffixHash: true
 
 images:

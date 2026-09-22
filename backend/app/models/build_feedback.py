@@ -11,8 +11,8 @@ Keyed on build alone, two users rating their own recommendations would look
 like two votes on one object, with nothing left to say which conversation
 either came from.
 
-So `conversation_id` carries the identity — one vote per user per conversation,
-changeable — and `build_id` is denormalized alongside it to make the aggregate
+So `conversation_id` carries the identity, one vote per user per conversation,
+changeable, and `build_id` is denormalized alongside it to make the aggregate
 question ("which template scores worst across everyone who got it?") a group-by
 rather than a join through a column that can drift.
 

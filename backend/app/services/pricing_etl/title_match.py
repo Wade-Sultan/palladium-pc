@@ -8,21 +8,21 @@ from app.services.pricing_etl import product_identity
 #
 # Three independent gates, because they catch different failures:
 #
-#   identity    — do the model, suffix and capacity agree with the query?
-#   similarity  — does the rest of the title resemble the requested product?
-#   disqualifiers — is this a *part* at all? Catches the listings that score
+#   identity. Do the model, suffix and capacity agree with the query?
+#   similarity. Does the rest of the title resemble the requested product?
+#   disqualifiers. Is this a *part* at all? Catches the listings that score
 #                 well precisely because they contain the part's full name: a
 #                 prebuilt desktop built around it, a bundle, a five-pack, a
 #                 replacement bracket for it.
 #
 # The second gate is the one that matters for price accuracy. A high-similarity
 # whole-system listing is the single biggest source of overestimation, and no
-# similarity threshold can exclude it — "NVIDIA GeForce RTX 5080 Gaming Desktop
+# similarity threshold can exclude it. "NVIDIA GeForce RTX 5080 Gaming Desktop
 # PC" is, by every token measure, an excellent match for "NVIDIA GeForce RTX
 # 5080".
 
 # Below this, a result is treated as "probably not the part we searched for"
-# and excluded from the price stats — but
+# and excluded from the price stats, but
 # every raw result is still stored with its score and its reason, so this
 # threshold isn't a hard data-loss point, just a stats-inclusion gate. The
 # eventual ML classifier trains on exactly this signal plus the ones it rejects.

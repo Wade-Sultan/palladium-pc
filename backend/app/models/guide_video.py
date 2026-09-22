@@ -10,7 +10,7 @@ from app.db.base import Base
 class GuideVideo(Base):
     """A PC-building guide video listed on the public /guides page.
 
-    These are links to third-party videos, not hosted media — the catalog
+    These are links to third-party videos, not hosted media. The catalog
     records where a video lives, and the page embeds or links to it. Replaces
     the hardcoded array that used to live in the frontend component.
     """

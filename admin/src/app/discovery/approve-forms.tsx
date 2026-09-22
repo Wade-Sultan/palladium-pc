@@ -54,7 +54,7 @@ export type ChipsetOption = { id: string; name: string };
  * instead of minting a duplicate group. Empty selection = create a new one. */
 export type GroupOption = { id: string; name: string };
 
-// extractedFields is untyped Json with snake_case backend keys — these
+// extractedFields is untyped Json with snake_case backend keys: these
 // coercers keep a malformed extraction from crashing the prefill.
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
@@ -634,7 +634,7 @@ function CheckboxField<T extends FieldValues>({
 
 /** Group picker for RAM/storage/PSU. Empty value means "create a new group
  * from the spec fields below", which is the right default for a discovered
- * part — the whole point of discovering it is that it's new. */
+ * part. The whole point of discovering it is that it's new. */
 function GroupField<T extends FieldValues & { groupId: string }>({
   control,
   groups,
@@ -670,7 +670,7 @@ function GroupField<T extends FieldValues & { groupId: string }>({
           </Select>
           {!field.value && (
             <p className="text-xs text-muted-foreground">
-              Attach to an existing group instead if this SKU shares a spec with one —
+              Attach to an existing group instead if this SKU shares a spec with one,
               price and every recommender query live on the group.
             </p>
           )}
@@ -894,7 +894,7 @@ export function ApproveGpuVariantForm({
                 </Select>
                 {!field.value && extractedChipsetName && (
                   <p className="text-xs text-muted-foreground">
-                    Extracted: &quot;{extractedChipsetName}&quot; — no matching chipset in the
+                    Extracted: &quot;{extractedChipsetName}&quot;: no matching chipset in the
                     catalog; approve the chipset first.
                   </p>
                 )}
@@ -921,7 +921,7 @@ export function ApproveGpuVariantForm({
 // extractedFields, validate against the subtype's NOT NULL columns, call the
 // matching server action, surface its error verbatim. Free-text enum fields
 // (socket, form factor, interface) label their vocabulary inline rather than
-// using a Select — the backend stores them as free text precisely because the
+// using a Select. The backend stores them as free text precisely because the
 // vocabulary keeps growing, and a fixed dropdown would block the first part
 // that arrives with a new socket name.
 
@@ -979,7 +979,7 @@ export function ApproveMotherboardForm({
         <TextField
           control={form.control}
           name="memoryModuleTypesInput"
-          label="Accepted Module Types (comma-separated: udimm, rdimm, lrdimm — blank = unconstrained)"
+          label="Accepted Module Types (comma-separated: udimm, rdimm, lrdimm: blank = unconstrained)"
         />
         <div className="flex flex-wrap gap-6">
           <CheckboxField control={form.control} name="hasWifi" label="Wi-Fi" />
@@ -1385,7 +1385,7 @@ export function ApproveAiModelForm({
         <TextField control={form.control} name="notes" label="Notes" />
         <p className="text-xs text-muted-foreground">
           Approving creates the catalog entry only. VRAM floors come from
-          ai_workloads rows (model × task × precision), which stay hand-authored —
+          ai_workloads rows (model × task × precision), which stay hand-authored,
           add them from the AI Models page once this is in.
         </p>
         <SubmitRow error={error} isSubmitting={form.formState.isSubmitting} />

@@ -3,7 +3,7 @@
 // Message content lives in templates/ (embedded at build time); the exported
 // builders (WelcomeMessage, AccountDeletedMessage) pair a rendered template
 // with its subject line so callers never assemble email content themselves.
-// The client is inert whenever APIKey is empty — callers don't need to branch
+// The client is inert whenever APIKey is empty. Callers don't need to branch
 // on whether email is configured.
 package email
 
@@ -32,7 +32,7 @@ type Client struct {
 	http   *http.Client
 }
 
-// New returns a Client. If apiKey is empty, Send is a no-op — callers don't
+// New returns a Client. If apiKey is empty, Send is a no-op. Callers don't
 // need to branch on whether email is configured.
 func New(apiKey, from string) *Client {
 	return &Client{apiKey: apiKey, from: from, http: &http.Client{}}

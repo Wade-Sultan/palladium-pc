@@ -1,7 +1,7 @@
 """
 embeddings.py
 =============
-One table holding every vector in the system — catalog entities (games,
+One table holding every vector in the system: catalog entities (games,
 software, AI models) and parts alike.
 
 WHY ONE TABLE RATHER THAN ONE PER TYPE. A `cpu_vectors` / `gpu_vectors` /
@@ -11,17 +11,17 @@ the embedding model or its dimension count changes. Embedding models get
 swapped far more often than parts schemas do, so the axis worth optimizing for
 is "re-embed everything cheaply", not "keep each type's rows apart".
 
-WHY THERE IS NO FOREIGN KEY. `entity_id` addresses nine different tables —
+WHY THERE IS NO FOREIGN KEY. `entity_id` addresses nine different tables,
 pc_parts subclasses, the four group tables (which are NOT under pc_parts), and
 three catalog tables. Postgres has no FK that can target a union of tables, so
 referential integrity here is maintained by the sweep in
 app/services/embeddings/store.py rather than by the database. That sweep deletes
-rows whose entity has disappeared; until it runs, an orphan is inert — searches
+rows whose entity has disappeared; until it runs, an orphan is inert: searches
 join back to the source table and a missing join simply drops the row.
 
 WHY EMBEDDINGS SIT ON GROUPS, NOT EXACTS. For GPU/RAM/PSU/Storage the intrinsic
 spec lives on the group and the exacts differ only in brand, price and physical
-dimensions — none of which carry semantic meaning worth a vector. Embedding
+dimensions: none of which carry semantic meaning worth a vector. Embedding
 every board of an RTX 5080 would store twenty near-identical vectors that all
 match the same query and then have to be deduped back down to the chipset. So
 `entity_type` for those is the group ('gpu_chipset', 'ram_group', ...), matching
@@ -31,7 +31,7 @@ STALENESS IS CONTENT-ADDRESSED. `source_hash` is a SHA-256 of the exact text
 that produced the vector. Re-embedding is therefore a pure function of the row's
 current content: build the text, hash it, compare. That is what lets the
 reconcile sweep pick up newly-inserted parts and edited rows without a creation
-hook in every write path — including the admin app's Prisma writes, which the
+hook in every write path, including the admin app's Prisma writes, which the
 backend never sees.
 """
 
@@ -115,13 +115,13 @@ class Embedding(Base):
     entity_type = Column(
         String(32),
         nullable=False,
-        doc="EmbeddedEntity value — also the partial-index predicate",
+        doc="EmbeddedEntity value: also the partial-index predicate",
     )
     entity_id = Column(
         UUID(as_uuid=True),
         nullable=False,
         index=True,
-        doc="PK in the table named by entity_type. Deliberately not an FK — see "
+        doc="PK in the table named by entity_type. Deliberately not an FK. See "
         "the module docstring",
     )
 
@@ -149,7 +149,7 @@ class Embedding(Base):
     source_text = Column(
         Text,
         nullable=True,
-        doc="The text that was embedded. Kept for debugging a bad match — "
+        doc="The text that was embedded. Kept for debugging a bad match. "
         "without it, a wrong result is unattributable",
     )
 

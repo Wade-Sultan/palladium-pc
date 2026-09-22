@@ -8,14 +8,14 @@ data:
   # POSTGRES_SERVER is deliberately ABSENT here. Do not add it back.
   #
   # It is the Cloud SQL private IP, which must not be committed, so it is
-  # supplied through palladium-secrets-builder instead — created out-of-band from
+  # supplied through palladium-secrets-builder instead: created out-of-band from
   # the live instance. Reached directly over the VPC: Autopilot
   # clusters are VPC-native, so no Auth Proxy sidecar is needed.
   #
   # This works because envFrom lists the configMapRef first and the secretRef
   # second, so the Secret contributes the key with nothing to conflict with. The
-  # field is REQUIRED — `POSTGRES_SERVER: str` in backend/app/core/config.py has
-  # no default — so if the Secret omits it, builder fails pydantic validation on
+  # field is REQUIRED, `POSTGRES_SERVER: str` in backend/app/core/config.py has
+  # no default, so if the Secret omits it, builder fails pydantic validation on
   # startup rather than falling back to anything.
   #
   # The `credentials` step in deploy/cloudbuild.yaml asserts the Secret exists
@@ -28,13 +28,13 @@ data:
   # No ports and no localhost, unlike local: browsers send the origin without a
   # port for :443, so the portless form is the one that matches.
   #
-  # These are BROWSER ORIGINS — where the page was served from — not API hosts.
+  # These are BROWSER ORIGINS, where the page was served from, not API hosts.
   # k8s-api.palladiumtech.ai used to be listed here and never did anything: no
   # page is ever served from it, so no request can carry it as an Origin. It
   # came out with the rest of the Phase 4 cutover scaffolding.
   #
   # Vercel preview deployments are deliberately absent. Their hostnames change
-  # per deployment, so they cannot be enumerated here — a preview testing
+  # per deployment, so they cannot be enumerated here. A preview testing
   # against prod fails CORS by design. Use a stable alias domain and add it
   # explicitly if that is ever needed.
   BACKEND_CORS_ORIGINS: "https://palladiumtech.ai,https://www.palladiumtech.ai"
@@ -47,21 +47,21 @@ data:
   # POSTGRES_SERVER above: it is the Memorystore instance's private VPC address
   # and does not belong in git. It comes from palladium-secrets-builder.
   #
-  # Unlike POSTGRES_SERVER, an absent VALKEY_HOST does NOT fail startup — it
+  # Unlike POSTGRES_SERVER, an absent VALKEY_HOST does NOT fail startup: it
   # defaults to "" and degrades /chat to inline streaming. That is the right
   # default for local development and the wrong state for production, so
   # cloudbuild.yaml's credentials step warns when the key is missing.
   VALKEY_PORT: "6379"
   # FALSE, and this must stay in step with how the instance was created. Prod
   # runs a `custom-pico` node, which Google sells on Cluster Mode Disabled
-  # instances only — so there is no CLUSTER SLOTS to read and a RedisCluster
+  # instances only, so there is no CLUSTER SLOTS to read and a RedisCluster
   # client would fail at connect.
   #
   # custom-pico over shared-core-nano deliberately: nano is marginally larger
   # (1.12 GB vs 1.08 GB) but has 0.5 shared vCPU and **no SLA**, and Google
   # documents it as development-only. pico gives 2 dedicated vCPU and an SLA at
-  # essentially the same memory. Memory was never the constraint here — the
-  # working set is TTL'd stream entries — so trading a rounding error of RAM for
+  # essentially the same memory. Memory was never the constraint here, the
+  # working set is TTL'd stream entries, so trading a rounding error of RAM for
   # dedicated cores and a support commitment is the right way round.
   VALKEY_CLUSTER: "false"
   # Memorystore for Valkey only accepts TLS if the instance was created with
@@ -87,12 +87,12 @@ data:
   #      of module JSON plus manifest.json and prints the manifest digest.
   #   2. Copy that directory, unchanged, to an immutable path in the releases
   #      bucket: gs://<bucket>/dspy-releases/<release-name>/. One directory
-  #      per release, never overwritten — rollback is repointing, not
+  #      per release, never overwritten. Rollback is repointing, not
   #      re-uploading.
   #   3. Set BOTH values below and roll. The pod fetches the manifest at
   #      startup, verifies the digest, every module's hash and signature
   #      shape, and the serving model, and refuses readiness on any mismatch
-  #      (app/main.py) — a pinned release that cannot be loaded is never
+  #      (app/main.py). A pinned release that cannot be loaded is never
   #      silently replaced by the builtin prompts.
   #
   # The builder's GSA (palladium-backend, see workload-identity.yaml) needs

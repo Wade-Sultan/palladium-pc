@@ -3,7 +3,7 @@
 # THE REAL ENGINE, NOT A FAKE, and that distinction is the point of this file.
 # The unit tests already have hand-written fakes (backend/tests/test_turn_stream.py),
 # and they are the right tool for "when does this code write". They cannot catch
-# the failures that live in the client/server boundary — the one that cost a
+# the failures that live in the client/server boundary. The one that cost a
 # production outage was redis-py applying its socket timeout to a deliberately
 # parked XREAD BLOCK, which no fake has a socket to reproduce (see
 # app/core/valkey.py's BLOCKING_READ_TIMEOUT_S).
@@ -17,7 +17,7 @@
 #     on a MOVED redirect in the other.
 #
 # NO PERSISTENCE AND NO PVC, deliberately. Prod runs --replica-count=0 on the
-# same reasoning: everything here is either reconstructible (the event stream —
+# same reasoning: everything here is either reconstructible (the event stream,
 # the turn re-runs) or already committed to Postgres. Losing it costs in-flight
 # turns, not data. An empty Valkey on every cluster rebuild is also what a test
 # wants, so `save ""` and appendonly no keep it purely in memory.

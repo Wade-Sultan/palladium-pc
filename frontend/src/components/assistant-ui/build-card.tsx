@@ -45,7 +45,7 @@ import type { BuildData } from "@/types/build"
  * thumb is not worth a blocking spinner on a card the user is reading, and the
  * rating carries no consequence they are waiting on.
  *
- * Clicking the lit thumb clears the rating rather than re-sending it — "rated
+ * Clicking the lit thumb clears the rating rather than re-sending it. "rated
  * then changed their mind" and "never rated" are the same thing to every
  * question this data answers, so the row is deleted rather than neutralised.
  */
@@ -71,16 +71,16 @@ function BuildFeedback({ buildKey }: { buildKey: string }) {
       }
     } catch (error) {
       setRating(previous)
-      // Named causes rather than one shrug. A 404 here is the ordinary race —
+      // Named causes rather than one shrug. A 404 here is the ordinary race,
       // the chat is saved when the turn finishes, and the build card appears
-      // before that — and telling someone to wait a moment is actionable where
+      // before that, and telling someone to wait a moment is actionable where
       // "could not save" is not. 401 means the token lapsed mid-conversation,
       // which a reload fixes. Anything else is ours, not theirs.
       const status = error instanceof FeedbackError ? error.status : 0
       if (status === 404) {
-        toast.error("This chat is still saving — try again in a moment")
+        toast.error("This chat is still saving, try again in a moment")
       } else if (status === 401 || status === 403) {
-        toast.error("Your session expired — reload and try again")
+        toast.error("Your session expired, reload and try again")
       } else {
         toast.error("Could not save your feedback")
       }
@@ -121,7 +121,7 @@ function BuildFeedback({ buildKey }: { buildKey: string }) {
 }
 
 /**
- * A single marketplace buy button — the brand's icon as a link to the
+ * A single marketplace buy button: the brand's icon as a link to the
  * marketplace. Renders as a disabled button when no url is available so the
  * marketplace stays visible. `className` carries the per-brand hover-border
  * effect (see .mp-btn-* in index.css).
@@ -274,7 +274,7 @@ export const BuildCard: DataMessagePartComponent<BuildData> = (props) => {
             // catalog price captured when the build was generated. The fallback
             // matters more than it looks: a part with no Amazon listing used to
             // render with no price at all beside a disabled buy button, which
-            // reads as "this part is free" rather than "we have no listing" —
+            // reads as "this part is free" rather than "we have no listing",
             // and it hid four-figure catalog prices that the header total was
             // meanwhile including.
             const priceListing = amazonListing
@@ -293,7 +293,7 @@ export const BuildCard: DataMessagePartComponent<BuildData> = (props) => {
               <div
                 // part_id is "" for a name the catalog couldn't resolve, so it
                 // is not unique on its own once a build can carry several rows
-                // in one role — pair it with the component and model.
+                // in one role: pair it with the component and model.
                 key={`${part.component}:${part.part_id || part.model}`}
                 className="flex items-center gap-1"
               >
@@ -336,7 +336,7 @@ export const BuildCard: DataMessagePartComponent<BuildData> = (props) => {
                 </div>
                 {/* Outside the part's box, inside the card: watching a price is
                     an action on the part, not a third place to buy it. The slot
-                    is always there so every row's box ends at the same place —
+                    is always there so every row's box ends at the same place,
                     a part with nothing watchable (see lookupPriceTargets) shows
                     no bell rather than a dead one, and a card mixing the two
                     would otherwise have ragged edges. */}

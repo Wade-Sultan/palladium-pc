@@ -38,12 +38,12 @@ class Sourced(BaseModel, Generic[T]):
 
     The wrapper (rather than a parallel provenance dict) lets the strict JSON
     schema force the model to justify every value. The model never emits a
-    source URL — extraction is one call per source page, so the caller stamps
+    source URL. Extraction is one call per source page, so the caller stamps
     the URL deterministically and provenance cannot be misattributed."""
 
     model_config = ConfigDict(extra="forbid")
 
-    value: T | None  # None = "not stated on this page" — never guess
+    value: T | None  # None = "not stated on this page", never guess
     snippet: str | None  # verbatim quote (<= 200 chars) supporting value
 
 
@@ -70,7 +70,7 @@ class GameExtraction(BaseModel):
 
 # --- Per-category schemas -----------------------------------------------------
 # Field names mirror pc_parts + subtype columns exactly (msrp_usd is the one
-# rename — unwrap() converts it to msrp_cents), so a staged item's
+# rename. Unwrap() converts it to msrp_cents), so a staged item's
 # extracted_fields dict is directly castable to the approval-time insert.
 
 
@@ -99,7 +99,7 @@ class CPUExtraction(BaseModel):
     max_memory_gb: Sourced[int]
     series: Sourced[str]
     # Server/workstation platform spec. Desktop spec pages usually omit these,
-    # which is fine — null is the correct answer there, and their *presence* is
+    # which is fine. Null is the correct answer there, and their *presence* is
     # itself the signal that a part belongs in a server build.
     pcie_lanes: Sourced[int]
     memory_channels: Sourced[int]
@@ -109,7 +109,7 @@ class CPUExtraction(BaseModel):
 class GPUChipsetExtraction(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: Sourced[str]  # chipset name, e.g. "RTX 5080" — not a board name
+    name: Sourced[str]  # chipset name, e.g. "RTX 5080", not a board name
     vram_gb: Sourced[int]
     vram_type: Sourced[str]
     tdp_watts: Sourced[int]
@@ -170,7 +170,7 @@ class MotherboardExtraction(BaseModel):
     usb_type_a_count: Sourced[int]
     usb_type_c_count: Sourced[int]
     audio_codec: Sourced[str]
-    # Server-board spec — see CPUExtraction's note; absence is informative.
+    # Server-board spec. See CPUExtraction's note; absence is informative.
     supports_ecc: Sourced[bool]
     has_ipmi: Sourced[bool]
     memory_channels: Sourced[int]
@@ -248,7 +248,7 @@ class StorageDriveExtraction(BaseModel):
     year_released: Sourced[int]
     msrp_usd: Sourced[float]
 
-    # storage_groups columns — a drive's SKU carries no spec of its own.
+    # storage_groups columns: a drive's SKU carries no spec of its own.
     storage_type: Sourced[Literal["nvme", "ssd", "hdd"]]
     form_factor: Sourced[str]  # e.g. "m2_2280", "2_5", "3_5", "u2"
     interface: Sourced[Literal["pcie_gen3", "pcie_gen4", "pcie_gen5", "sata3"]]
@@ -358,7 +358,7 @@ class AIModelExtraction(BaseModel):
     The primary ai_model path does not use this: it reads the Hugging Face Hub
     API, which returns the same fields as structured data with no extraction
     cost or hallucination surface (see services/discovery/huggingface.py). This
-    stays for models that have no Hub entry — closed-weight and API-only models
+    stays for models that have no Hub entry: closed-weight and API-only models
     that only a vendor page describes. Mirrors ai_models columns; VRAM floors
     are computed from the workload matrix, never extracted."""
 
@@ -394,7 +394,7 @@ class CPUBenchmarkExtraction(BaseModel):
     kind of run: the backfill in services/discovery/benchmarks.py enriches rows
     that are already approved rather than staging a new product.
 
-    Field names match app/models/benchmarks.py::CPUBenchmarkScores exactly —
+    Field names match app/models/benchmarks.py::CPUBenchmarkScores exactly,
     they are written straight into cpus.benchmark_scores, and
     services/recommender/scoring.py reads them back by those names. A rename
     here silently stops the scorer from seeing the value.
@@ -412,7 +412,7 @@ class CPUBenchmarkExtraction(BaseModel):
 class GPUBenchmarkExtraction(BaseModel):
     """Benchmark scores for a GPU chipset already in the catalog.
 
-    Names match app/models/benchmarks.py::GPUBenchmarkScores — see
+    Names match app/models/benchmarks.py::GPUBenchmarkScores. See
     CPUBenchmarkExtraction for why that coupling matters.
     """
 
@@ -437,7 +437,7 @@ CATEGORY_SCHEMAS: dict[str, type[BaseModel]] = {
     "case": CaseExtraction,
     "fan": FanExtraction,
     "ai_model": AIModelExtraction,
-    # Enrichment pseudo-categories. They never stage a new part — the backfill
+    # Enrichment pseudo-categories. They never stage a new part. The backfill
     # in services/discovery/benchmarks.py uses them to fill benchmark_scores on
     # rows that already exist. Registered here so they inherit the same
     # retry / snippet-enforcement / usage-accounting path as everything else.
@@ -448,7 +448,7 @@ CATEGORY_SCHEMAS: dict[str, type[BaseModel]] = {
 
 @cache
 def _confirmed_schema(category: str) -> type[BaseModel]:
-    """Wraps a category's schema with confirmation_status once per category —
+    """Wraps a category's schema with confirmation_status once per category,
     create_model() rebuilds pydantic's core schema, which is wasteful to redo
     on every source in a sweep."""
     schema_cls = CATEGORY_SCHEMAS[category]
@@ -536,7 +536,7 @@ async def extract_from_source(
 ) -> BaseModel | None:
     """One structured-extraction call for one source page. Appends each call's
     usage to usage_events. Returns None if the model can't produce a valid
-    payload after one retry — the source is skipped, not fatal."""
+    payload after one retry. The source is skipped, not fatal."""
     schema_cls = CATEGORY_SCHEMAS[category]
     is_catalog = not category.endswith("_benchmark")
     if is_catalog:
@@ -580,7 +580,7 @@ async def extract_from_source(
             if resp.choices[0].finish_reason == "length":
                 logger.warning(
                     "discovery: extraction from %s hit the %d-token output cap "
-                    "(attempt %d) — raise _MAX_OUTPUT_TOKENS if this recurs",
+                    "(attempt %d): raise _MAX_OUTPUT_TOKENS if this recurs",
                     doc.url,
                     _MAX_OUTPUT_TOKENS,
                     attempt + 1,
@@ -638,7 +638,7 @@ def _grounded_extraction(extraction: BaseModel, doc: FetchedDoc) -> bool:
 class CandidateNames(BaseModel):
     """Sweep enumeration output: just names, no specs.
 
-    Names are a search term, not data — each one goes back through
+    Names are a search term, not data. Each one goes back through
     search_spec_pages + extract_from_source, so a roundup's numbers never reach
     the review queue. That separation is why this call can use a loose page
     ("best GPUs of 2026") that would be a terrible extraction source."""
@@ -653,12 +653,12 @@ class CandidateNames(BaseModel):
 _CATEGORY_NOUNS = {
     "game": "officially announced or released PC games with published system requirements",
     "cpu": "desktop, workstation and server CPU models",
-    "gpu_chipset": 'GPU chipsets (the silicon, e.g. "RTX 5080" — not board-partner cards)',
+    "gpu_chipset": 'GPU chipsets (the silicon, e.g. "RTX 5080", not board-partner cards)',
     "gpu_variant": 'board-partner graphics cards (e.g. "ASUS ROG Astral RTX 5080 OC")',
     "motherboard": 'motherboards (e.g. "ASUS Pro WS TRX50-SAGE WIFI")',
     "cpu_cooler": 'CPU coolers, air or liquid (e.g. "Noctua NH-U14S TR5-SP6")',
     "ram_kit": 'memory kits (e.g. "Kingston Fury Renegade Pro 128GB DDR5-6000")',
-    "storage_drive": 'storage drives — SSD, NVMe or HDD (e.g. "Samsung 990 Pro 4TB")',
+    "storage_drive": 'storage drives: SSD, NVMe or HDD (e.g. "Samsung 990 Pro 4TB")',
     "psu": 'power supply units (e.g. "Corsair AX1600i")',
     "case": 'PC cases / chassis (e.g. "Fractal Design Meshify 2 XL")',
     "fan": 'case fans (e.g. "Noctua NF-A12x25 PWM")',
@@ -683,7 +683,7 @@ Rules:
   writes it. No marketing copy, no prices, no verdicts.
 - One entry per distinct product. Never invent a product the page does not name.
 - Name individual models only. Skip families, series and generations ("RTX
-  60-series", "Zen 6", "Arrow Lake") — a name that covers several products
+  60-series", "Zen 6", "Arrow Lake"): a name that covers several products
   cannot be extracted into one catalog row.
 - Only list products of the requested type. If the page lists none, return an
   empty list."""
@@ -696,7 +696,7 @@ async def extract_candidate_names(
     usage_events: list[dict],
 ) -> list[str]:
     """Product names one roundup page presents as new. Returns [] on any
-    failure — a sweep pools names across pages, so a bad page is a smaller loss
+    failure. A sweep pools names across pages, so a bad page is a smaller loss
     than a failed source is to a single-part run, and never worth a retry."""
     noun = _CATEGORY_NOUNS.get(category)
     if noun is None:

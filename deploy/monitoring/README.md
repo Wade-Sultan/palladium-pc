@@ -1,7 +1,7 @@
 # Cloud Monitoring alert policies
 
 Declarative alert policies for the chat turn pipeline, applied with
-`gcloud monitoring policies`. Tracked in git — unlike `deploy/messaging.md` and
+`gcloud monitoring policies`. Tracked in git, unlike `deploy/messaging.md` and
 `deploy/observability.md`, these are resources rather than instructions for a
 human, and they contain no project-specific identifiers.
 
@@ -13,7 +13,7 @@ human, and they contain no project-specific identifiers.
 | [`alert-worker-metrics-absent.yaml`](alert-worker-metrics-absent.yaml) | No worker reported for 10 min | **Page.** Also means the two above are unreliable. |
 
 The last one is the reason the set works. Threshold conditions do not fire on a
-metric that stopped arriving — they go quiet, which is indistinguishable from
+metric that stopped arriving. They go quiet, which is indistinguishable from
 healthy. Without an absence check, "every worker is down" and "Valkey is
 unreachable" would both silence their own alarms.
 
@@ -38,7 +38,7 @@ CHANNEL=$(gcloud beta monitoring channels list \
   --format='value(name)')
 
 for f in deploy/monitoring/alert-*.yaml; do
-  # yq is not assumed — sed the empty array in place into a temp copy, so the
+  # yq is not assumed: sed the empty array in place into a temp copy, so the
   # committed file stays free of an account-specific channel id.
   tmp=$(mktemp)
   sed "s|^notificationChannels: \[\]|notificationChannels:\n  - ${CHANNEL}|" "$f" > "$tmp"
@@ -51,12 +51,12 @@ done
 > `gcloud alpha monitoring policies` on older SDK versions. Both accept the same
 > `--policy-from-file` payload.
 
-**Updating an existing policy** — `create` makes a duplicate rather than
+**Updating an existing policy**. `create` makes a duplicate rather than
 replacing, which is easy to do by accident and produces two of every alert:
 
 ```bash
 NAME=$(gcloud monitoring policies list --project="$PROJECT_ID" \
-  --filter='displayName="Palladium — chat turns dead-lettered"' \
+  --filter='displayName="Palladium. Chat turns dead-lettered"' \
   --format='value(name)')
 gcloud monitoring policies update "$NAME" --project="$PROJECT_ID" \
   --policy-from-file=deploy/monitoring/alert-dead-lettered-turns.yaml
@@ -67,7 +67,7 @@ gcloud monitoring policies update "$NAME" --project="$PROJECT_ID" \
 An alert that has never fired is an alert you do not know is wired up. Both of
 these are safe to run against production.
 
-**Dead-letter policy** — publish a message the worker cannot decode. `_decode`
+**Dead-letter policy**: publish a message the worker cannot decode. `_decode`
 in `app/worker.py` acks undecodable messages away deliberately, so use a
 well-formed envelope with a `messages` array that fails validation instead:
 
@@ -86,7 +86,7 @@ gcloud pubsub subscriptions pull chat-turns-dead-sub \
   --project="$PROJECT_ID" --limit=10 --auto-ack
 ```
 
-**Absence policy** — scale the workers to zero for 15 minutes:
+**Absence policy**: scale the workers to zero for 15 minutes:
 
 ```bash
 kubectl -n palladium scale deploy/worker --replicas=0
@@ -110,7 +110,7 @@ scraped by the `worker` PodMonitoring in
 | `palladium_turn_duration_seconds` | `prometheus.googleapis.com/palladium_turn_duration_seconds/histogram` |
 | `palladium_turns_inflight` | `prometheus.googleapis.com/palladium_turns_inflight/gauge` |
 
-`turn_duration_seconds` and `turns_inflight` have no policy of their own — they
+`turn_duration_seconds` and `turns_inflight` have no policy of their own. They
 are dashboard metrics. Duration is the input to any future latency SLO, and
 in-flight is the signal a backlog autoscaler (KEDA) would eventually read
 instead of `num_undelivered_messages`.

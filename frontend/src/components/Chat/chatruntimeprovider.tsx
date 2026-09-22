@@ -64,7 +64,7 @@ export function useConversationMeta() {
 
 export interface ChatConversation {
   /**
-   * The id this chat posts under — which exists before the conversation does.
+   * The id this chat posts under, which exists before the conversation does.
    * A new chat mints one client-side (see conversationIdRef) and the backend
    * creates the row under it on the first turn, so the BuildCard can rate a
    * build without waiting for a round trip to learn the id.
@@ -84,7 +84,7 @@ export function useChatConversation() {
  * Renders children as belonging to no conversation.
  *
  * Every route under (main) mounts a chat runtime, so a page that merely
- * *reuses* a chat component — the shared-build page rendering BuildCard — sits
+ * *reuses* a chat component, the shared-build page rendering BuildCard, sits
  * inside a ChatConversationContext for a conversation that has nothing to do
  * with it, and in the shared case does not exist at all. Without this, the
  * card offers feedback thumbs that POST a rating against a random id.
@@ -268,7 +268,7 @@ function ChatRuntimeMount({
 
   const runtime = useAssistantTransportRuntime<ChatAgentState>({
     api: `${API_BASE}/api/v1/chat`,
-    // Reconnects to a turn that is still running on a worker — after a reload,
+    // Reconnects to a turn that is still running on a worker, after a reload,
     // a tab switch, or a dropped connection. This is what the 218-line manual
     // retry loop in the old model-adapter used to do; the backend resolves
     // which turn from the conversation id, since the protocol sends no run id.
@@ -281,17 +281,17 @@ function ChatRuntimeMount({
       const token = await getAccessToken()
       return token ? { Authorization: `Bearer ${token}` } : {}
     },
-    // Our conversation id, not assistant-ui's threadId — that tracks its own
+    // Our conversation id, not assistant-ui's threadId. That tracks its own
     // thread list, which this app does not use.
     body: { conversation_id: conversationIdRef.current },
     // Without this the runtime never attaches `onEdit`, and the external-store
     // core's `beginEdit` throws "Runtime does not support editing." The Edit
-    // button is not capability-gated — it calls straight through — so the throw
+    // button is not capability-gated, it calls straight through, so the throw
     // surfaced as a button that silently did nothing.
     //
     // Enabling it here is only half of editing. The runtime sends the edited
     // message as a plain `add-message` plus a `parentId`, so the server is what
-    // decides that an edit REPLACES history rather than appending to it — see
+    // decides that an edit REPLACES history rather than appending to it. See
     // `rewind_prefix` in backend/app/services/transport.py.
     capabilities: { edit: true },
     // WHY BOTH OF THESE EXIST. On failure or cancellation the runtime calls
@@ -299,7 +299,7 @@ function ChatRuntimeMount({
     // callbacks. Leaving them unset does not merely lose an error message: the
     // dropped commands stop appearing in `pendingCommands`, so the optimistic
     // echo vanishes and the message the user just typed disappears from the
-    // thread with no explanation — on a fresh conversation, straight back to
+    // thread with no explanation, on a fresh conversation, straight back to
     // the welcome screen.
     //
     // Putting the commands into state is what keeps them on screen, and it is
@@ -319,7 +319,7 @@ function ChatRuntimeMount({
 
   useEffect(() => {
     // Both stores are module singletons, so anything left set here shows up on
-    // the next conversation — including a progress line queued behind the
+    // the next conversation, including a progress line queued behind the
     // store's own display-time delay, which would land after the navigation.
     return () => {
       usePipelineStatusStore.getState().reset()
@@ -348,21 +348,21 @@ function ChatRuntimeMount({
  * Watches the backend's state and acts on what *changed* in it.
  *
  * The distinction is the whole point. Server state is a snapshot, and a
- * snapshot cannot tell "a build just finished" from "a build is present" — so
+ * snapshot cannot tell "a build just finished" from "a build is present", so
  * anything driven off the value fires again every time the value is merely
  * observed. That is what made opening a finished build from history announce
  * "Build ready!" all over again. `diffAgentState` turns the snapshots into
  * transitions and this decides, one by one, which of them should do something.
  *
  * Rendered inside AssistantRuntimeProvider because it reads the active thread's
- * state from that context. It does nothing until a Thread is actually mounted —
+ * state from that context. It does nothing until a Thread is actually mounted,
  * see the note in the body.
  */
 function AgentStateSync() {
   // Read defensively rather than through useAssistantTransportState, which
   // asserts the active thread belongs to a transport runtime and throws if it
   // does not. This component sits at provider level in (main)/layout.tsx, so it
-  // mounts on every route under it — including /buildhistory, which never
+  // mounts on every route under it, including /buildhistory, which never
   // renders a Thread and therefore never causes the thread-list runtime to
   // instantiate the transport thread. That assertion took the whole page down.
   const state = useAuiState((s) => {

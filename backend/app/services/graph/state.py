@@ -49,7 +49,7 @@ class ChatTurnState(TypedDict, total=False):
     ref_estimate_key: str | None
     ref_estimate_data: dict[str, Any] | None
     # True when the builder stopped at the case step to ask the user which case
-    # they want. The turn ends there — there is no build to present yet — and
+    # they want. The turn ends there, there is no build to present yet, and
     # the pick starts a fresh turn that resumes the pipeline. This is the value
     # the edge out of `build` branches on.
     build_paused: bool
@@ -107,7 +107,7 @@ def merge_profile(
 
     Only fills gaps: a value the extractor produced this turn always wins, and
     a previous value is reused only where this turn produced nothing. That
-    ordering matters — the user really can change their mind about resolution,
+    ordering matters. The user really can change their mind about resolution,
     and the extractor really does see the correction, so the fresh answer has
     to be able to overwrite the old one.
 
@@ -261,7 +261,7 @@ def _drop_locked_part(profile: dict, target) -> list | None:
     could in principle hit the wrong row.
 
     Returning None rather than the unchanged list matters. The caller skips an
-    operation that produced nothing, which keeps it out of profile_operations —
+    operation that produced nothing, which keeps it out of profile_operations,
     and a no-op recorded there would be replayed against every future turn for
     the life of the conversation.
     """
@@ -279,7 +279,7 @@ def replay_retractions(profile: dict, history: list[dict]) -> dict:
     """Re-apply every recorded clear/remove, in order, over a merged profile.
 
     Only retractions are replayed. merge_profile already carries values
-    forward, so a recorded set/add has nothing to add — and replaying one
+    forward, so a recorded set/add has nothing to add, and replaying one
     would let a stale "set budget 2000" from turn 1 overwrite a fresh 3000
     the extractor found this turn but did not report as an operation. A
     retraction is the one thing accumulation cannot represent, so it is the

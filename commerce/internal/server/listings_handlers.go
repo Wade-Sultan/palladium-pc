@@ -44,7 +44,7 @@ type listingsResponse struct {
 }
 
 // toDTO serializes a store.Listing, applying listings.AmazonURL to fill in a
-// working affiliate link even when the stored url column is empty — a
+// working affiliate link even when the stored url column is empty. A
 // deliberate parity improvement over today's Python route (which returns the
 // raw stored url as-is), matching what the chat pipeline already does
 // internally for recommended builds (crud/reference_builds.py).
@@ -82,7 +82,7 @@ func (h *handlers) toDTO(l *store.Listing) listingDTO {
 //
 // The write is a one-row upsert keyed by primary key, and the foreign key to
 // pc_parts means the number of rows it can ever create is bounded by the size
-// of the catalog — so this staying on a public unauthenticated route is not an
+// of the catalog, so this staying on a public unauthenticated route is not an
 // amplification vector, however hard someone hits it.
 func (h *handlers) noteListingFailure(partID, reason, detail string) {
 	go func() {
@@ -99,7 +99,7 @@ func (h *handlers) noteListingFailure(partID, reason, detail string) {
 // partID is nil for a listing that targets a group rather than one part. Such
 // a listing does close the coverage gap for every part in that group, but
 // resolving those rows is the writer's job (admin does it at creation time),
-// and commerce cannot write listings at all under the RLS split — so there is
+// and commerce cannot write listings at all under the RLS split, so there is
 // nothing useful to do here but return.
 func (h *handlers) clearListingFailure(partID *string) {
 	if partID == nil {
@@ -150,7 +150,7 @@ func (h *handlers) listListings(w http.ResponseWriter, r *http.Request) {
 	}
 	// The frontend's build card calls this once per part (frontend/src/lib/
 	// listings.ts), so an empty result here is the exact moment a recommended
-	// part turns out to be unbuyable — and the only moment anything notices,
+	// part turns out to be unbuyable, and the only moment anything notices,
 	// since the client treats it as a normal empty response.
 	if filter.PartID != nil && len(rows) == 0 {
 		h.noteListingFailure(*filter.PartID, store.ReasonNoActiveListing, "")
@@ -206,7 +206,7 @@ func (h *handlers) getListingsByPart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(rows) == 0 {
-		// The part exists — that was checked above — so this is a coverage
+		// The part exists, that was checked above, so this is a coverage
 		// gap, not a bad request.
 		h.noteListingFailure(partID, store.ReasonNoActiveListing, "")
 	}
@@ -217,7 +217,7 @@ func (h *handlers) getListingsByPart(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, listingsResponse{Data: dtos, Count: len(dtos)})
 }
 
-// createListingRequest mirrors schemas/listing.py's AmazonListingCreate — the
+// createListingRequest mirrors schemas/listing.py's AmazonListingCreate: the
 // only listing_type actually created in practice today.
 type createListingRequest struct {
 	PartID       string  `json:"part_id"`
@@ -264,7 +264,7 @@ func (h *handlers) createListing(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, h.toDTO(l))
 }
 
-// updateListingRequest mirrors schemas/listing.py's ListingUpdate — all
+// updateListingRequest mirrors schemas/listing.py's ListingUpdate. All
 // fields optional, only non-nil ones are applied.
 type updateListingRequest struct {
 	URL                *string    `json:"url"`

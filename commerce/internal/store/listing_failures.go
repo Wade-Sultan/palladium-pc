@@ -12,7 +12,7 @@ import (
 // Parts the listings API could not produce a listing for.
 //
 // The schema lives in backend/app/alembic (migration c3e5a7b9d1f4) like every
-// other table; this file is just the queries. Keyed by part_id — current state,
+// other table; this file is just the queries. Keyed by part_id: current state,
 // not an event log. The build card fetches listings per part on every render,
 // so one part with no listing is hit dozens of times a day; an append-only log
 // would be almost entirely duplicates and the digest built on it unreadable.
@@ -20,7 +20,7 @@ import (
 // Reasons, matching backend/app/models/listing_failure.py.
 const (
 	// ReasonNoActiveListing: the part exists and gets recommended, but there
-	// is nothing active to buy. A coverage gap — the fix is to add a listing.
+	// is nothing active to buy. A coverage gap. The fix is to add a listing.
 	ReasonNoActiveListing = "no_active_listing"
 	// ReasonLookupError: the query itself failed. The fix is operational, and
 	// the part may well be fine.
@@ -28,7 +28,7 @@ const (
 )
 
 // ListingFailure is one open (or resolved) coverage gap, joined to the part it
-// is about — a bare part_id is useless in both the admin table and the email.
+// is about. A bare part_id is useless in both the admin table and the email.
 type ListingFailure struct {
 	PartID      string
 	PartName    string
@@ -49,7 +49,7 @@ type ListingFailure struct {
 // failing just because the bookkeeping about it did.
 //
 // A recurrence after the row was resolved reopens it AND clears notified_at, so
-// the next digest reports it again — a part that breaks, gets fixed, and breaks
+// the next digest reports it again. A part that breaks, gets fixed, and breaks
 // again is news the second time too.
 func (s *Store) RecordListingFailure(ctx context.Context, partID, reason, detail string) error {
 	// A malformed part_id can't be a real coverage gap; it's a bad caller.
@@ -80,7 +80,7 @@ func (s *Store) RecordListingFailure(ctx context.Context, partID, reason, detail
 
 	// A part_id that is a valid UUID but not a real part violates the FK. That
 	// is a caller passing a stale or invented id, not a coverage gap, and the
-	// constraint is what tells us so — nothing to report.
+	// constraint is what tells us so: nothing to report.
 	if isForeignKeyViolation(err) {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (s *Store) RecordListingFailure(ctx context.Context, partID, reason, detail
 
 // ResolveListingFailure closes the open failure for a part, if there is one.
 //
-// Called when a listing is created or reactivated — the event that actually
+// Called when a listing is created or reactivated: the event that actually
 // fixes a coverage gap. Deliberately not called on every successful lookup:
 // that would put a write on the hottest read path in the service to update a
 // row that almost never exists.
@@ -172,7 +172,7 @@ func (s *Store) MarkListingFailuresNotified(ctx context.Context, partIDs []strin
 }
 
 // CountOpenListingFailures is the standing total, including rows already
-// reported — what the digest quotes so a short "2 new" line still says whether
+// reported: what the digest quotes so a short "2 new" line still says whether
 // the backlog is 2 or 200.
 func (s *Store) CountOpenListingFailures(ctx context.Context) (int, error) {
 	var n int

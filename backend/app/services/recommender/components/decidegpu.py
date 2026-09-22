@@ -15,7 +15,7 @@ class GPUSelection(dspy.Signature):
     """
     Select the best GPU *chipset* for this build from the given candidates.
 
-    Each candidate is a chipset (e.g. "RTX 5080"), not a specific board — the
+    Each candidate is a chipset (e.g. "RTX 5080"), not a specific board. The
     exact board variant (brand, length, price) is resolved deterministically
     later, once the case and PSU are known. Choose at the chipset level here.
 
@@ -27,7 +27,7 @@ class GPUSelection(dspy.Signature):
       cost-saving option the user could consider on eBay
 
     Also output gpu_count: how many of that chipset the build should use. Every
-    card must be the same chipset — a build cannot mix models here, because the
+    card must be the same chipset. A build cannot mix models here, because the
     tensor/pipeline parallelism that makes multiple GPUs useful requires
     matched cards.
 
@@ -35,7 +35,7 @@ class GPUSelection(dspy.Signature):
     actively worse than one better card: games and creative applications do not
     scale across GPUs, so two mid cards lose to one strong card at the same
     money. Only raise it when total VRAM is the binding constraint and the
-    workload genuinely shards across cards — serving or training a model too
+    workload genuinely shards across cards. Serving or training a model too
     large for one card's memory is the case that matters. Two 24GB cards beat
     one 32GB card for a 40GB model and lose to it for everything else.
 
@@ -53,7 +53,7 @@ class GPUSelection(dspy.Signature):
 
     with bytes_per_weight of 2.0 for fp16/bf16, 1.0 for fp8/int8, 0.75 for q6,
     0.65 for q5, 0.5 for q4, 0.4 for q3 (the 1.2 covers KV cache and runtime
-    overhead). A 31B model is ~74GB at fp16 and ~19GB at q4 — the first needs a
+    overhead). A 31B model is ~74GB at fp16 and ~19GB at q4. The first needs a
     workstation card costing five figures, the second runs on a 24GB consumer
     card. Picking the first when the user asked for the second is the single
     most expensive mistake available in this step.
@@ -62,8 +62,8 @@ class GPUSelection(dspy.Signature):
     what self-hosters actually run, and choose the cheapest card that fits at a
     sane quantization. Size for fp16 only when the user asked for full
     precision, when the workload is training rather than inference, or when
-    use_cases says so outright. State the quantization you assumed in `reason`
-    — a VRAM claim without a precision attached is not a claim.
+    use_cases says so outright. State the quantization you assumed in `reason`.
+    A VRAM claim without a precision attached is not a claim.
 
     This applies whether or not the model appears in our catalog. If use_cases
     names a model with no measured requirements, do the arithmetic above on the
@@ -79,10 +79,10 @@ class GPUSelection(dspy.Signature):
         desc="Total build budget in USD; -1 means the user has set no budget at all"
     )
     gpu_budget_ceiling: int = dspy.InputField(
-        desc="Maximum to spend on GPU in USD; -1 means no ceiling — the user has said cost is not a constraint"
+        desc="Maximum to spend on GPU in USD; -1 means no ceiling. The user has said cost is not a constraint"
     )
     max_gpu_slots: int = dspy.InputField(
-        desc="PCIe x16 slots on the chosen motherboard — the hard ceiling on "
+        desc="PCIe x16 slots on the chosen motherboard: the hard ceiling on "
         "gpu_count. 1 for most consumer boards."
     )
     cpu_pcie_lanes: int = dspy.InputField(
@@ -109,7 +109,7 @@ class GPUSelection(dspy.Signature):
         desc="2-3 sentences. Lead with the value argument relative to the use case. "
         "Mention used market if relevant. For an LLM workload, state the "
         "quantization the VRAM figure assumes (e.g. 'fits Gemma 4 31B at q4 in "
-        "~19GB') — the card only makes sense alongside the precision it was "
+        "~19GB'). The card only makes sense alongside the precision it was "
         "chosen for."
     )
     reconsideration_threshold: str = dspy.OutputField(
@@ -123,10 +123,10 @@ class GPUSelection(dspy.Signature):
 
 
 class DecideGPU(dspy.Module):
-    # Telemetry metadata — bump signature_version only when this signature's
+    # Telemetry metadata. Bump signature_version only when this signature's
     # input/output fields change shape (GEPA needs a consistent field shape).
     signature_name = "DecideGPU"
-    # v2: main step chooses a chipset (gpu_chipset), not an exact board name —
+    # v2: main step chooses a chipset (gpu_chipset), not an exact board name,
     # the specific board is resolved deterministically after case + PSU.
     # v3: adds gpu_count plus the max_gpu_slots / cpu_pcie_lanes inputs it is
     # decided against, so a build can host several matched cards.

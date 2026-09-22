@@ -31,7 +31,7 @@ async def resolve_target(
 ) -> TargetInfo | None:
     """Look up whatever carries the street price for this (kind, id), or None
     if the kind is unknown or the row doesn't exist. Every model in
-    TARGET_MODELS has `name` and `street_price_cents` — that shared shape is
+    TARGET_MODELS has `name` and `street_price_cents`. That shared shape is
     what lets subscriptions treat parts and groups uniformly."""
     model = TARGET_MODELS.get(target_kind)
     if model is None:
@@ -62,8 +62,8 @@ async def resolve_price_target(
 ) -> TargetInfo | None:
     """The row that actually carries a price for something the client named.
 
-    Callers hand us a pc_parts id — that is the only identifier a build card
-    has — but for GPU/PSU/RAM/storage the street price lives on the group, and
+    Callers hand us a pc_parts id, that is the only identifier a build card
+    has, but for GPU/PSU/RAM/storage the street price lives on the group, and
     the ETL only ever prices the group. A subscription left pointing at the
     exact part would sit active forever watching a column nothing writes, so
     those are redirected to their group here, once, at the edge.
@@ -89,7 +89,7 @@ async def resolve_price_target(
     fk_attr, group_kind = entry
     group_id = getattr(part, fk_attr, None)
     # An exact with no group has no price anywhere, so there is nothing to
-    # watch — the caller turns this into "can't alert on this part" rather
+    # watch. The caller turns this into "can't alert on this part" rather
     # than a subscription that can never fire.
     if group_id is None:
         return None
@@ -99,7 +99,7 @@ async def resolve_price_target(
 # Recomputed rather than incremented: the counts are a summary of rows that
 # already exist, so deriving them in one statement makes drift impossible.
 # Incrementing would need every mutation path (subscribe, cancel, alert sent,
-# user deleted via ON DELETE CASCADE — which runs no Python at all) to remember
+# user deleted via ON DELETE CASCADE, which runs no Python at all) to remember
 # to adjust it, and the cascade alone makes that unachievable.
 _REFRESH_COUNTS_SQL = text(
     """
@@ -165,7 +165,7 @@ async def subscribe(
     threshold_cents: int | None,
     baseline_price_cents: int | None,
 ) -> PriceSubscription:
-    """Create — or, when the user already watches this target, retarget — a
+    """Create, or, when the user already watches this target, retarget, a
     subscription. Idempotent because the natural client behaviour (tapping
     "alert me" twice, or adjusting the threshold) should not be an error, and
     the partial unique index would otherwise make the second call a 500."""
@@ -199,7 +199,7 @@ async def cancel(
     db: AsyncSession, *, user_id: uuid.UUID, subscription_id: uuid.UUID
 ) -> bool:
     """Cancel one of the caller's own subscriptions. Returns False for a row
-    that isn't theirs or isn't active, which the route turns into a 404 — a
+    that isn't theirs or isn't active, which the route turns into a 404. A
     403 would confirm the id exists."""
     sub = await db.get(PriceSubscription, subscription_id)
     if sub is None or sub.user_id != user_id or sub.status != STATUS_ACTIVE:
@@ -225,7 +225,7 @@ async def list_active_for_target(
     db: AsyncSession, target_kind: str, target_id: uuid.UUID
 ) -> list[PriceSubscription]:
     """Everyone waiting on this target. The ETL's read after it applies a new
-    price — hence the partial index this matches exactly."""
+    price, hence the partial index this matches exactly."""
     result = await db.execute(
         select(PriceSubscription)
         .where(

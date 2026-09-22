@@ -5,7 +5,7 @@ telemetry), discovery_sources (seed pages for the scheduled job's content-hash
 diffing; unused by the on-demand path), and discovered_items (the approval
 queue: JSONB extraction snapshot + per-field provenance + dedup result).
 Approval in the admin panel is the only path from discovered_items into
-pc_parts — the pipeline never writes the catalog directly.
+pc_parts. The pipeline never writes the catalog directly.
 
 Revision ID: c9d0e1f2a3b4
 Revises: d1e2f3a4b5c6

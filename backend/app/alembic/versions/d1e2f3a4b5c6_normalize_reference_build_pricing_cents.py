@@ -13,7 +13,7 @@ This normalizes existing rows still sitting at dollar-scale up to cents.
 Classification happens at the build level (not per-part): observed
 dollar-scale build totals top out around $12,000, so even the cheapest
 dollar-scale build misread as cents (110,000+) is nowhere near a real
-cents-scale total — there's no overlap risk at that granularity, unlike
+cents-scale total. There's no overlap risk at that granularity, unlike
 individual part prices which can plausibly land in either range. Each
 build's parts are updated using the SAME classification as their parent
 build (before the build row itself is updated), since a single admin edit
@@ -56,7 +56,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Not reversible in general — a row's original dollar-vs-cents scale
+    # Not reversible in general: a row's original dollar-vs-cents scale
     # cannot be recovered once normalized, since post-upgrade every row is
     # legitimately cents-scale (indistinguishable from a build that was
     # always cents-scale).

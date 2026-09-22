@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: telemetry-drain
 spec:
-  # Hourly. This is a BACKSTOP, not the primary path — turn_runner drains the
+  # Hourly. This is a BACKSTOP, not the primary path: turn_runner drains the
   # buffer at the end of every turn, so in the normal case this finds nothing
   # and exits in under a second. It exists for the cases that path cannot
   # cover: a worker SIGTERM'd between the recorder's buffer write and its
@@ -11,7 +11,7 @@ spec:
   # left its entries behind.
   #
   # Hourly rather than daily because the buffer is capped (telemetry_buffer.
-  # _MAX_PENDING) and overflow discards the OLDEST entries — a long gap after a
+  # _MAX_PENDING) and overflow discards the OLDEST entries. A long gap after a
   # Postgres outage is exactly when a backlog could exceed the cap and start
   # losing GEPA training data.
   #
@@ -48,7 +48,7 @@ spec:
                     name: builder-config
                 - secretRef:
                     name: palladium-secrets
-              # Moves rows between Valkey and Postgres and does nothing else —
+              # Moves rows between Valkey and Postgres and does nothing else,
               # no LLM calls, no HTTP fetches. It holds one batch of payloads in
               # memory at a time, and those carry verbatim candidate sets, which
               # is what the memory is for.

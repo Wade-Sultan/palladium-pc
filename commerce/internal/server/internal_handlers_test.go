@@ -24,8 +24,8 @@ func (f *fakeStore) GetUserByID(_ context.Context, id string) (*store.User, erro
 }
 
 // syncMailer sends on the calling goroutine, unlike fakeMailer's channel. The
-// price-alert handler is deliberately synchronous — its response is what tells
-// the builder whether to retire a subscription — so the test asserts on what
+// price-alert handler is deliberately synchronous, its response is what tells
+// the builder whether to retire a subscription, so the test asserts on what
 // was sent by the time ServeHTTP returned.
 type syncMailer struct {
 	enabled bool
@@ -75,7 +75,7 @@ func TestSendPriceAlert(t *testing.T) {
 	if len(m.sent) != 1 {
 		t.Fatalf("sent %d emails, want 1", len(m.sent))
 	}
-	// The address comes from the users row, never from the request — that is
+	// The address comes from the users row, never from the request. That is
 	// the whole reason the builder passes an id.
 	if m.sent[0].To != "wade@example.com" {
 		t.Errorf("To = %q, want the address on the user row", m.sent[0].To)

@@ -124,7 +124,7 @@ function asRecord(v: unknown): Record<string, unknown> {
 }
 
 function displayValue(v: unknown): string {
-  if (v === null || v === undefined) return '—';
+  if (v === null || v === undefined) return '-';
   if (typeof v === 'string') return v;
   if (typeof v === 'number' || typeof v === 'boolean') return String(v);
   return JSON.stringify(v);
@@ -224,10 +224,10 @@ function TriggerCard() {
         <p className="text-xs text-muted-foreground">
           {isAiModel
             ? isSweep
-              ? 'Reads what the Hugging Face Hub is currently trending and stages everything not already in the catalog or the queue. Costs no LLM tokens — the Hub publishes these fields as structured data.'
-              : 'Looks the model up on the Hugging Face Hub. Costs no LLM tokens — the Hub publishes these fields as structured data.'
+              ? 'Reads what the Hugging Face Hub is currently trending and stages everything not already in the catalog or the queue. Costs no LLM tokens: the Hub publishes these fields as structured data.'
+              : 'Looks the model up on the Hugging Face Hub. Costs no LLM tokens: the Hub publishes these fields as structured data.'
             : isSweep
-              ? 'Reads launch coverage for the category, then runs a full discovery on each new part it names — several parts per run, so it costs several times a single search. Parts already in the catalog or the queue are skipped.'
+              ? 'Reads launch coverage for the category, then runs a full discovery on each new part it names. Several parts per run, so it costs several times a single search. Parts already in the catalog or the queue are skipped.'
               : 'Extracts specs for one named part from its top spec pages.'}
         </p>
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -285,7 +285,7 @@ function RunsPanel({ runs }: { runs: SerializedRun[] }) {
                   {run.itemsFound} / {run.itemsNew}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {run.totalCostUsd != null ? `$${run.totalCostUsd.toFixed(4)}` : '—'}
+                  {run.totalCostUsd != null ? `$${run.totalCostUsd.toFixed(4)}` : '-'}
                 </TableCell>
                 <TableCell className="text-sm">{formatDate(run.startedAt)}</TableCell>
                 <TableCell
@@ -425,7 +425,7 @@ function ReviewDialog({
                 ←
               </Button>
             )}
-            {displayValue(fields.name) !== '—' ? displayValue(fields.name) : item.nameNormalized}
+            {displayValue(fields.name) !== '-' ? displayValue(fields.name) : item.nameNormalized}
             <Badge variant="outline">{item.category}</Badge>
             <Badge variant={item.validationStatus === 'passed' ? 'default' : 'destructive'}>
               {item.validationStatus}
@@ -642,7 +642,7 @@ export function DiscoveryClient({
           row.original.matchedPartId ??
           row.original.matchedChipsetId ??
           row.original.matchedAiModelId;
-        if (!id) return <span className="text-muted-foreground">—</span>;
+        if (!id) return <span className="text-muted-foreground">-</span>;
         return (
           <Badge variant="outline" className="border-amber-500 text-amber-600">
             Likely dup: {matchedNames[id] ?? '?'} ({row.original.matchMethod})

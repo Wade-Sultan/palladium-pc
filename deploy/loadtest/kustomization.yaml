@@ -1,4 +1,4 @@
-# Distributed Locust, applied on demand — deliberately NOT a resource of
+# Distributed Locust, applied on demand: deliberately NOT a resource of
 # overlays/prod.
 #
 # A load generator that is always deployed is five Autopilot pods billed around
@@ -15,7 +15,7 @@
 # from palladium-secrets-builder, which is namespaced. Both are resolved by
 # short name, so this cannot be applied elsewhere without editing.
 #
-# Local development does not need any of this — run `locust -f
+# Local development does not need any of this. Run `locust -f
 # deploy/loadtest/locustfile.py --host http://localhost:8000` on the host
 # instead. One process is more than enough load for a single dev pod, and the
 # local overlay has no palladium-secrets-builder to mount.
@@ -42,5 +42,5 @@ configMapGenerator:
 # because envFrom references a Secret by fixed name). Here it is the feature:
 # the hash changes when the locustfile does, kustomize rewrites the volume
 # reference in both Deployments, and the pods roll onto the new script. Without
-# it, editing the test and re-applying would leave every pod running the old one
-# — with nothing in the diff to suggest why.
+# it, editing the test and re-applying would leave every pod running the old one,
+# with nothing in the diff to suggest why.

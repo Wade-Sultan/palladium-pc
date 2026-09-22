@@ -384,7 +384,7 @@ export function AiModelsTable({ models }: { models: ModelWithWorkloads[] }) {
     },
     {
       accessorKey: 'paramsBillions', header: 'Params (B)', enableSorting: true,
-      cell: ({ getValue }) => getValue<number | null>() ?? <span className="text-muted-foreground text-xs">—</span>,
+      cell: ({ getValue }) => getValue<number | null>() ?? <span className="text-muted-foreground text-xs">-</span>,
     },
     {
       id: 'workloads', header: 'Workloads',

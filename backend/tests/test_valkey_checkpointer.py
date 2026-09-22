@@ -3,7 +3,7 @@
 Its whole reason for existing is that langgraph-checkpoint-redis cannot run on
 Memorystore (no RedisJSON, and Google's FT.* is a vector engine that will not do
 the standalone metadata lookups that package needs). So there is no upstream test
-suite covering this behaviour — these are it.
+suite covering this behaviour. These are it.
 
 What matters here is the same thing that matters in test_turn_stream.py: the
 failure modes are silent. A checkpointer that quietly returns None does not break
@@ -335,7 +335,7 @@ def test_reads_return_none_rather_than_raising_when_valkey_is_down(
     """Losing resumability must not cost the user their build."""
     saver = AsyncValkeySaver()
 
-    # A guest thread id, so the Postgres hydration path is not consulted —
+    # A guest thread id, so the Postgres hydration path is not consulted,
     # that path is exercised separately below.
     assert asyncio.run(saver.aget_tuple(_config(thread_id="turn:abc"))) is None
 

@@ -1,6 +1,6 @@
 """When a price subscription fires.
 
-Pure-logic tests over alerts.decide — the part with the interesting edges.
+Pure-logic tests over alerts.decide: the part with the interesting edges.
 Three nullable prices meet an email that can only truthfully say "was $X, now
 $Y", so every combination has to resolve to either a real drop or a clean
 refusal; commerce rejects a non-drop outright, and a refusal that gets that far
@@ -108,7 +108,7 @@ def test_a_price_that_rose_above_the_threshold_and_came_back_fires():
 
 def test_a_price_sitting_exactly_on_the_threshold_has_not_crossed_it():
     # "At or below" is met by the old price too, so this run is not the moment
-    # the part reached their number — the previous one was.
+    # the part reached their number. The previous one was.
     d = alerts.decide(
         threshold_cents=45000,
         baseline_cents=54999,
@@ -139,7 +139,7 @@ def test_no_threshold_fires_on_the_first_drop_under_the_baseline():
 def test_threshold_already_met_when_they_subscribed_is_not_a_drop():
     # The customer asked to hear about $500 on a part already at $450, and the
     # price has since risen to $480. It is under the threshold and going the
-    # wrong way — mailing "it dropped" would be false.
+    # wrong way. Mailing "it dropped" would be false.
     d = alerts.decide(
         threshold_cents=50000,
         baseline_cents=45000,
@@ -164,7 +164,7 @@ def test_unchanged_price_is_not_a_drop():
 
 
 def test_baseline_stands_in_when_there_is_no_previous_price():
-    # The part had no street price at all until this run — its first check is
+    # The part had no street price at all until this run. Its first check is
     # also the one that triggers the alert.
     d = alerts.decide(
         threshold_cents=45000,

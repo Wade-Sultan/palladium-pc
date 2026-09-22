@@ -11,7 +11,7 @@ import { auth } from "@/lib/firebase"
 
 /**
  * "pending" until Firebase has said who is signed in. Vendors must treat it as
- * "do not load yet" rather than "do not count this hit" — see below.
+ * "do not load yet" rather than "do not count this hit". See below.
  */
 export type AnalyticsConsent = "pending" | "allow" | "block"
 
@@ -20,7 +20,7 @@ export type AnalyticsConsent = "pending" | "allow" | "block"
  * every analytics vendor so they cannot drift apart.
  *
  * The "pending" state is the load-bearing part. Both SDKs report a page view
- * the moment they initialise, and Firebase restores a session asynchronously —
+ * the moment they initialise, and Firebase restores a session asynchronously,
  * so anything that boots on mount has already reported the internal user's
  * visit by the time we learn they were internal. Callers must hold off
  * entirely while pending; the cost is the few hundred ms of auth restore on

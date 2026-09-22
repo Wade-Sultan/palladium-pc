@@ -7,7 +7,7 @@
 !.env.template
 
 # Local database snapshots pulled from Cloud SQL. These contain production
-# data — including user rows, until seed-local-db.sh scrubs them on restore —
+# data, including user rows, until seed-local-db.sh scrubs them on restore,
 # and must never reach the repository.
 .local-seed/
 *.dump
@@ -61,7 +61,7 @@ docker-compose.override.yml
 next-env.d.ts
 dist
 
-# Local operator runbooks — deliberately untracked. They contain the step-by-step
+# Local operator runbooks: deliberately untracked. They contain the step-by-step
 # GCP console/CLI setup that only the person holding those consoles needs.
 # Nothing tracked points at them by path: comments that used to cite a section
 # number now carry the fact itself instead, so a checkout without these files

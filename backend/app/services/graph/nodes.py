@@ -3,7 +3,7 @@
 Every node emits its user-visible output through `get_stream_writer()` rather
 than returning it. Those writes come out of `graph.astream(stream_mode="custom")`
 verbatim, which is what lets run_chat_turn stay a passthrough and the SSE event
-contract stay untouched — a node's `writer({...})` is exactly the old `yield`.
+contract stay untouched. A node's `writer({...})` is exactly the old `yield`.
 
 The actual work still lives in app/services/chat_pipeline.py. These functions
 decide sequencing and carry state; they do not reimplement extraction, the DSPy
@@ -70,7 +70,7 @@ async def collect(state: ChatTurnState) -> dict[str, Any]:
 
     No progress event is emitted here, deliberately. The frontend treats any
     "progress" event as confirmation that the turn is on the recommend path, so
-    nothing may fire until the router has decided — which is the next node.
+    nothing may fire until the router has decided, which is the next node.
     """
     usage = dict(state.get("usage") or new_usage())
     sink: dict[str, Any] = {}
@@ -112,12 +112,12 @@ You order intake questions for a PC build advisor. You are NOT talking to the us
 
 You will be given a numbered list of things still unknown about the user, and a
 list of things already asked about in earlier turns. Reply with the NUMBER of the
-single item that should be asked about next. Reply with the number only — no
+single item that should be asked about next. Reply with the number only: no
 words, no punctuation, no explanation.
 
 Prefer, in order:
  1. An item that follows naturally from what the user just said.
- 2. An item that has NOT already been asked about — if something was asked and
+ 2. An item that has NOT already been asked about, if something was asked and
     the user talked around it, they are probably reluctant; come back to it later.
  3. Otherwise, the first item in the list.
 """
@@ -162,7 +162,7 @@ async def _pick_question(
             temperature=0.0,
             max_tokens=ChatModelConfig.ROUTE_MAX_TOKENS,
         )
-        # Not streamed — a single integer has nothing to stream — so cost comes
+        # Not streamed, a single integer has nothing to stream, so cost comes
         # back on the response itself and needs no second lookup.
         response = await model.ainvoke(api_messages)
         sink.update(usage_from_message(response))
@@ -190,7 +190,7 @@ async def route(state: ChatTurnState) -> dict[str, Any]:
     """Decide whether to ask another question or hand off to the builder.
 
     THE SUFFICIENCY DECISION IS is_profile_complete()'S AND ONLY ITS. The model
-    is never asked whether there is enough information — it is asked, and only
+    is never asked whether there is enough information. It is asked, and only
     when the answer is already known to be "no", which of the remaining gaps to
     raise next. That split is the whole point: a hallucinated readiness call
     ships a build against a profile nobody stated, while a badly ordered
@@ -292,8 +292,8 @@ async def build(state: ChatTurnState) -> dict[str, Any]:
     Unchanged in substance from the pre-graph implementation. The progress
     queue is kept rather than having the DSPy progress callback call the stream
     writer directly, because _run_dspy_build already writes to it and the
-    sentinel it enqueues last is how this loop learns the pipeline finished —
-    success or failure — without having to await the task to find out.
+    sentinel it enqueues last is how this loop learns the pipeline finished,
+    success or failure, without having to await the task to find out.
 
     The whole drain is wrapped in one deadline rather than a per-item timeout:
     the budget is on the build, not on the gap between two progress messages,
@@ -392,7 +392,7 @@ async def build(state: ChatTurnState) -> dict[str, Any]:
 
     payload = cp._build_payload(built, profile)
     # Every emitted build gets a public snapshot up front, so the card can show
-    # its share link and PDF button immediately. Guarded inside — a failed
+    # its share link and PDF button immediately. Guarded inside. A failed
     # snapshot only costs the share actions, never the build.
     share_token = await cp.create_shared_build(payload, build_key, conversation_id)
     if share_token is not None:
@@ -423,7 +423,7 @@ async def build(state: ChatTurnState) -> dict[str, Any]:
 # model call would cost a second of latency and a few cents to paraphrase one
 # sentence, and could drift into describing cases it cannot see.
 _CASE_PROMPT = (
-    "Your parts are picked out. Last choice is the case — here are three that "
+    "Your parts are picked out. Last choice is the case. Here are three that "
     "all fit your build. Choose one and I'll finish up."
 )
 
@@ -526,7 +526,7 @@ async def finalize(state: ChatTurnState) -> dict[str, Any]:
     """Terminal node for both branches: emit the turn's usage total, then done.
 
     Having one terminal node rather than emitting these from `ask` and `present`
-    separately is what keeps run_chat_turn a passthrough — it never has to
+    separately is what keeps run_chat_turn a passthrough. It never has to
     synthesize an event, so there is exactly one place events are produced.
     """
     writer = get_stream_writer()

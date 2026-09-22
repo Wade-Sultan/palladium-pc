@@ -2,13 +2,13 @@
 //
 // A user asks to be told when a part gets cheaper; the pricing ETL decides
 // whether that has happened and commerce sends the mail. Nothing here polls or
-// evaluates anything — these calls only manage who is waiting for what.
+// evaluates anything. These calls only manage who is waiting for what.
 //
 // Targets are the catch: a build carries pc_parts ids, but for GPU/PSU/RAM/
 // storage the price lives on a group row, and that is what the ETL prices. The
 // server resolves that redirect (see lookupPriceTargets), so a caller must
 // subscribe to the *resolved* target_kind/target_id it hands back rather than
-// to the part id it started from — otherwise the subscription watches a column
+// to the part id it started from, otherwise the subscription watches a column
 // nothing writes and the alert never fires.
 
 import { getAccessToken } from "@/hooks/useAuth"
@@ -22,7 +22,7 @@ export interface PriceSubscription {
   target_name: string | null
   /** Alert when the price reaches this. Null means "any drop". */
   threshold_cents: number | null
-  /** The price when the subscription was created — what "any drop" is measured from. */
+  /** The price when the subscription was created. What "any drop" is measured from. */
   baseline_price_cents: number | null
   current_price_cents: number | null
   status: string
@@ -38,8 +38,8 @@ export interface PriceTarget {
   target_id: string
   target_name: string
   /**
-   * The catalog street price, in cents. This — not the marketplace listing
-   * shown beside it on the card — is what alerts are evaluated against, so it
+   * The catalog street price, in cents. This, not the marketplace listing
+   * shown beside it on the card, is what alerts are evaluated against, so it
    * is the price the alert dialog quotes.
    */
   current_price_cents: number | null
@@ -74,14 +74,14 @@ async function authHeaders(): Promise<Record<string, string>> {
  * Resolve a card's parts to their price targets, keyed by the part_id asked
  * about. One request for the whole card.
  *
- * Authenticated when there is a session and anonymous otherwise — the price
+ * Authenticated when there is a session and anonymous otherwise. The price
  * and watcher count are public, and `subscription` is simply null for a guest,
  * which is what lets the shared-build page render the same card.
  *
  * Parts the server can't resolve (no price anywhere, or an exact with no
  * group) are absent from the result: the card hides the bell for those rather
  * than offering an alert that could never fire. A failed request is an empty
- * result for the same reason — no bells, rather than bells that error on click.
+ * result for the same reason: no bells, rather than bells that error on click.
  */
 export async function lookupPriceTargets(
   partIds: string[],

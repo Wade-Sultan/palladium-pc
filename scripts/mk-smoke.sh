@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # End-to-end smoke test for the local minikube cluster.
 #
-# Drives a REAL chat turn through the whole dispatched path — published to
+# Drives a REAL chat turn through the whole dispatched path, published to
 # Pub/Sub, claimed and run by a worker pod, streamed through Valkey, its
-# telemetry written to Postgres — and asserts each hop actually happened.
+# telemetry written to Postgres, and asserts each hop actually happened.
 #
 # NO LLM IS CALLED. The request carries X-Palladium-Load-Test, which puts both
 # the API and the worker into stub-LM mode (app/core/loadtest.py). The stubs are
 # in-process and answer DSPy's signatures by parsing their declared output
 # fields, so the full eleven-module build pipeline runs and produces a real build
-# from the seeded catalog — deterministically, with no LM Studio, no GPU and no
+# from the seeded catalog: deterministically, with no LM Studio, no GPU and no
 # OpenRouter spend. The build's CONTENT is meaningless; every other behaviour is
 # the real thing.
 #
@@ -17,7 +17,7 @@
 # if Pub/Sub is unreachable it silently runs the turn in the API process, and a
 # test that only checked "did a build come back" would pass while the worker, the
 # claim, redelivery and the whole dispatch architecture went untested. So the
-# central assertion here is not that the turn worked — it is that a WORKER ran
+# central assertion here is not that the turn worked. It is that a WORKER ran
 # it. That is read from the Valkey claim key, whose value is the worker's pod
 # name, rather than from a log line that could scroll away.
 #
@@ -71,7 +71,7 @@ HEAD_REV="$(kubectl exec deploy/builder -- sh -c 'cd /app && alembic heads' 2>/d
 if [ -n "$DB_REV" ] && [ "$DB_REV" = "$HEAD_REV" ]; then
   pass "alembic at head ($DB_REV)"
 else
-  fail "database is at '$DB_REV', code head is '$HEAD_REV' — restore/migrate ordering?"
+  fail "database is at '$DB_REV', code head is '$HEAD_REV': restore/migrate ordering?"
 fi
 
 # --- snapshot ----------------------------------------------------------------
@@ -100,7 +100,7 @@ fi
 # --- the assertion that matters ----------------------------------------------
 # A claim is written by app/worker.py before it runs the turn, and its VALUE is
 # the worker's pod name. The in-process fallback in api/routes/chat.py calls
-# run_turn directly and never claims — so a new claim owned by a worker-* pod is
+# run_turn directly and never claims, so a new claim owned by a worker-* pod is
 # positive proof the dispatched path ran, and its absence means the turn quietly
 # fell back even though it succeeded.
 step "the turn reached a worker (not the inline fallback)"
@@ -110,7 +110,7 @@ for key in $(valkey --scan --pattern 'chat:claim:*'); do
   NEW_CLAIM="$key"; break
 done
 if [ -z "$NEW_CLAIM" ]; then
-  fail "no new turn claim — the turn ran INLINE. Check that the emulator has its
+  fail "no new turn claim: the turn ran INLINE. Check that the emulator has its
         topics (kubectl logs job/pubsub-setup) and re-trigger 'pubsub-setup'."
 else
   OWNER="$(valkey get "$NEW_CLAIM")"
@@ -134,11 +134,11 @@ fi
 
 WAKE="$(valkey llen chat:wake)"
 [ "$WAKE" = "0" ] && pass "wake queue drained (cleared at pickup)" \
-                 || fail "wake queue still holds $WAKE entr(y/ies) — clear_wake leaking keeps a pod alive forever"
+                 || fail "wake queue still holds $WAKE entr(y/ies). Clear_wake leaking keeps a pod alive forever"
 
 PENDING="$(valkey llen build:telemetry:pending)"
 [ "$PENDING" = "0" ] && pass "telemetry buffer drained" \
-                     || fail "$PENDING telemetry payload(s) stuck in Valkey — the Postgres write failed; see the builder/worker log"
+                     || fail "$PENDING telemetry payload(s) stuck in Valkey: the Postgres write failed; see the builder/worker log"
 
 # --- postgres ----------------------------------------------------------------
 # The Valkey-to-storage hop, and the one the CronJob is only a backstop for:
@@ -154,8 +154,8 @@ fi
 
 # --- did the REAL pipeline run, or was a canned build served? ----------------
 # A build coming back is not evidence the recommender ran. When any Decide* step
-# raises — no candidate fits the budget, the model returns something the
-# signature cannot parse, the run exceeds DSPY_CHAT_TIMEOUT_S — the result is
+# raises, no candidate fits the budget, the model returns something the
+# signature cannot parse, the run exceeds DSPY_CHAT_TIMEOUT_S, the result is
 # discarded and a pre-built reference build is served instead, with
 # status=error. The response looks completely normal, so without this check the
 # assertions above all pass while the thing under test never executed.
@@ -163,7 +163,7 @@ fi
 # A WARNING, NOT A FAILURE, and deliberately so. The fallback is correct
 # behaviour: it is what keeps a user from seeing an error page. Whether it
 # SHOULD have triggered is a question about catalog prices and model quality,
-# not about whether this cluster works — and with the pricing ETL currently
+# not about whether this cluster works, and with the pricing ETL currently
 # leaving parts priced above what a mid-range budget allocates, a hard failure
 # here would make this script permanently red for a reason it does not own.
 step "did the custom build pipeline actually run?"
@@ -173,7 +173,7 @@ if [ "$STATUS" = "completed" ]; then
   pass "full ladder ran ($STEPS module decisions recorded)"
 else
   warn "FELL BACK to a reference build (status=$STATUS, only $STEPS ladder step(s) ran).
-        The turn and every hop above still worked — but the recommender itself did
+        The turn and every hop above still worked, but the recommender itself did
         not. Cause is in the worker log:
           kubectl logs deploy/worker | grep 'using reference build'
         Known triggers: no candidate under a slot's budget ceiling (pricing ETL),

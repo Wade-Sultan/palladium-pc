@@ -2,20 +2,20 @@
 
 Adds semantic search over two things:
 
-  * The catalog side — games, software and AI models. This is the half that
+  * The catalog side: games, software and AI models. This is the half that
     earns its keep: BuildProfile.games / .workloads arrive as free text
     ("Arc Raiders", "DaVinci Resolve", "Llama 70B") with unbounded vocabulary,
     misspellings and abbreviations, and until now reached the pipeline only as
     prose inside a prompt. Matching them to catalog rows attaches the
     requirement data those rows carry (game_minimum_parts, software_tiers,
     ai_workloads), none of which the recommender previously read.
-  * The parts side — one vector per part or part *group*, for text search over
+  * The parts side: one vector per part or part *group*, for text search over
     the catalog ("quiet white ITX case").
 
 ONE TABLE, PARTIAL INDEXES. Every vector lives in `embeddings`, discriminated
-by entity_type. HNSW cannot filter efficiently inside a single shared index —
+by entity_type. HNSW cannot filter efficiently inside a single shared index,
 it would return k nearest overall and then throw away everything of the wrong
-type — so each entity_type gets its own partial HNSW index. That gives the same
+type, so each entity_type gets its own partial HNSW index. That gives the same
 plan a per-type table would, while keeping a model swap to one ALTER.
 
 COSINE, NOT L2. text-embedding-3-small returns normalized vectors, where cosine
@@ -63,7 +63,7 @@ _ENTITY_TYPES = [
 
 def upgrade():
     # Cloud SQL for PostgreSQL ships pgvector, but the extension still has to be
-    # created once per database, and CREATE EXTENSION requires superuser —
+    # created once per database, and CREATE EXTENSION requires superuser,
     # verified: a plain LOGIN role gets
     #   ERROR: permission denied to create extension "vector"
     #   HINT:  Must be superuser to create this extension.
@@ -76,7 +76,7 @@ def upgrade():
     #
     #   psql -U postgres -d <db> -c 'CREATE EXTENSION IF NOT EXISTS vector;'
     #
-    # This statement then becomes a no-op the app user is allowed to run — also
+    # This statement then becomes a no-op the app user is allowed to run. Also
     # verified: with the extension already present it returns CREATE EXTENSION
     # plus a "already exists, skipping" NOTICE, with no privilege check. Which
     # is what makes this line safe to leave in the migration either way.
@@ -116,8 +116,8 @@ def upgrade():
         "ix_embeddings_type_hash", "embeddings", ["entity_type", "source_hash"]
     )
 
-    # m/ef_construction are pgvector's defaults (16 / 64). At the scale here —
-    # thousands of rows per type, not millions — the defaults are already well
+    # m/ef_construction are pgvector's defaults (16 / 64). At the scale here,
+    # thousands of rows per type, not millions, the defaults are already well
     # past the point of diminishing returns, and raising them would only slow
     # the backfill down for recall that is already effectively exact.
     for entity_type in _ENTITY_TYPES:
@@ -137,5 +137,5 @@ def downgrade():
     op.drop_table("embeddings")
     # The extension is deliberately left in place. Dropping it would break any
     # other database object built on the vector type, and re-creating it is
-    # free — whereas a DROP EXTENSION CASCADE here would be silently
+    # free, whereas a DROP EXTENSION CASCADE here would be silently
     # destructive.

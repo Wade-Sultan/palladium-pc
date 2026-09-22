@@ -1,7 +1,7 @@
 """Guards the promise that a conversation is recorded in full.
 
 THE BUG THIS EXISTS FOR. `save_turn` used to count the rows already stored and
-slice the incoming conversation at that number — a row count used as a list
+slice the incoming conversation at that number: a row count used as a list
 index. That holds only while the incoming list is exactly the stored sequence,
 and it silently was not: the transport dropped user turns from the state it
 round-tripped, so the count ran ahead of the list and the slice came back empty.
@@ -41,7 +41,7 @@ def test_a_later_turn_writes_only_what_is_new():
 def test_the_regression_a_row_count_could_not_see():
     """The exact shape that lost messages.
 
-    Two rows are stored, and the incoming conversation is also two long — but
+    Two rows are stored, and the incoming conversation is also two long, but
     they are not the same two, because the transport had dropped the user's
     first turn out of the state it round-trips. A count cannot tell those apart,
     so the old slice took nothing and the new user message was never written.

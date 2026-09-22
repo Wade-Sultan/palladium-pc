@@ -2,8 +2,8 @@
 #
 # Prod's ScaledObject (overlays/prod/keda-worker.yaml) carries two triggers: a
 # prometheus one reading the Pub/Sub backlog from Cloud Monitoring, and a redis
-# one reading the wake queue. The first cannot work here — there is no Cloud
-# Monitoring, and the emulator publishes no metrics — but the second is pure
+# one reading the wake queue. The first cannot work here, there is no Cloud
+# Monitoring, and the emulator publishes no metrics, but the second is pure
 # Valkey, so it works locally unchanged. That makes the wake queue the only half
 # of the autoscaling story that local can honestly test, and it is also the half
 # with application code behind it: turn_stream.push_wake on dispatch,
@@ -14,7 +14,7 @@
 # matches for kind ScaledObject". scripts/minikube-cilium-up.sh installs it, at
 # the same chart version prod runs.
 #
-# minReplicaCount must equal the worker's replicas in patches/replicas.yaml —
+# minReplicaCount must equal the worker's replicas in patches/replicas.yaml,
 # see the note there for what disagreeing costs.
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject

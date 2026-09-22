@@ -57,7 +57,7 @@ class BlogPost(Base):
 
     tags = Column(ARRAY(String), nullable=False, server_default="{}")
 
-    # draft | published — see BlogPostStatus.
+    # draft | published. See BlogPostStatus.
     status = Column(
         String(20),
         nullable=False,

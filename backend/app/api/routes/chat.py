@@ -27,7 +27,7 @@ _background_turns: set[asyncio.Task] = set()
 
 # Comment frames on an otherwise silent connection. The DSPy build can run for
 # minutes without emitting anything, and the GKE Gateway reaps an idle
-# connection long before that — this is what the hand-written `: ping` in the
+# connection long before that. This is what the hand-written `: ping` in the
 # old SSE relay was for, now handled by the encoder.
 _HEARTBEAT_S = 15.0
 
@@ -37,7 +37,7 @@ class ChatRequest(BaseModel):
 
     Only the fields this server reads are declared; the runtime also sends
     `system`, `tools` and call settings, which are accepted and ignored rather
-    than rejected — a client that adds a field should not start failing.
+    than rejected. A client that adds a field should not start failing.
     """
 
     model_config = {"extra": "allow"}
@@ -49,7 +49,7 @@ class ChatRequest(BaseModel):
     # thread list rather than our Conversation rows.
     conversation_id: str | None = None
     # The message the new one is appended after. This is what makes an edit an
-    # edit — see `rewind_prefix` in app/services/transport.py.
+    # edit. See `rewind_prefix` in app/services/transport.py.
     #
     # `None` is a real value here (the first message was edited, so nothing
     # survives) and is NOT the same as the field being absent, which is why the
@@ -59,7 +59,7 @@ class ChatRequest(BaseModel):
     #
     # IGNORE THE WARNING THIS PRODUCES. Building the route makes pydantic 2.12
     # emit `UnsupportedFieldAttributeWarning: The 'alias' attribute with value
-    # 'parentId' ... has no effect in the context it was used`. It is wrong —
+    # 'parentId' ... has no effect in the context it was used`. It is wrong,
     # the alias does apply, and tests/test_chat_edit_rewind.py pins that through
     # real HTTP requests precisely so nobody "fixes" it by reading the warning.
     # `Annotated` is the spelling the warning recommends and it warns anyway.
@@ -82,7 +82,7 @@ async def _dispatch(
 
     Unchanged from the pre-transport implementation, deliberately: this is the
     control plane, and moving the browser onto assistant-transport was never a
-    reason to touch it. Reachability, not configuration — a pod that cannot read
+    reason to touch it. Reachability, not configuration. A pod that cannot read
     Valkey must not publish to a worker it then cannot hear back from.
     """
     if not (await valkey_available() and pubsub.is_enabled()):
@@ -100,7 +100,7 @@ async def _dispatch(
             # middleware's ContextVar stops at this pod, and the worker is where
             # every LM call actually happens. See core/loadtest.py.
             "load_test": is_load_test(),
-            # `messages` is a rewritten history, not a longer one — the worker
+            # `messages` is a rewritten history, not a longer one. The worker
             # has to delete the rows this edit replaced rather than append to
             # them. Only this pod can know: the evidence is `parentId`, which
             # never leaves the request.
@@ -113,7 +113,7 @@ async def _dispatch(
     if dispatched:
         # The fast half of the worker pool's wake-up. Pub/Sub is the queue; this
         # is the same fact written somewhere KEDA can read without waiting on
-        # Cloud Monitoring's 60-180s metric delay. Only on the dispatched path —
+        # Cloud Monitoring's 60-180s metric delay. Only on the dispatched path,
         # the inline and in-process fallbacks below need no worker, so waking
         # one would start a pod to do nothing. See turn_stream.push_wake.
         await turn_stream.push_wake(turn_id)
@@ -126,8 +126,8 @@ def _case_pick(commands: list[dict]) -> tuple[str, str] | None:
     `select-case` is a custom assistant-transport command (declared on the
     client in types/assistant-ui.d.ts). It rides the ordinary /chat request
     rather than a side channel of its own, which is what lets a pick reuse the
-    whole turn machinery — dispatch, the Valkey event stream, resume-on-reload
-    — instead of reimplementing it.
+    whole turn machinery, dispatch, the Valkey event stream, resume-on-reload,
+    instead of reimplementing it.
 
     Last one wins, matching how the command queue would apply them in order.
     """
@@ -154,11 +154,11 @@ async def chat(
 
     HOW THE TURN ACTUALLY RUNS IS UNCHANGED. When Pub/Sub and Valkey are both
     reachable the turn goes to a worker and this response merely reads its
-    Valkey stream — so the turn survives this connection dying and a reconnect
+    Valkey stream, so the turn survives this connection dying and a reconnect
     can pick it up mid-build (see /chat/resume). Otherwise it runs inline and
     dies with the request, which is the local-development path.
     """
-    # The base handed to create_run must stay exactly what the client sent —
+    # The base handed to create_run must stay exactly what the client sent,
     # operations are deltas applied on top of the client's own copy, so mutating
     # it here would misalign every message index. This turn's new messages are
     # appended inside the run instead, which is also what keeps them on screen:
@@ -172,8 +172,8 @@ async def chat(
     # `_rewind`), so the base stays exactly what the client POSTed.
     # `model_extra` is not redundant with `model_fields_set`. Because `extra` is
     # "allow", a body carrying the *unaliased* key `parent_id` files it under
-    # extras AND adds that name to `model_fields_set`, while `req.parent_id` —
-    # which only `parentId` populates — stays None. Testing set-ness alone would
+    # extras AND adds that name to `model_fields_set`, while `req.parent_id`,
+    # which only `parentId` populates, stays None. Testing set-ness alone would
     # read such a body as "parent is null" and wipe the conversation, the exact
     # loss the absent-versus-null distinction above exists to prevent.
     keep = (
@@ -186,7 +186,7 @@ async def chat(
 
     messages = transport.to_chat_messages(history + pending)
     # A case pick is a click on a card, not something the user said, so it
-    # arrives with no message of its own — and the turn it starts is still a
+    # arrives with no message of its own, and the turn it starts is still a
     # real turn. Only a request carrying neither has nothing to respond to.
     case_pick = _case_pick(req.commands)
     if not messages and case_pick is None:
@@ -209,7 +209,7 @@ async def chat(
     if not dispatched and await valkey_available():
         # Valkey but no Pub/Sub: still worth going through the stream, because
         # resumption works and this pod is no longer the only place the events
-        # exist. Not awaited — the callback below consumes what it writes.
+        # exist. Not awaited. The callback below consumes what it writes.
         task = asyncio.create_task(
             run_turn(
                 turn_id,
@@ -264,13 +264,13 @@ async def chat_resume(req: ResumeRequest) -> Response:
     Deliberately unauthenticated, and safe for the same reason the old
     `/chat/{turn_id}/stream` was: nothing here is returned that the client did
     not already have, and reattaching requires knowing the conversation id.
-    Requiring a token would break the case this exists for — a Firebase ID token
+    Requiring a token would break the case this exists for. A Firebase ID token
     lives an hour, and a tab backgrounded long enough to drop its connection may
     well come back with an expired one.
 
     The client sends no run id (assistant-transport has none to send), so the
     server resolves it from the conversation. Replay is from the beginning
-    because state snapshots are absolute — see app/services/transport.py.
+    because state snapshots are absolute. See app/services/transport.py.
     """
     if not req.conversation_id:
         raise HTTPException(status_code=400, detail="conversation_id is required.")

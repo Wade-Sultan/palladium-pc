@@ -8,7 +8,7 @@
 # TWO CONDITIONS, OR'd, because they fail in opposite directions:
 #
 #   commit failure rate   Catches the event as it happens, but says nothing about
-#                         accumulation — a slow drip of one failure an hour never
+#                         accumulation: a slow drip of one failure an hour never
 #                         looks alarming on a rate.
 #   retained buffers      Catches the standing backlog, including failures that
 #                         happened while notifications were silenced or before
@@ -18,7 +18,7 @@
 # Neither alone is sufficient. The rate can be zero while ten turns sit
 # unpersisted from last night, and the gauge can be zero for a turn that failed
 # and whose buffer then hit CHAT_BUFFER_TTL_S.
-displayName: "Palladium — chat turns not reaching Postgres"
+displayName: "Palladium. Chat turns not reaching Postgres"
 documentation:
   mimeType: text/markdown
   content: |
@@ -26,7 +26,7 @@ documentation:
     committed. Each one is work the user already paid OpenRouter for.
 
     **The data is not gone yet.** `app/services/turn_runner.py` deliberately
-    retains the Valkey buffer when a commit fails — it is the only remaining copy.
+    retains the Valkey buffer when a commit fails. It is the only remaining copy.
     It expires after `CHAT_BUFFER_TTL_S` (24h by default), so this has a deadline.
 
     **Find them:**
@@ -43,7 +43,7 @@ documentation:
     "
     ```
 
-    **Read one back** with `chat_buffer.load('<conversation_id>')` — the payload
+    **Read one back** with `chat_buffer.load('<conversation_id>')`. The payload
     holds `messages`, `assistant_text`, `turn_usage` and the resolved build, i.e.
     everything `save_turn` needs.
 
@@ -59,7 +59,7 @@ documentation:
     that populates it.
 
     **There is no automatic replay.** Reconstructing these into Postgres is
-    manual today — noted as a gap in `deploy/messaging.md` §8.
+    manual today: noted as a gap in `deploy/messaging.md` §8.
 combiner: OR
 conditions:
   - displayName: "commits are failing"

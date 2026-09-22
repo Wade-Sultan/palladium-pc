@@ -65,7 +65,7 @@ function RamForm({ item, groups, onSuccess }: { item: RamWithPart | null; groups
         <FormField control={form.control} name="ramGroupId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Group * (spec — DDR, speed, capacity, timings)</FormLabel>
+              <FormLabel>Group * (spec: DDR, speed, capacity, timings)</FormLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <FormControl><SelectTrigger><SelectValue placeholder="Select a group" /></SelectTrigger></FormControl>
                 <SelectContent>{groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}</SelectContent>
@@ -164,7 +164,7 @@ export function RamTable({ data, groups }: { data: RamWithPart[]; groups: GroupO
         <div><h1 className="text-2xl font-bold">RAM</h1><p className="text-muted-foreground text-sm mt-1">{data.length} kits</p></div>
         <Button onClick={() => { setSelected(null); setDialogOpen(true); }} disabled={groups.length === 0}>New RAM</Button>
       </div>
-      {groups.length === 0 && <p className="text-sm text-muted-foreground">Create a RAM Group first — every kit belongs to one.</p>}
+      {groups.length === 0 && <p className="text-sm text-muted-foreground">Create a RAM Group first: every kit belongs to one.</p>}
       <DataTable columns={columns} data={data} filterPlaceholder="Filter RAM..." />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">

@@ -2,7 +2,7 @@
 # base and are identical everywhere; the Gateway (controller, hostnames, TLS)
 # is per-overlay. Prod gets gatewayClassName: gke-l7-global-external-managed.
 #
-# admin has no listener and no HTTPRoute by design — in every environment it
+# admin has no listener and no HTTPRoute by design, in every environment it
 # is reached by port-forward only (Tilt's localhost:3001 locally, `kubectl
 # port-forward svc/admin` in prod), mirroring the old GCE IAP-tunnel posture.
 apiVersion: gateway.networking.k8s.io/v1

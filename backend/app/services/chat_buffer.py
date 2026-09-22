@@ -1,8 +1,8 @@
 """Write-behind chat buffer on Valkey, keyed by conversation.
 
 THE PROBLEM THIS SOLVES. Today a turn is only durable once _save_turn commits at
-the very end of the request (app/api/routes/chat.py). Everything before that —
-the accumulated assistant text, the resolved build, the OpenRouter spend — lives
+the very end of the request (app/api/routes/chat.py). Everything before that,
+the accumulated assistant text, the resolved build, the OpenRouter spend, lives
 only in local variables inside a generator. If the client disconnects, FastAPI
 cancels that generator and all of it is discarded, including cost that was
 already incurred and should still be billed to the conversation.
@@ -13,7 +13,7 @@ is the recoverable state; a crash before the buffer write loses only a turn that
 had produced nothing yet.
 
 EVICTION IS ON CONFIRMED COMMIT, NOT ON COMPLETION. `discard()` is called after
-`db.commit()` returns, never after _save_turn merely finishes — _save_turn
+`db.commit()` returns, never after _save_turn merely finishes. _save_turn
 swallows its exceptions and returns normally on failure, so "the function
 returned" and "the rows are in Postgres" are very different claims. See
 `_save_turn`'s `committed` flag.
@@ -92,8 +92,8 @@ async def load(conversation_id: str) -> dict | None:
 async def count_retained() -> int | None:
     """Count buffers still waiting to be persisted. None if Valkey is unavailable.
 
-    Backs the `palladium_chat_buffers_retained` gauge. Steady state is 0 — a
-    buffer only outlives its turn when the Postgres commit failed — so any
+    Backs the `palladium_chat_buffers_retained` gauge. Steady state is 0, a
+    buffer only outlives its turn when the Postgres commit failed, so any
     non-zero reading is a set of turns the user already paid for that are not in
     the database.
 
@@ -104,7 +104,7 @@ async def count_retained() -> int | None:
 
     Cheap here only because the key count is small by construction: buffers are
     deleted on commit and TTL'd otherwise. If that ever stops being true, this
-    scan is itself the thing that gets expensive — which, conveniently, is also
+    scan is itself the thing that gets expensive, which, conveniently, is also
     exactly when the gauge it feeds is screaming.
     """
     client = await get_client()
@@ -124,7 +124,7 @@ async def discard(conversation_id: str) -> bool:
     """Evict the buffer. Call only after Postgres has confirmed the commit.
 
     Returns True if a key was actually removed, which lets callers distinguish
-    "evicted" from "there was nothing to evict" — the latter is normal for guest
+    "evicted" from "there was nothing to evict". The latter is normal for guest
     turns, which are never persisted and so are never buffered.
     """
     client = await get_client()
@@ -148,7 +148,7 @@ async def buffer_gauge_loop(interval_s: int = 60) -> None:
     """Keep `palladium_chat_buffers_retained` current.
 
     Sampled on a loop rather than updated at the point of retention, because the
-    question it answers is "how many turns are unpersisted right now" — including
+    question it answers is "how many turns are unpersisted right now", including
     ones retained by a worker that has since been replaced, which no in-process
     counter would know about.
 
@@ -160,7 +160,7 @@ async def buffer_gauge_loop(interval_s: int = 60) -> None:
     worker.py where it started. The alert this feeds
     (deploy/monitoring/alert-worker-metrics-absent.yaml) is an ABSENCE
     condition: it fires when nothing has reported for 10 minutes. Once the
-    worker scales to zero between bursts — keda-worker.yaml, minReplicaCount 0 —
+    worker scales to zero between bursts, keda-worker.yaml, minReplicaCount 0,
     a worker-only gauge goes silent on every quiet stretch and pages for an idle
     cluster. builder never scales below 2 (hpa.yaml), so hosting the same loop
     there keeps the series alive continuously and the alert keeps meaning what
@@ -169,7 +169,7 @@ async def buffer_gauge_loop(interval_s: int = 60) -> None:
     The two things it actually detects both survive the move intact: Valkey
     being unreachable (count_retained returns None from any pod, so the gauge
     stops being set) and buffers accumulating (an instance-wide SCAN, not a
-    per-pod count — a builder replica sees turns a worker retained just as well
+    per-pod count. A builder replica sees turns a worker retained just as well
     as another worker would).
     """
     while True:
@@ -179,7 +179,7 @@ async def buffer_gauge_loop(interval_s: int = 60) -> None:
                 CHAT_BUFFERS_RETAINED.set(count)
                 if count:
                     logger.warning(
-                        "%d chat buffer(s) awaiting persistence — these are turns "
+                        "%d chat buffer(s) awaiting persistence. These are turns "
                         "that did not reach Postgres (deploy/messaging.md §5)",
                         count,
                     )

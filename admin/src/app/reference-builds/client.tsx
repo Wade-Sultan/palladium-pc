@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createReferenceBuild, updateReferenceBuild, deleteReferenceBuild, type ReferenceBuildFormData } from './actions';
 
-// A selectable option — a specific part (non-grouped) or a group (grouped).
+// A selectable option: a specific part (non-grouped) or a group (grouped).
 type Option = { id: string; name: string; streetPriceCents: number | null };
 type PartOption = Option & { partType: string };
 
@@ -58,7 +58,7 @@ const schema = z.object({
 
 function fmtPrice(cents: number | null) {
   if (cents == null) return '';
-  return ` — $${(cents / 100).toFixed(2)}`;
+  return `: $${(cents / 100).toFixed(2)}`;
 }
 
 function buildDefaults(item: BuildWithParts | null): ReferenceBuildFormData {
@@ -106,7 +106,7 @@ function OptionSelect({
           <SelectValue placeholder={`Select ${label}…`} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__none">— None —</SelectItem>
+          <SelectItem value="__none">, None, </SelectItem>
           {options.map(p => (
             <SelectItem key={p.id} value={p.id}>{p.name}{fmtPrice(p.streetPriceCents)}</SelectItem>
           ))}
@@ -232,7 +232,7 @@ function BuildForm({
               >
                 <FormControl><SelectTrigger><SelectValue placeholder="Select max resolution…" /></SelectTrigger></FormControl>
                 <SelectContent>
-                  <SelectItem value="__none">— None —</SelectItem>
+                  <SelectItem value="__none">, None, </SelectItem>
                   {RESOLUTIONS.map(r => <SelectItem key={r} value={String(r)}>{r}p</SelectItem>)}
                 </SelectContent>
               </Select>

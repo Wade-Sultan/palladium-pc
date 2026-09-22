@@ -4,7 +4,7 @@ import { Storage } from '@google-cloud/storage';
 // Server-only. Credentials come from Application Default Credentials: the
 // palladium-admin GSA via Workload Identity in GKE, or `gcloud auth
 // application-default login` locally. Never import this from a client
-// component — it would pull the GCS SDK into the browser bundle.
+// component. It would pull the GCS SDK into the browser bundle.
 
 const BUCKET = process.env.BLOG_MEDIA_BUCKET;
 

@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
     start_metrics_exporter()
 
     # Before the warm-up task, so the DSPy/litellm import chain it triggers is
-    # itself traced — that chain is the slowest thing a cold pod does, and a
+    # itself traced. That chain is the slowest thing a cold pod does, and a
     # trace that starts after it hides exactly the part worth seeing.
     configure_tracing("palladium-api", fastapi_app=app)
 
@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
     # here when the worker gained a scale-to-zero floor
     # (deploy/overlays/prod/keda-worker.yaml): the alert it feeds is an ABSENCE
     # condition over 10 minutes, so a metric only written by worker pods would
-    # page every time the pool sat idle that long — which is now the expected
+    # page every time the pool sat idle that long, which is now the expected
     # steady state rather than an outage. builder never drops below 2 replicas,
     # so hosting it here keeps the series continuous. The worker still runs the
     # same loop; both report the same instance-wide number and the alert already
@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):
 
         # Flushes anything the publisher has batched but not yet sent. Skipping
         # this drops turns that were accepted by /chat but never reached the
-        # topic — the user watches a stream that no worker will ever write to.
+        # topic. The user watches a stream that no worker will ever write to.
         pubsub.close()
         await close_valkey()
         # Last: flushes spans describing the shutdown above.
@@ -120,7 +120,7 @@ if settings.all_cors_origins:
     )
 
 # add_middleware, so this wraps outside the router but inside CORS. Registered
-# as a raw ASGI class rather than @app.middleware("http") on purpose — the
+# as a raw ASGI class rather than @app.middleware("http") on purpose. The
 # latter is BaseHTTPMiddleware, which runs the endpoint in a separate task and
 # would lose the ContextVar this sets. See app/core/loadtest.py.
 app.add_middleware(LoadTestMiddleware)
@@ -129,6 +129,6 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # After include_router: the instrumentator reads the route table to label
 # timings by route template, so routes registered afterwards would be recorded
-# under their raw path instead. Module level, not lifespan — adding middleware
+# under their raw path instead. Module level, not lifespan. Adding middleware
 # to a running app raises RuntimeError.
 instrument_metrics(app)

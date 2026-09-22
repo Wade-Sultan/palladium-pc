@@ -16,7 +16,7 @@ import (
 //
 // Commerce sends because it is the only service holding RESEND_API_KEY and the
 // message templates (see deploy/overlays/prod/patches/secrets-scoped.yaml).
-// The caller passes a user id, never an address — users.email is resolved here,
+// The caller passes a user id, never an address. Users.email is resolved here,
 // from the row that owns it.
 
 // priceAlertRequest is what the builder POSTs. Money is in minor units
@@ -120,8 +120,8 @@ func (h *handlers) sendPriceAlert(w http.ResponseWriter, r *http.Request) {
 
 // maxDigestRows caps one digest email. A bad deploy can open thousands of
 // failures at once, and a message listing all of them would be unsendable as
-// well as unreadable. The overflow is not lost — it stays open on the admin
-// page — but it is marked notified along with the rest, because the useful
+// well as unreadable. The overflow is not lost, it stays open on the admin
+// page, but it is marked notified along with the rest, because the useful
 // signal ("something broke at scale") is fully delivered by the first page of
 // it and repeating the same wall of text daily is not.
 const maxDigestRows = 50
@@ -150,7 +150,7 @@ func (h *handlers) sendListingFailureDigest(w http.ResponseWriter, r *http.Reque
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal server error"})
 		return
 	}
-	// Nothing new is the normal, healthy case — a success with nothing sent,
+	// Nothing new is the normal, healthy case. A success with nothing sent,
 	// not an error the CronJob should go red over.
 	if len(failures) == 0 {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "nothing_to_report"})
@@ -164,7 +164,7 @@ func (h *handlers) sendListingFailureDigest(w http.ResponseWriter, r *http.Reque
 
 	openCount, err := h.store.CountOpenListingFailures(r.Context())
 	if err != nil {
-		// Cosmetic — it only sets the "N open in total" line. Losing it is not
+		// Cosmetic: it only sets the "N open in total" line. Losing it is not
 		// a reason to withhold the report itself.
 		h.logger.Warn("digest: count open listing failures", "err", err)
 		openCount = len(failures)
@@ -200,8 +200,8 @@ func (h *handlers) sendListingFailureDigest(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Only after the send succeeds. Stamping first and then failing to send
-	// would bury these parts permanently — they would never appear in another
-	// digest — whereas stamping late costs at most a repeated line tomorrow.
+	// would bury these parts permanently, they would never appear in another
+	// digest, whereas stamping late costs at most a repeated line tomorrow.
 	if err := h.store.MarkListingFailuresNotified(ctx, partIDs); err != nil {
 		h.logger.Error("digest: mark notified", "err", err)
 	}

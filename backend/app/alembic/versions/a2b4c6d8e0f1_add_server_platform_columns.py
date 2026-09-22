@@ -46,7 +46,7 @@ def upgrade():
 
     # --- Motherboard: the board half of the same story ---
     op.add_column("motherboards", sa.Column("supports_ecc", sa.Boolean(), nullable=True))
-    # Out-of-band management (IPMI/BMC) — the single clearest signal that a board
+    # Out-of-band management (IPMI/BMC). The single clearest signal that a board
     # is a server board rather than a workstation board.
     op.add_column("motherboards", sa.Column("has_ipmi", sa.Boolean(), nullable=True))
     # Server boards routinely carry 8 DIMM slots across 4-8 channels; memory_slots

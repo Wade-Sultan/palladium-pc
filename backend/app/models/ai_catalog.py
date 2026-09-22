@@ -18,7 +18,7 @@ from sqlalchemy.sql import func
 
 from app.db.base import Base
 from app.models.software_catalog import (
-    GpuImportance,  # noqa: F401 — reused by ai_workloads.gpu_importance
+    GpuImportance,  # noqa: F401: reused by ai_workloads.gpu_importance
 )
 
 # Unlike games (one title → fixed per-tier specs), an AI workload's hardware
@@ -29,7 +29,7 @@ from app.models.software_catalog import (
 #
 # The same model spans a ~20x VRAM range across that matrix (70B: ~42GB at q4
 # inference, ~140GB at fp16, ~48GB for QLoRA, ~1TB+ for a full fine-tune), so
-# tasks and model families are NOT parallel subtables — ai_models holds the
+# tasks and model families are NOT parallel subtables. Ai_models holds the
 # catalog entity with a family discriminator, and ai_workloads holds one row
 # per (model, task, precision) cell that has been curated.
 #
@@ -43,25 +43,25 @@ from app.models.software_catalog import (
 
 class AIModelFamily(str, enum.Enum):
     LLM = "llm"  # text-only language models
-    MULTIMODAL = "multimodal"  # VLMs — text + vision (LLaVA, Qwen-VL)
+    MULTIMODAL = "multimodal"  # VLMs: text + vision (LLaVA, Qwen-VL)
     IMAGE_GEN = "image_gen"  # diffusion / flow-matching (SDXL, Flux)
     VIDEO_GEN = "video_gen"  # video diffusion (Wan, HunyuanVideo)
     SPEECH = "speech"  # ASR / TTS (Whisper, Piper)
     AUDIO_GEN = (
-        "audio_gen"  # music / audio generation (MusicGen, Bark) — far heavier than ASR
+        "audio_gen"  # music / audio generation (MusicGen, Bark): far heavier than ASR
     )
     VISION = "vision"  # CNNs / ViTs (YOLO, ResNet, SAM)
     EMBEDDING = "embedding"  # sentence/embedding models
     CLASSICAL = (
-        "classical"  # gradient boosting / sklearn — CPU cores + RAM, GPU irrelevant
+        "classical"  # gradient boosting / sklearn: CPU cores + RAM, GPU irrelevant
     )
-    RL = "rl"  # reinforcement learning — CPU-heavy env simulation, modest GPU
+    RL = "rl"  # reinforcement learning: CPU-heavy env simulation, modest GPU
 
 
 class AITask(str, enum.Enum):
     INFERENCE = "inference"
     FINE_TUNE_FULL = (
-        "fine_tune_full"  # all weights updated — optimizer states dominate VRAM
+        "fine_tune_full"  # all weights updated: optimizer states dominate VRAM
     )
     FINE_TUNE_LORA = (
         "fine_tune_lora"  # frozen base at native precision + low-rank adapters
@@ -87,7 +87,7 @@ class AIModel(Base):
     slug = Column(String(255), nullable=False, unique=True)  # e.g. "llama-3-1-70b"
 
     # Community shorthand: "SD" for Stable Diffusion, "Llama 70B" for the
-    # full release name. See the note on Game.aliases — same two jobs.
+    # full release name. See the note on Game.aliases: same two jobs.
     aliases = Column(ARRAY(String), nullable=False, server_default="{}")
 
     family = Column(String(30), nullable=False, index=True)  # AIModelFamily value
@@ -176,7 +176,7 @@ class AIWorkload(Base):
 
     # Weight precision / quantization this row's numbers assume. Kept a free
     # string (not an enum) because quant formats churn: fp32, bf16, fp16, fp8,
-    # int8, q8, q6, q5, q4, q3 — extend as formats appear (AWQ, GPTQ, MXFP4...).
+    # int8, q8, q6, q5, q4, q3: extend as formats appear (AWQ, GPTQ, MXFP4...).
     precision = Column(String(20), nullable=False)
 
     # How much a discrete GPU matters (reuses software_catalog.GpuImportance):
@@ -205,7 +205,7 @@ class AIWorkload(Base):
     )
 
     # True when weights can spill to system RAM at usable speed (llama.cpp /
-    # GGUF layer offload, whisper.cpp) — makes recommended_ram_gb the lever
+    # GGUF layer offload, whisper.cpp). Makes recommended_ram_gb the lever
     # when VRAM is short instead of a hard wall.
     cpu_offload_capable = Column(
         Boolean, nullable=False, default=False, server_default="false"

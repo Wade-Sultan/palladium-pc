@@ -108,7 +108,7 @@ func requireFirebaseAuth(client *fbauth.Client) middleware {
 }
 
 // optionalFirebaseAuth verifies the token if present, but treats a
-// missing/invalid token as a guest rather than rejecting the request —
+// missing/invalid token as a guest rather than rejecting the request,
 // mirrors backend/app/core/auth.py's optional_firebase_token. Unused today
 // (no commerce route needs guest-or-authed semantics yet) but kept alongside
 // requireFirebaseAuth since it's the same verification path.
@@ -131,8 +131,8 @@ func optionalFirebaseAuth(client *fbauth.Client) middleware {
 // X-Internal-Key, the same scheme admin uses to reach the builder's discovery
 // endpoints (X-Admin-Key, backend/app/api/deps.py::require_admin_key).
 //
-// These routes are reachable from outside the cluster — the HTTPRoute matches
-// every path — so the key is the whole of their protection, not a second
+// These routes are reachable from outside the cluster, the HTTPRoute matches
+// every path, so the key is the whole of their protection, not a second
 // factor behind a network boundary. An unset key disables them outright rather
 // than leaving them open.
 //

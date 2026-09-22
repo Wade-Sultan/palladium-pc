@@ -268,7 +268,7 @@ export function BlogPostsTable({ posts }: { posts: BlogPost[] }) {
       accessorKey: 'publishedAt', header: 'Published', enableSorting: true,
       cell: ({ getValue }) => {
         const v = getValue<Date | null>();
-        return v ? formatDate(v) : <span className="text-muted-foreground text-xs">—</span>;
+        return v ? formatDate(v) : <span className="text-muted-foreground text-xs">-</span>;
       },
     },
     {
@@ -277,14 +277,14 @@ export function BlogPostsTable({ posts }: { posts: BlogPost[] }) {
         const tags = getValue<string[]>();
         return tags.length
           ? <span className="text-xs text-muted-foreground">{tags.join(', ')}</span>
-          : <span className="text-muted-foreground text-xs">—</span>;
+          : <span className="text-muted-foreground text-xs">-</span>;
       },
     },
     {
       accessorKey: 'readingMinutes', header: 'Read',
       cell: ({ getValue }) => {
         const v = getValue<number | null>();
-        return v ? <span className="text-xs text-muted-foreground">{v} min</span> : '—';
+        return v ? <span className="text-xs text-muted-foreground">{v} min</span> : '-';
       },
     },
     {

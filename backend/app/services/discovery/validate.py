@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-# Deterministic validation — no LLM, no DB. Failed items are still staged
+# Deterministic validation: no LLM, no DB. Failed items are still staged
 # (validation_status='failed') so extraction bugs stay visible in the queue.
 
 REQUIRED_FIELDS: dict[str, list[str]] = {
@@ -19,7 +19,7 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     ],
     "gpu_chipset": ["name", "vram_gb", "tdp_watts"],
     "gpu_variant": ["name", "chipset_name", "brand", "length_mm"],
-    # Required exactly where the subtype column is nullable=False — an approval
+    # Required exactly where the subtype column is nullable=False. An approval
     # missing one of these could not produce a valid pc_parts row.
     "motherboard": [
         "name",

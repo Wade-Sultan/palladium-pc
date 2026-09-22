@@ -15,7 +15,7 @@ import { uploadImage } from '@/lib/upload-client';
 
 // WYSIWYG editing, Markdown storage. tiptap-markdown handles both directions,
 // so what lands in the DB is the same Markdown the public site renders with
-// react-markdown — no HTML sanitising needed on the read path.
+// react-markdown: no HTML sanitising needed on the read path.
 
 type ToolButton = {
   icon: React.ElementType;
@@ -80,7 +80,7 @@ export function MarkdownEditor({
     immediatelyRender: false,
     extensions: [
       // Link ships inside StarterKit v3, so it is configured here rather than
-      // registered separately — a second registration is a duplicate-extension
+      // registered separately. A second registration is a duplicate-extension
       // warning and unpredictable ordering. Image does not ship in StarterKit.
       StarterKit.configure({ link: { openOnClick: false, autolink: true } }),
       Image.configure({ HTMLAttributes: { class: 'rounded-md max-w-full' } }),

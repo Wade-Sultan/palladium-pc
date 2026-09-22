@@ -3,7 +3,7 @@
 The property under test is one-directional and worth pinning: local development
 may move chat completions onto a machine in the room, but production must keep
 going to OpenRouter, with OpenRouter's key and OpenRouter's cost accounting.
-Nothing in the local overlay can reach production — but "nothing can" is exactly
+Nothing in the local overlay can reach production, but "nothing can" is exactly
 the kind of claim that stops being true quietly, when a default changes or a new
 call site reads the wrong field.
 

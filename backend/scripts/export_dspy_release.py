@@ -3,7 +3,7 @@
 A release is a directory holding one JSON file per optimized module plus a
 manifest.json. The manifest is what the runtime pins (DSPY_ARTIFACT_URI points
 at it, DSPY_ARTIFACT_SHA256 is its digest), and it names every module the
-runtime knows about — optimized ones by file hash, the rest as `builtin` — so a
+runtime knows about, optimized ones by file hash, the rest as `builtin`, so a
 bundle can never be silently partial. See app/services/recommender/artifacts.py
 for what the runtime checks on load.
 
@@ -29,7 +29,7 @@ which is what enforces that serialized LM settings (api_base, model, keys)
 cannot follow a bundle into production: artifacts._load_state nulls them.
 """
 
-# ruff: noqa: T201 — a CLI; its output is the point.
+# ruff: noqa: T201. A CLI; its output is the point.
 from __future__ import annotations
 
 import argparse
@@ -110,7 +110,7 @@ def _export(args: argparse.Namespace) -> int:
     print(f"wrote {Path(args.out) / 'manifest.json'}")
     print(f"serving_model: {manifest['serving_model']}")
     print(f"dspy_version:  {manifest['dspy_version']}")
-    print(f"optimized:     {', '.join(optimized) or '(none — baseline release)'}")
+    print(f"optimized:     {', '.join(optimized) or '(none: baseline release)'}")
     print("\nPin in the deployment config:")
     print(
         f"  DSPY_ARTIFACT_URI=gs://<bucket>/dspy-releases/{Path(args.out).name}/manifest.json"

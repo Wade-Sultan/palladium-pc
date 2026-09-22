@@ -2,7 +2,7 @@
 
 Monthly Hugging Face Hub sweep. Stages whatever the Hub is currently trending
 that the ai_models catalog doesn't already have, into the same review queue the
-hardware categories use — nothing reaches ai_models without a human approving
+hardware categories use: nothing reaches ai_models without a human approving
 it in the admin panel.
 
 Reuses the backend image; the CronJob only overrides the container command,
@@ -40,7 +40,7 @@ async def run() -> int:
 
     logger.info("ai-model sweep finished", extra={"run_id": str(run_id)})
     # _sweep_ai_models never raises and records its own outcome on the run row,
-    # so reaching here means the job did its work — a non-zero exit would only
+    # so reaching here means the job did its work. A non-zero exit would only
     # make the CronJob repeat a sweep that already staged its items.
     return 0
 

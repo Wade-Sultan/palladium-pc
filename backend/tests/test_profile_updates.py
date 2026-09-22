@@ -2,7 +2,7 @@
 
 merge_profile deliberately accumulates games and carries preferences forward,
 because an extractor that misses a field is far more common than a user
-retracting one. That leaves no way to represent "I don't play that anymore" —
+retracting one. That leaves no way to represent "I don't play that anymore",
 which is what apply_profile_updates is for. Every operation must be grounded
 in a quote from the message that made it, so the extractor cannot retract a
 preference the user never touched.

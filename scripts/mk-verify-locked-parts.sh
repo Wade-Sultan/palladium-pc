@@ -8,7 +8,7 @@
 # this feature keys on. There is nothing to smoke-test through the front door
 # without spending real LLM money on extraction.
 #
-# What is testable locally — and is what actually carries the risk — is
+# What is testable locally, and is what actually carries the risk, is
 # everything downstream of extraction: does a named part resolve against a real
 # catalog, does it get priced, is it refused when it would eat the budget, does
 # the budget allocator take it out of the pot, and does the step really skip its
@@ -134,7 +134,7 @@ async def main():
     # The local seed carries no games and no embeddings, so the absolute floors
     # this refusal reads do not exist here. Rather than skip the one case the
     # feature was asked for, the profile is seeded INSIDE A TRANSACTION THAT IS
-    # ROLLED BACK — the check runs against real catalog GPUs and real pricing,
+    # ROLLED BACK. The check runs against real catalog GPUs and real pricing,
     # and the cluster is left exactly as it was found.
     await _overspec_scenario()
 
@@ -172,7 +172,7 @@ async def _overspec_scenario():
                     ray_tracing_mode="off",
                     upscaling_mode="native",
                     # A floor low enough that every modern card clears it. The
-                    # refusal under test is about money, not capability — an
+                    # refusal under test is about money, not capability. An
                     # insufficient card would be refused by a different branch.
                     min_vram_gb=8,
                     derivation_method="synthetic_probe",

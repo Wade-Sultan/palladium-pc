@@ -5,7 +5,7 @@
 #
 #   live (default)  kubectl, straight off the running pods. Instant, streams,
 #                   but only sees pods that exist *right now*. A pod that
-#                   crashed or was replaced takes its logs with it — and with
+#                   crashed or was replaced takes its logs with it, and with
 #                   maxUnavailable: 0 every rollout replaces every pod, so
 #                   "the error I saw ten minutes ago" is routinely already gone.
 #
@@ -15,7 +15,7 @@
 #                   already happened.
 #
 # Cloud Logging needs no setup: GKE ships container stdout/stderr there by
-# default. Metrics land in Cloud Monitoring via GMP, logs here — both queryable
+# default. Metrics land in Cloud Monitoring via GMP, logs here: both queryable
 # from the GCP console.
 set -euo pipefail
 

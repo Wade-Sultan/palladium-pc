@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 
 # Turning a bag of Google Shopping prices into one street price.
 #
-# The mean over everything that passed the title filter — what this module used
-# to apply — is systematically too high, because the contamination in shopping
+# The mean over everything that passed the title filter, what this module used
+# to apply, is systematically too high, because the contamination in shopping
 # results is one-sided. A search for "RTX 5080" returns the card at ~$1000
 # alongside whole gaming PCs containing it at $2500-$4000; nothing sells for
 # *less* than a fifth of the part's price in the same result set except
@@ -16,10 +16,10 @@ from dataclasses import dataclass, field
 #
 # Three defences, cheapest first:
 #   1. title filtering, before this module ever sees a price
-#      (title_match.exclusion_reason) — kills the prebuilts and bundles by name
-#   2. an MSRP anchor, when the target has one — kills anything implausible in
+#      (title_match.exclusion_reason): kills the prebuilts and bundles by name
+#   2. an MSRP anchor, when the target has one: kills anything implausible in
 #      absolute terms
-#   3. a robust band around the median (below) — kills what is left, without
+#   3. a robust band around the median (below). Kills what is left, without
 #      assuming the sample is normal or that we know the true price already
 #
 # Every rejection is reported per-sample rather than just dropped, so
@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 # classifier trains on.
 
 # Below this many usable samples the median is not worth trusting, so the check
-# is recorded but no price is applied — the part keeps whatever it had and gets
+# is recorded but no price is applied. The part keeps whatever it had and gets
 # re-checked next cycle. Two results that agree can easily be two listings of
 # the same wrong thing.
 MIN_SAMPLES_TO_APPLY = 3
@@ -69,7 +69,7 @@ class PriceStats:
     min_cents: int
     max_cents: int
     median_cents: int
-    stddev_cents: int | None  # None for a single sample — stdev is undefined
+    stddev_cents: int | None  # None for a single sample. Stdev is undefined
 
     n_considered: int
     n_kept: int
@@ -96,7 +96,7 @@ def compute_stats(
     """Reduce one target's shopping results to a street price.
 
     anchor_cents is the target's MSRP when it has one. Only pc_parts carry an
-    MSRP — the group tables (gpu_chipsets, psu_groups, ...) don't — so this is
+    MSRP, the group tables (gpu_chipsets, psu_groups, ...) don't, so this is
     an extra defence where it's available, never a requirement.
 
     Returns None when there is nothing to measure at all.
@@ -154,7 +154,7 @@ def _trim_outliers(
     The median and MAD are computed over the candidates *including* the
     outliers, which is the point of using them: both survive up to half the
     sample being garbage, so the band doesn't need a clean sample to be drawn
-    from — unlike a mean-and-stddev band, which the prebuilts would widen far
+    from, unlike a mean-and-stddev band, which the prebuilts would widen far
     enough to admit themselves.
     """
     values = [cents[i] for i in candidates]

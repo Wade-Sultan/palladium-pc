@@ -1,8 +1,8 @@
 """Cloud Run Job / CronJob entrypoint: `python -m app.jobs.listing_failure_digest`.
 
 Asks commerce to mail the operator about parts the listings API could not
-produce a listing for, then exits. Reuses the backend's own Docker image — no
-separate Dockerfile — the Job resource just overrides the container's
+produce a listing for, then exits. Reuses the backend's own Docker image, no
+separate Dockerfile, the Job resource just overrides the container's
 command/args, exactly like the pricing ETL.
 
 This job holds no logic of its own on purpose. Commerce records the failures,
