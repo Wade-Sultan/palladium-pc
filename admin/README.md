@@ -17,9 +17,9 @@ npm run db:generate     # prisma generate: required before the first dev run
 npm run dev             # :3000
 ```
 
-Locally the app runs in the minikube cluster rather than on the host; `tilt up`
-brings it up and forwards it to <http://localhost:3001>. See the repo root's
-`Tiltfile` and `CLAUDE.md`.
+Locally the app runs in the minikube cluster rather than on the host; `tilt up
+-f scripts/Tiltfile` brings it up and forwards it to <http://localhost:3001>.
+See `scripts/Tiltfile` and the repo root's `CLAUDE.md`.
 
 ```bash
 npm test                # node --test over tests/*.test.ts

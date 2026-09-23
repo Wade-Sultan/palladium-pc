@@ -66,7 +66,7 @@ retry() {
 # `no matches for kind "HTTPRoute"`, and any local_resource running kubectl
 # inherits the dead endpoint. Stop it first, restart it after.
 if pgrep -x tilt >/dev/null; then
-  echo "tilt is running. Stop it first (Ctrl-C), then re-run this script and 'tilt up' after." >&2
+  echo "tilt is running. Stop it first (Ctrl-C), then re-run this script and 'tilt up -f scripts/Tiltfile' after." >&2
   exit 1
 fi
 
@@ -172,4 +172,4 @@ helm upgrade --install keda kedacore/keda \
 # loaded. Waiting on the Deployment rather than the pod rides that out.
 kubectl wait --for=condition=available --timeout=300s -n keda deployment/keda-operator
 
-echo "Cluster ready. Next: tilt up"
+echo "Cluster ready. Next: tilt up -f scripts/Tiltfile"

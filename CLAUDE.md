@@ -80,7 +80,7 @@ cluster. It stays on the host.
 
 ```bash
 ./scripts/minikube-cilium-up.sh      # cold-boot the cluster (DESTRUCTIVE: deletes the profile)
-tilt up                              # backend, worker, commerce, admin, postgres, valkey, pubsub emulator
+tilt up -f scripts/Tiltfile          # backend, worker, commerce, admin, postgres, valkey, pubsub emulator
 cd frontend && npm run dev           # host, :3000
 ```
 
@@ -102,7 +102,7 @@ Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres 
 
 Things that will bite:
 
-- **`allow_k8s_contexts('minikube')`** guards the Tiltfile, and `mk-smoke.sh` refuses any other
+- **`allow_k8s_contexts('minikube')`** guards `scripts/Tiltfile`, and `mk-smoke.sh` refuses any other
   context. Keep it that way, without it a stray kubectl context deploys to prod.
 - **Seed runs before migrate, never after.** `pg_restore --clean` drops `alembic_version`, so
   reversing the order silently pins local to production's schema at dump time.

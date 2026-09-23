@@ -1,9 +1,9 @@
 # Local dev against Minikube. Frontend is NOT here. It keeps running on the
 # host via `npm run dev` and talks to the cluster through the gateway hosts.
 #
-#   ./scripts/minikube-cilium-up.sh   # (re)creates the cluster: Cilium CNI,
-#                                     # kube-proxy replacement, Gateway API
-#   tilt up
+#   ./scripts/minikube-cilium-up.sh    # (re)creates the cluster: Cilium CNI,
+#                                      # kube-proxy replacement, Gateway API
+#   tilt up -f scripts/Tiltfile        # run from the repo root
 #
 # No `minikube tunnel` needed anymore: gateway-forward relays to the
 # gateway Service's NodePort directly.
@@ -20,13 +20,13 @@ allow_k8s_contexts('minikube')
 local_resource(
     'gcp-adc-secret',
     cmd='kubectl create secret generic gcp-adc ' +
-        '--from-file=application_default_credentials.json=.gcloud/application_default_credentials.json ' +
+        '--from-file=application_default_credentials.json=../.gcloud/application_default_credentials.json ' +
         '--dry-run=client -o yaml | kubectl apply -f -',
-    deps=['.gcloud/application_default_credentials.json'],
+    deps=['../.gcloud/application_default_credentials.json'],
     labels=['setup'],
 )
 
-k8s_yaml(kustomize('deploy/overlays/local'))
+k8s_yaml(kustomize('../deploy/overlays/local'))
 
 # Rolls the pods whose configuration just changed.
 #
@@ -45,11 +45,11 @@ local_resource(
     cmd='kubectl rollout restart deployment/builder deployment/worker && ' +
         'kubectl rollout status deployment/builder --timeout=180s',
     deps=[
-        'deploy/overlays/local/patches/config-local.yaml',
+        '../deploy/overlays/local/patches/config-local.yaml',
         # The Secret has the same problem for the same reason: the
         # generator's name-suffix hash is disabled (see kustomization.yaml),
         # so a changed .env.local updates the Secret and rolls nothing.
-        'deploy/overlays/local/.env.local',
+        '../deploy/overlays/local/.env.local',
     ],
     # MUST run after the ConfigMaps are applied, or it does the opposite of its
     # job: Tilt gives no ordering between a local_resource and a k8s apply, and
@@ -84,28 +84,28 @@ local_resource(
 # works the same after every rebuild, regardless of the node's runtime.
 custom_build(
     'palladium/builder',
-    command='docker build -t $EXPECTED_REF ./backend && minikube image load $EXPECTED_REF',
-    deps=['./backend'],
+    command='docker build -t $EXPECTED_REF ../backend && minikube image load $EXPECTED_REF',
+    deps=['../backend'],
     disable_push=True,
     live_update=[
         # Paired with the local overlay's `fastapi dev` command, which reloads
         # on change. Syncing without that patch would copy files in and change
         # nothing.
-        sync('./backend/app', '/app/app'),
+        sync('../backend/app', '/app/app'),
         # A dependency change needs a real resync, not just a file copy.
-        run('uv sync', trigger=['./backend/pyproject.toml', './backend/uv.lock']),
+        run('uv sync', trigger=['../backend/pyproject.toml', '../backend/uv.lock']),
     ],
 )
 custom_build(
     'palladium/commerce',
-    command='docker build -t $EXPECTED_REF ./commerce && minikube image load $EXPECTED_REF',
-    deps=['./commerce'],
+    command='docker build -t $EXPECTED_REF ../commerce && minikube image load $EXPECTED_REF',
+    deps=['../commerce'],
     disable_push=True,
 )
 custom_build(
     'palladium/admin',
-    command='docker build -t $EXPECTED_REF ./admin && minikube image load $EXPECTED_REF',
-    deps=['./admin'],
+    command='docker build -t $EXPECTED_REF ../admin && minikube image load $EXPECTED_REF',
+    deps=['../admin'],
     disable_push=True,
 )
 
@@ -116,7 +116,7 @@ custom_build(
 # 8081-vs-80 WSL2 story.
 local_resource(
     'gateway-forward',
-    serve_cmd='./scripts/gateway-forward.sh',
+    serve_cmd='./gateway-forward.sh',
     labels=['setup'],
 )
 
@@ -162,9 +162,9 @@ k8s_resource(
 # exercises the same migration path rather than skipping it.
 local_resource(
     'seed-db',
-    cmd='./scripts/seed-local-db.sh',
+    cmd='./seed-local-db.sh',
     resource_deps=['postgres'],
-    deps=['scripts/seed-local-db.sh'],
+    deps=['seed-local-db.sh'],
     labels=['data'],
 )
 

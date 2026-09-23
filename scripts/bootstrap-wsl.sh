@@ -136,4 +136,4 @@ printf '%-10s %s\n' psql     "$(psql --version)"
 printf '%-10s %s\n' uv       "$(uv --version)"
 printf '%-10s %s\n' python   "$("$REPO_ROOT/backend/.venv/bin/python" --version)"
 echo
-echo "Next: ./scripts/minikube-cilium-up.sh   then   tilt up"
+echo "Next: ./scripts/minikube-cilium-up.sh   then   tilt up -f scripts/Tiltfile"
