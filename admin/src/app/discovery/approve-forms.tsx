@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import type { Control, FieldValues, FieldPath } from 'react-hook-form';
+import type { Control, FieldValues, FieldPath, DefaultValues } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -24,6 +24,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { centsToUsd, joinCommaList, slugify } from '@/lib/utils';
+import { VocabSelectField } from '@/components/vocab-select-field';
+import { STORAGE_FORM_FACTORS, STORAGE_INTERFACES, STORAGE_TYPES } from '@/lib/storage-vocab';
 import {
   approveAiModel,
   approveCase,
@@ -61,7 +63,7 @@ const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
 const strArr = (v: unknown): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
 
-export function cpuDefaults(f: Record<string, unknown>): ApproveCpuFormData {
+export function cpuDefaults(f: Record<string, unknown>): DefaultValues<ApproveCpuFormData> {
   return {
     name: str(f.name),
     manufacturer: str(f.manufacturer),
@@ -71,7 +73,7 @@ export function cpuDefaults(f: Record<string, unknown>): ApproveCpuFormData {
     brand: str(f.brand),
     socket: str(f.socket),
     tdpWatts: num(f.tdp_watts),
-    hasIgpu: Boolean(f.has_igpu),
+    hasIgpu: typeof f.has_igpu === 'boolean' ? f.has_igpu : undefined,
     ddrGenerationInput: joinCommaList(strArr(f.ddr_generation)),
     cores: num(f.cores),
     threads: num(f.threads),
@@ -139,14 +141,14 @@ const partDefaults = (f: Record<string, unknown>) => ({
 
 export function motherboardDefaults(
   f: Record<string, unknown>,
-): ApproveMotherboardFormData {
+): DefaultValues<ApproveMotherboardFormData> {
   return {
     ...partDefaults(f),
     socket: str(f.socket),
     formFactor: str(f.form_factor),
     ddrGeneration: str(f.ddr_generation),
     memorySlots: num(f.memory_slots),
-    hasWifi: Boolean(f.has_wifi),
+    hasWifi: typeof f.has_wifi === 'boolean' ? f.has_wifi : undefined,
     m2Slots: num(f.m2_slots),
     m2PcieGen: num(f.m2_pcie_gen),
     chipset: str(f.chipset),
@@ -607,6 +609,21 @@ function NumberField<T extends FieldValues>({
   );
 }
 
+function RequiredBooleanField<T extends FieldValues>({ control, name, label }: {
+  control: Control<T>; name: FieldPath<T>; label: string;
+}) {
+  return <FormField control={control} name={name} render={({ field }) => (
+    <FormItem>
+      <FormLabel>{label}</FormLabel>
+      <Select value={typeof field.value === 'boolean' ? String(field.value) : ''} onValueChange={(value) => field.onChange(value === 'true')}>
+        <FormControl><SelectTrigger><SelectValue placeholder="Unknown: choose yes or no" /></SelectTrigger></FormControl>
+        <SelectContent><SelectItem value="true">Yes</SelectItem><SelectItem value="false">No</SelectItem></SelectContent>
+      </Select>
+      <FormMessage />
+    </FormItem>
+  )} />;
+}
+
 function CheckboxField<T extends FieldValues>({
   control,
   name,
@@ -758,18 +775,7 @@ export function ApproveCpuForm({
           name="supportedFeaturesInput"
           label="Supported Features (comma-separated)"
         />
-        <FormField
-          control={form.control}
-          name="hasIgpu"
-          render={({ field }) => (
-            <FormItem className="flex items-center gap-2 space-y-0">
-              <FormControl>
-                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-              </FormControl>
-              <FormLabel>Has iGPU</FormLabel>
-            </FormItem>
-          )}
-        />
+        <RequiredBooleanField control={form.control} name="hasIgpu" label="Integrated graphics *" />
         <SubmitRow error={error} isSubmitting={form.formState.isSubmitting} />
       </form>
     </Form>
@@ -982,7 +988,7 @@ export function ApproveMotherboardForm({
           label="Accepted Module Types (comma-separated: udimm, rdimm, lrdimm: blank = unconstrained)"
         />
         <div className="flex flex-wrap gap-6">
-          <CheckboxField control={form.control} name="hasWifi" label="Wi-Fi" />
+          <RequiredBooleanField control={form.control} name="hasWifi" label="Wi-Fi *" />
           <CheckboxField control={form.control} name="hasBluetooth" label="Bluetooth" />
           <CheckboxField control={form.control} name="supportsEcc" label="Supports ECC" />
           <CheckboxField control={form.control} name="hasIpmi" label="IPMI / BMC" />
@@ -1142,13 +1148,9 @@ export function ApproveStorageDriveForm({
           <NumberField control={form.control} name="msrpUsd" label="MSRP (USD)" step="0.01" />
           <GroupField control={form.control} groups={groups} label="Storage Group" />
           <TextField control={form.control} name="groupName" label="New Group Name" />
-          <TextField control={form.control} name="storageType" label="Type * (nvme | ssd | hdd)" />
-          <TextField control={form.control} name="formFactor" label="Form Factor * (e.g. m2_2280, 2_5, 3_5)" />
-          <TextField
-            control={form.control}
-            name="interface"
-            label="Interface * (pcie_gen3 | pcie_gen4 | pcie_gen5 | sata3)"
-          />
+          <VocabSelectField control={form.control} name="storageType" label="Type *" options={STORAGE_TYPES} />
+          <VocabSelectField control={form.control} name="formFactor" label="Form Factor *" options={STORAGE_FORM_FACTORS} />
+          <VocabSelectField control={form.control} name="interface" label="Interface *" options={STORAGE_INTERFACES} />
           <NumberField control={form.control} name="capacityGb" label="Capacity (GB) *" />
           <NumberField control={form.control} name="readSpeedMbps" label="Read (MB/s)" />
           <NumberField control={form.control} name="writeSpeedMbps" label="Write (MB/s)" />

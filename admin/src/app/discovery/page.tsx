@@ -1,3 +1,4 @@
+import { DISCOVERY_PAGE_SIZE, discoveryFilters, discoveryWhere, type SearchParams } from '@/lib/discovery-query';
 import { db } from '@/lib/prisma';
 import { DiscoveryClient, type GroupOptions, type SerializedRun } from './client';
 
@@ -5,11 +6,17 @@ export const dynamic = 'force-dynamic';
 
 const byName = { orderBy: { name: 'asc' }, select: { id: true, name: true } } as const;
 
-export default async function DiscoveryPage() {
+export default async function DiscoveryPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const filters = discoveryFilters(await searchParams);
+  const where = discoveryWhere(filters);
+  const total = await db.discoveredItem.count({ where });
+  filters.page = Math.min(filters.page, Math.max(1, Math.ceil(total / DISCOVERY_PAGE_SIZE)));
   const [items, runs, chipsets, ramGroups, storageGroups, psuGroups] = await Promise.all([
     db.discoveredItem.findMany({
-      where: { reviewStatus: 'pending' },
-      orderBy: { createdAt: 'desc' },
+      where,
+      orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      take: DISCOVERY_PAGE_SIZE,
+      skip: (filters.page - 1) * DISCOVERY_PAGE_SIZE,
     }),
     db.discoveryRun.findMany({ orderBy: { startedAt: 'desc' }, take: 20 }),
     db.gpuChipset.findMany(byName),
@@ -66,6 +73,9 @@ export default async function DiscoveryPage() {
 
   return (
     <DiscoveryClient
+      key={JSON.stringify(filters)}
+      filters={filters}
+      total={total}
       items={items}
       runs={serializedRuns}
       chipsets={chipsets}

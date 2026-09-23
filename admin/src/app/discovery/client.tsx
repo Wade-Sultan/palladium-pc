@@ -42,6 +42,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDate } from '@/lib/utils';
+import { buildcoresSource } from '@/lib/discovery-review';
+import { DISCOVERY_PAGE_SIZE, type DiscoveryFilters } from '@/lib/discovery-query';
 import { ApproveGameForm } from './approve-game';
 import {
   markDuplicate,
@@ -279,7 +281,7 @@ function RunsPanel({ runs }: { runs: SerializedRun[] }) {
             {runs.map((run) => (
               <TableRow key={run.id}>
                 <TableCell><RunStatusBadge run={run} /></TableCell>
-                <TableCell className="text-sm">{run.runType}</TableCell>
+                <TableCell className="text-sm">{run.pipelineVersion.startsWith('buildcores-v1:') ? 'BuildCores import' : run.runType}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{run.modelName}</TableCell>
                 <TableCell className="text-sm">
                   {run.itemsFound} / {run.itemsNew}
@@ -471,6 +473,22 @@ function ReviewDialog({
               ))}
             </div>
 
+            {buildcoresSource(item) && (
+              <div className="rounded-md border p-3 text-sm space-y-1">
+                <p className="font-medium">Imported from BuildCores OpenDB</p>
+                <p className="text-muted-foreground">Review this community catalog record and correct any missing specifications before approval.</p>
+                {buildcoresSource(item)!.reasons.length > 0 && (
+                  <div>
+                    <p className="font-medium">Waiting for review because:</p>
+                    <ul className="list-disc pl-5 text-muted-foreground">
+                      {buildcoresSource(item)!.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-muted-foreground">Approved parts from this import enter the catalog inactive.</p>
+                <a className="underline" href={buildcoresSource(item)!.url} target="_blank" rel="noreferrer">View the pinned source record</a>
+              </div>
+            )}
             <FieldTable item={item} />
             {fields.reference_only === true && (
               <p className="text-sm">Discovered for a game requirement. CPU approval will add an inactive catalog entry.</p>
@@ -569,12 +587,16 @@ function ReviewDialog({
 }
 
 export function DiscoveryClient({
+  filters,
+  total,
   items,
   runs,
   chipsets,
   groups,
   matchedNames,
 }: {
+  filters: DiscoveryFilters;
+  total: number;
   items: DiscoveredItem[];
   runs: SerializedRun[];
   chipsets: ChipsetOption[];
@@ -582,6 +604,7 @@ export function DiscoveryClient({
   matchedNames: Record<string, string>;
 }) {
   const router = useRouter();
+  const [actionError, setActionError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<DiscoveredItem | null>(null);
   const [, startTransition] = useTransition();
 
@@ -594,7 +617,8 @@ export function DiscoveryClient({
 
   const quickAct = (id: string, action: (id: string) => Promise<{ error?: string }>) => {
     startTransition(async () => {
-      await action(id);
+      const result = await action(id);
+      setActionError(result.error ?? null);
       router.refresh();
     });
   };
@@ -607,7 +631,7 @@ export function DiscoveryClient({
       enableSorting: true,
       cell: ({ row }) => (
         <div>
-          <p className="font-medium">{row.original.nameNormalized}</p>
+          <p className="font-medium">{displayValue(asRecord(row.original.extractedFields).name ?? row.original.nameNormalized)}</p>
           {row.original.modelNumber && (
             <p className="text-xs text-muted-foreground">{row.original.modelNumber}</p>
           )}
@@ -641,7 +665,7 @@ export function DiscoveryClient({
         const id =
           row.original.matchedPartId ??
           row.original.matchedChipsetId ??
-          row.original.matchedAiModelId;
+          row.original.matchedAiModelId ?? row.original.matchedGameId;
         if (!id) return <span className="text-muted-foreground">-</span>;
         return (
           <Badge variant="outline" className="border-amber-500 text-amber-600">
@@ -697,14 +721,40 @@ export function DiscoveryClient({
       <div>
         <h1 className="text-2xl font-bold">Discovery</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          {items.length} pending item{items.length === 1 ? '' : 's'}
+          {total.toLocaleString()} pending item{total === 1 ? '' : 's'} matching these filters
         </p>
       </div>
 
       <TriggerCard />
       <RunsPanel runs={runs} />
 
-      <DataTable columns={columns} data={items} filterPlaceholder="Filter queue..." />
+      <Card>
+        <CardHeader><CardTitle className="text-base">Review imported components</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">BuildCores parts appear here after import. Review missing specifications and possible duplicates before approving. Approve GPU chipsets before their board variants.</p>
+          <form action="/discovery" method="get" className="flex flex-wrap gap-2">
+            <Input name="q" defaultValue={filters.q} placeholder="Search all pending names or model numbers" aria-label="Search pending parts" className="max-w-sm" />
+            <select name="source" defaultValue={filters.source} aria-label="Source" className="rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="">All sources</option><option value="buildcores">BuildCores</option><option value="discovery">Web discovery</option>
+            </select>
+            <select name="category" defaultValue={filters.category} aria-label="Category" className="rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="">All categories</option>{CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <select name="validation" defaultValue={filters.validation} aria-label="Validation" className="rounded-md border bg-background px-3 py-2 text-sm">
+              <option value="">All validation results</option><option value="passed">Passed validation</option><option value="failed">Needs corrections</option>
+            </select>
+            <Button type="submit">Apply filters</Button>
+          </form>
+        </CardContent>
+      </Card>
+      {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
+      <DataTable columns={columns} data={items} serverPagination={{
+        page: filters.page, pageSize: DISCOVERY_PAGE_SIZE, total,
+        onPage: (page) => {
+          const query = new URLSearchParams({ q: filters.q, source: filters.source, category: filters.category, validation: filters.validation, page: String(page) });
+          router.push(`/discovery?${query}`);
+        },
+      }} />
 
       {reviewing && (
         <ReviewDialog

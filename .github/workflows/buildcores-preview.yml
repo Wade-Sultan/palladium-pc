@@ -1,0 +1,41 @@
+name: Preview BuildCores import
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: BuildCores commit SHA, tag, or branch to preview
+        required: true
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: buildcores/buildcores-open-db
+          ref: ${{ inputs.source_ref }}
+          path: buildcores-source
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      # The preview uses only the standard library and our pure validator.
+      # No database credentials, LLM keys, or application dependencies needed.
+      - name: Convert and validate components
+        working-directory: backend
+        run: python -m app.jobs.buildcores_import --source ../buildcores-source --report ../buildcores-preview.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: buildcores-preview
+          path: |
+            buildcores-preview.json
+            buildcores-source/LICENSE.txt
+          retention-days: 14

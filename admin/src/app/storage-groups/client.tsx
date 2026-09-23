@@ -18,15 +18,17 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { VocabSelectField } from '@/components/vocab-select-field';
+import { STORAGE_FORM_FACTORS, STORAGE_INTERFACES, STORAGE_TYPES } from '@/lib/storage-vocab';
 import { centsToUsd, formatUsd } from '@/lib/utils';
 import { createStorageGroup, updateStorageGroup, deleteStorageGroup, type StorageGroupFormData } from './actions';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   streetPriceUsd: z.coerce.number().nullable(),
-  storageType: z.string(),
-  formFactor: z.string(),
-  interface: z.string(),
+  storageType: z.string().min(1, 'Type is required'),
+  formFactor: z.string().min(1, 'Form factor is required'),
+  interface: z.string().min(1, 'Interface is required'),
   capacityGb: z.coerce.number().int().nullable(),
   readSpeedMbps: z.coerce.number().int().nullable(),
   writeSpeedMbps: z.coerce.number().int().nullable(),
@@ -80,20 +82,18 @@ function StorageGroupForm({ item, onSuccess }: { item: StorageGroup | null; onSu
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          {([
-            ['name', 'Name * (e.g. "2TB Gen4 NVMe")'], ['storageType', 'Type *'],
-            ['formFactor', 'Form Factor *'], ['interface', 'Interface *'],
-          ] as [keyof StorageGroupFormData, string][]).map(([name, label]) => (
-            <FormField key={name} control={form.control} name={name}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{label}</FormLabel>
-                  <FormControl><Input {...field} value={field.value as string ?? ''} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ))}
+          <FormField control={form.control} name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name * (e.g. &quot;2TB Gen4 NVMe&quot;)</FormLabel>
+                <FormControl><Input {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <VocabSelectField control={form.control} name="storageType" label="Type *" options={STORAGE_TYPES} />
+          <VocabSelectField control={form.control} name="formFactor" label="Form Factor *" options={STORAGE_FORM_FACTORS} />
+          <VocabSelectField control={form.control} name="interface" label="Interface *" options={STORAGE_INTERFACES} />
           {([
             ['capacityGb', 'Capacity (GB) *'], ['readSpeedMbps', 'Read (MB/s)'], ['writeSpeedMbps', 'Write (MB/s)'],
             ['enduranceTbw', 'Endurance (TBW)'], ['rpm', 'RPM (HDD)'],

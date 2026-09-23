@@ -29,6 +29,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   filterPlaceholder?: string;
   filterColumn?: string;
+  serverPagination?: { page: number; pageSize: number; total: number; onPage: (page: number) => void };
 }
 
 export function DataTable<TData, TValue>({
@@ -36,6 +37,7 @@ export function DataTable<TData, TValue>({
   data,
   filterPlaceholder = 'Filter...',
   filterColumn = 'name',
+  serverPagination,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -43,33 +45,37 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
+    manualPagination: Boolean(serverPagination),
+    manualFiltering: Boolean(serverPagination),
+    manualSorting: Boolean(serverPagination),
+    pageCount: serverPagination ? Math.max(1, Math.ceil(serverPagination.total / serverPagination.pageSize)) : undefined,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
-    state: { sorting, columnFilters },
+    state: { sorting, columnFilters, ...(serverPagination ? { pagination: { pageIndex: serverPagination.page - 1, pageSize: serverPagination.pageSize } } : {}) },
     initialState: { pagination: { pageSize: 25 } },
   });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center">
+      {!serverPagination && <div className="flex items-center">
         <Input
           placeholder={filterPlaceholder}
           value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ''}
           onChange={(e) => table.getColumn(filterColumn)?.setFilterValue(e.target.value)}
           className="max-w-sm"
         />
-      </div>
+      </div>}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  const canSort = header.column.getCanSort();
+                  const canSort = !serverPagination && header.column.getCanSort();
                   return (
                     <TableHead key={header.id}>
                       {header.isPlaceholder ? null : (
@@ -123,14 +129,14 @@ export function DataTable<TData, TValue>({
       </div>
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
-          {table.getFilteredRowModel().rows.length} result
-          {table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
+          {serverPagination?.total ?? table.getFilteredRowModel().rows.length} result
+          {(serverPagination?.total ?? table.getFilteredRowModel().rows.length) !== 1 ? 's' : ''}
         </span>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
+            onClick={() => serverPagination ? serverPagination.onPage(serverPagination.page - 1) : table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
             Previous
@@ -141,7 +147,7 @@ export function DataTable<TData, TValue>({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
+            onClick={() => serverPagination ? serverPagination.onPage(serverPagination.page + 1) : table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
             Next

@@ -15,6 +15,13 @@ Tell Palladium what you want to do with your PC and it'll handle the rest. Avail
 - LLM: Gemma via OpenRouter, orchestrated with DSPy and LangGraph
 - Cloud: GCP, Vercel
 
+## Component data import
+
+The [BuildCores import workflow](backend/docs/buildcores-import.md) converts PC
+components into Palladium's schema, previews validation results, and stages them
+for approval in the admin catalog. It excludes peripherals and preserves source
+attribution and reviewed records.
+
 ## Upcoming Features
 
 - User authentication and chat history

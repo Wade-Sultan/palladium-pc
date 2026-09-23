@@ -38,6 +38,27 @@ export default function AboutPage() {
             </p>
           </Section>
 
+          <Section title="Component data">
+            <p>
+              Contains information from{" "}
+              <a
+                href="https://github.com/buildcores/buildcores-open-db"
+                className="underline underline-offset-4"
+              >
+                BuildCores OpenDB
+              </a>
+              , available under the{" "}
+              <a
+                href="https://opendatacommons.org/licenses/by/1-0/"
+                className="underline underline-offset-4"
+              >
+                Open Data Commons Attribution License (ODC-By) v1.0
+              </a>
+              . Palladium converts and reviews this data for its component
+              catalog.
+            </p>
+          </Section>
+
           <Section title="How Palladium makes money">
             <p>
               Palladium takes part in the eBay Partner Network program. The

@@ -10,7 +10,7 @@ import type { Cpu, PcPart, Listing, AmazonListing } from '@prisma/client';
 import { Pencil, Trash2 } from 'lucide-react';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { ActiveToggle } from '@/components/active-toggle';
 import {
   Dialog,
   DialogContent,
@@ -473,11 +473,7 @@ export function CpuTable({ data }: { data: CpuWithPart[] }) {
       id: 'isActive',
       accessorFn: (row) => row.pcPart.isActive,
       header: 'Active',
-      cell: ({ getValue }) => (
-        <Badge variant={getValue<boolean>() ? 'default' : 'secondary'}>
-          {getValue<boolean>() ? 'Active' : 'Inactive'}
-        </Badge>
-      ),
+      cell: ({ row }) => <ActiveToggle partId={row.original.pcPart.id} active={row.original.pcPart.isActive} page="/cpus" />,
     },
     {
       id: 'actions',

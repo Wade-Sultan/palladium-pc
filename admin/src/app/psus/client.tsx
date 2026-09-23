@@ -10,7 +10,7 @@ import type { Psu, PcPart, Listing, AmazonListing } from '@prisma/client';
 import { Pencil, Trash2 } from 'lucide-react';
 import { DataTable } from '@/components/data-table';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { ActiveToggle } from '@/components/active-toggle';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -145,7 +145,7 @@ export function PsuTable({ data, groups }: { data: PsuWithPart[]; groups: GroupO
       ),
     },
     { id: 'isActive', accessorFn: (r) => r.pcPart.isActive, header: 'Active',
-      cell: ({ getValue }) => <Badge variant={getValue<boolean>() ? 'default' : 'secondary'}>{getValue<boolean>() ? 'Active' : 'Inactive'}</Badge> },
+      cell: ({ row }) => <ActiveToggle partId={row.original.pcPart.id} active={row.original.pcPart.isActive} page="/psus" /> },
     { id: 'actions', header: '', cell: ({ row }) => (
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="sm" onClick={() => { setSelected(row.original); setDialogOpen(true); }}><Pencil className="h-3.5 w-3.5" /></Button>

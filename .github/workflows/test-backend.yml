@@ -43,6 +43,7 @@ jobs:
       POSTGRES_PASSWORD: changethis
       POSTGRES_DB: palladium
       POSTGRES_DB_URL: postgresql://palladium_app:changethis@localhost:5432/palladium
+      BUILDCORES_TEST_DATABASE_URL: postgresql+asyncpg://palladium_app:changethis@localhost:5432/palladium
       OPENROUTER_API_KEY: ci-not-a-real-key
       SERPAPI_KEY: ci-not-a-real-key
 

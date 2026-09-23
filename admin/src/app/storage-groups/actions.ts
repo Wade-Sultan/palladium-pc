@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/prisma';
+import { storageVocabError } from '@/lib/storage-vocab';
 import { usdToCents } from '@/lib/utils';
 
 export interface StorageGroupFormData {
@@ -19,6 +20,8 @@ export interface StorageGroupFormData {
 }
 
 function toData(d: StorageGroupFormData) {
+  const vocabError = storageVocabError(d);
+  if (vocabError) throw new Error(vocabError);
   return {
     name: d.name,
     streetPriceCents: usdToCents(d.streetPriceUsd),

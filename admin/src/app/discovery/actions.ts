@@ -4,13 +4,19 @@ import { revalidatePath } from 'next/cache';
 import type { DiscoveredItem, Prisma } from '@prisma/client';
 import { db } from '@/lib/prisma';
 import { splitCommaList, usdToCents } from '@/lib/utils';
-import { asRecord, requireConfirmation } from '@/lib/discovery-review';
+import { asRecord, buildcoresSource, requireConfirmation } from '@/lib/discovery-review';
 import { approveDiscoveredGame } from '@/lib/game-discovery';
+import { storageVocabError } from '@/lib/storage-vocab';
 
 // Unlike the other pages' actions, everything here returns { error?: string }
 // instead of throwing. Thrown server-action messages are masked in
 // production, and approval failures (duplicate name, already reviewed) need
 // to reach the reviewer verbatim.
+
+/** A part new to the catalog from the BuildCores bulk import enters inactive,
+ * matching the importer's auto-approval: someone switches it on from the
+ * part's list page once it has a price and has been looked at. */
+const entersActive = (item: DiscoveredItem) => !buildcoresSource(item);
 
 export type DiscoveryCategory =
   | 'game'
@@ -344,6 +350,7 @@ export async function approveCpu(
   itemId: string,
   data: ApproveCpuFormData,
 ): Promise<{ error?: string }> {
+  if (typeof data.hasIgpu !== 'boolean') return { error: 'Confirm whether this CPU has integrated graphics.' };
   try {
     await db.$transaction(async (tx) => {
       const item = await tx.discoveredItem.findUniqueOrThrow({ where: { id: itemId } });
@@ -363,7 +370,7 @@ export async function approveCpu(
           modelNumber: data.modelNumber || null,
           yearReleased: data.yearReleased,
           msrpCents: usdToCents(data.msrpUsd),
-          isActive: !referenceOnly,
+          isActive: !referenceOnly && entersActive(item),
           partType: 'cpu',
           cpu: {
             create: {
@@ -458,7 +465,7 @@ export async function approveGpuVariant(
           modelNumber: data.modelNumber || null,
           yearReleased: data.yearReleased,
           msrpCents: usdToCents(data.msrpUsd),
-          isActive: true,
+          isActive: entersActive(item),
           partType: 'gpu',
           gpu: {
             create: {
@@ -512,7 +519,9 @@ async function approvePart(
           `A ${label} named "${name}" already exists. Use Mark duplicate instead`,
         );
       }
-      const part = await tx.pcPart.create({ data: await build(tx) });
+      const part = await tx.pcPart.create({
+        data: { ...(await build(tx)), isActive: entersActive(item) },
+      });
       await markApproved(tx, item, name, { createdPartId: part.id });
     });
   } catch (e) {
@@ -535,13 +544,13 @@ const partFields = (d: {
   modelNumber: d.modelNumber || null,
   yearReleased: d.yearReleased,
   msrpCents: usdToCents(d.msrpUsd),
-  isActive: true,
 });
 
 export async function approveMotherboard(
   itemId: string,
   data: ApproveMotherboardFormData,
 ): Promise<{ error?: string }> {
+  if (typeof data.hasWifi !== 'boolean') return { error: 'Confirm whether this motherboard has Wi-Fi.' };
   return approvePart(itemId, 'motherboard', data.name, 'motherboard', '/motherboards', () => ({
     ...partFields(data),
     partType: 'motherboard',
@@ -636,6 +645,9 @@ export async function approveStorageDrive(
   itemId: string,
   data: ApproveStorageDriveFormData,
 ): Promise<{ error?: string }> {
+  // Only a new group takes these fields; a picked group keeps its own values.
+  const vocabError = data.groupId ? null : storageVocabError(data);
+  if (vocabError) return { error: vocabError };
   return approvePart(itemId, 'storagedrive', data.name, 'drive', '/storage', async (tx) => {
     const groupId =
       data.groupId ||
