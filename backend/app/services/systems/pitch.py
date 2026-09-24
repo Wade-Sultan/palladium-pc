@@ -58,6 +58,38 @@ def fallback_pitch(offer: dict[str, Any]) -> str:
     )
 
 
+def template_pitch(profile: BuildProfile, offer: dict[str, Any]) -> str:
+    """Introduce an assessed offer using only the saved facts on its card."""
+    primary = offer.get("primary") or {}
+    name = (primary.get("family_name") or "ready-made system").split(" (")[0]
+    opening = f"Based on what you've told me, a {name} could fit your needs."
+    need = offer.get("memory_need_gb")
+    memory = primary.get("gpu_memory_gb")
+    if offer.get("reason") == "memory" and need and memory:
+        reason = (
+            f"Your estimated model requirement is {need} GB, and this system "
+            f"has {memory} GB of GPU-addressable memory."
+        )
+    elif profile.primary_use == "video_editing":
+        reason = "It is curated for the video editing work you described."
+    elif profile.primary_use == "music_production":
+        reason = "It is curated for the music production work you described."
+    else:
+        reason = "The system has been checked against your requirements."
+    limitations = primary.get("limitations") or []
+    if profile.primary_use in ("video_editing", "music_production"):
+        # The first Mac limitation is about CUDA training. For creative work,
+        # lead with a limitation that affects buying or using the workstation.
+        relevant = next(
+            (item for item in limitations if "cuda" not in item.lower()), None
+        )
+    else:
+        relevant = limitations[0] if limitations else None
+    tradeoff = f"One tradeoff: {relevant.rstrip('.')}." if relevant else ""
+    choice = "You can take this system, or I'll build you a custom PC instead."
+    return " ".join(part for part in (opening, reason, tradeoff, choice) if part)
+
+
 def _context(profile: BuildProfile, offer: dict[str, Any]) -> str:
     payload = {k: v for k, v in offer.items() if k not in ("token", "chosen")}
     payload["user_profile"] = {
@@ -75,6 +107,10 @@ async def stream_pitch(
     usage_sink: dict | None = None,
     session_id: str | None = None,
 ) -> AsyncIterator[str]:
+    if ChatModelConfig.SYSTEM_PITCH_TEMPLATE:
+        yield template_pitch(profile, offer)
+        return
+
     from app.services import chat_pipeline as cp
 
     model = get_chat_model(

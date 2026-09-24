@@ -233,6 +233,11 @@ def test_4k_video_editing_offers_a_mac_that_covers_it():
     assert result.estimate.total_cents == 300_000
 
 
+def test_heavy_4k_multicam_steps_up_to_64gb():
+    result = _assess(_video(workload_intensity="heavy"))
+    assert result.primary.name == "Mac 64"
+
+
 def test_heavy_6k_steps_up_to_128gb():
     result = _assess(
         _video(editing_resolution="6k_plus", workload_intensity="heavy"),

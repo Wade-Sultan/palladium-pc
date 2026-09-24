@@ -74,6 +74,9 @@ data:
   # for this call while leaving extraction and user-facing prose untouched.
   CHAT_ROUTE_NO_THINK: "true"
   CHAT_RECOMMEND_MODEL: "qwen3.8-27b"
+  # The offer card already carries the rule-checked fit and tradeoffs. Avoid
+  # another ~37-second reasoning call just to phrase its introduction locally.
+  SYSTEM_PITCH_TEMPLATE: "true"
   CHAT_ELICIT_MODEL: "qwen3.8-27b"
 
   # --- Token budgets, raised for a reasoning model ---------------------------

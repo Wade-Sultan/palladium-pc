@@ -25,6 +25,15 @@ class ChatModelConfig:
         "true",
         "yes",
     )
+    # An offer's facts and tradeoffs are already decided by catalog rules.
+    # Locally, a reasoning model can spend tens of seconds phrasing them.
+    SYSTEM_PITCH_TEMPLATE: bool = os.getenv(
+        "SYSTEM_PITCH_TEMPLATE", "false"
+    ).lower() in (
+        "1",
+        "true",
+        "yes",
+    )
     # MiniMax M3 for parts-discovery spec extraction: multimodal (rasterized
     # PDF spec sheets) and cheap enough for 2-3 extraction calls per SKU.
     DISCOVERY_EXTRACT_MODEL: str = os.getenv(

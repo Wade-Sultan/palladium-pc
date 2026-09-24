@@ -33,6 +33,9 @@ from app.services.systems import catalog, pitch
 from app.services.systems import offer as offers
 from app.services.systems.fit import Assessment, CustomEstimate, SystemOption
 
+# Fixture injection and model stubs keep their callback parameter names.
+# ruff: noqa: ARG001
+
 _SPARK = SystemOption(
     part_id="spark-1",
     name="ASUS Ascent GX10 128GB 1TB",
@@ -120,7 +123,6 @@ def world(monkeypatch):
     monkeypatch.setattr(graph_mod, "get_client", _no_client)
     monkeypatch.setattr(paused_build, "get_client", _fake_client)
     monkeypatch.setattr(paused_build, "AsyncSessionLocal", _NoPostgres())
-    monkeypatch.setattr(paused_build, "_mark_resumed", _noop)
     monkeypatch.setattr(paused_build, "_claim_in_postgres", _noop)
 
     async def _extract(messages, usage_sink=None, session_id=None):
@@ -269,7 +271,7 @@ def test_a_case_token_cannot_redeem_an_offer_or_the_reverse(world):
     assert asyncio.run(offers.claim(token, None)) is not None
 
     world["store"].store[paused_build._key("case-tok")] = json.dumps(
-        {"state": {}, "conversation_id": None}
+        {"payload": {"state": {}, "conversation_id": None}, "durable": False}
     )
     assert asyncio.run(offers.claim("case-tok", None)) is None
     assert asyncio.run(paused_build.load_and_claim("case-tok", None)) is not None

@@ -359,8 +359,9 @@ async def offer(state: ChatTurnState) -> dict[str, Any]:
     ):
         writer({"type": "token", "text": chunk})
 
-    await cp._finalize_usage(sink)
-    cp._merge_usage(usage, sink)
+    if sink:
+        await cp._finalize_usage(sink)
+        cp._merge_usage(usage, sink)
     return {"usage": usage}
 
 

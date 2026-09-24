@@ -318,10 +318,7 @@ async def get_motherboard_candidates(
     # ddr_gens is the CPU's full set of supported DDR generations: a board is
     # compatible if its single ddr_generation is *any* one of them (an Intel CPU
     # that supports both DDR4 and DDR5 can pair with either kind of board).
-    stmt = select(Motherboard).where(
-        Motherboard.is_active == True,  # noqa: E712
-        _within_budget(Motherboard.street_price_cents, budget_ceiling_usd),
-    )
+    stmt = select(Motherboard).where(Motherboard.is_active == True)  # noqa: E712
     if wifi_required:
         stmt = stmt.where(Motherboard.has_wifi == True)  # noqa: E712
     result = await db.execute(stmt)
@@ -339,7 +336,17 @@ async def get_motherboard_candidates(
         if target_ff is not None and _normalize(b.form_factor or "") != target_ff:
             continue
         boards.append(b)
-    return boards
+    if budget_ceiling_usd == NO_BUDGET_CEILING:
+        return boards
+
+    # Slot budgets are soft allocations, not a reason to abandon a whole
+    # build. A sparse catalog may have no compatible board under this slot's
+    # share even when the complete PC can still fit the buyer's total budget.
+    # Keep every affordable option; if there are none, offer only the cheapest
+    # compatible priced boards and let final-build validation judge the total.
+    priced = [b for b in boards if b.street_price_cents is not None]
+    affordable = [b for b in priced if b.street_price_cents <= budget_ceiling_usd * 100]
+    return affordable or sorted(priced, key=lambda b: b.street_price_cents)[:3]
 
 
 async def get_all_motherboards_active(db: AsyncSession) -> list[Motherboard]:

@@ -14,6 +14,7 @@ once, or a double-click produces two builds from one pipeline run.
 from __future__ import annotations
 
 import asyncio
+import json
 
 from app.schemas.chat import BuildRequest
 from app.services.chat_pipeline import resolve_case_choice
@@ -196,11 +197,10 @@ def _valkey_only(monkeypatch, client):
     async def _client():
         return client
 
-    async def _noop(*args, **kwargs):
+    async def _noop(*_args, **_kwargs):
         return None
 
     monkeypatch.setattr(paused_build, "get_client", _client)
-    monkeypatch.setattr(paused_build, "_mark_resumed", _noop)
     monkeypatch.setattr(paused_build, "_claim_in_postgres", _noop)
 
 
@@ -214,7 +214,9 @@ def _store_pause(client, token: str, conversation_id: str | None = _CONV) -> dic
     from app.services import paused_build
 
     payload = {"state": {"x": 1}, "conversation_id": conversation_id}
-    client.store[paused_build._key(token)] = json.dumps(payload)
+    client.store[paused_build._key(token)] = json.dumps(
+        {"payload": payload, "durable": False}
+    )
     return payload
 
 
@@ -237,6 +239,48 @@ def test_a_paused_build_is_claimable_exactly_once(monkeypatch):
     claimed = [r for r in (first, second) if r is not None]
     assert len(claimed) == 1
     assert claimed[0] == payload
+
+
+def test_cache_and_postgres_cannot_both_claim_the_same_pause(monkeypatch):
+    """A second pick can reach Postgres after the first removes the cache key."""
+    from app.services import paused_build
+
+    client = _FakeValkey()
+    payload = {"conversation_id": _CONV, "state": {"x": 1}}
+    client.store[paused_build._key("race")] = json.dumps(
+        {"payload": payload, "durable": True}
+    )
+    in_db = asyncio.Event()
+    release = asyncio.Event()
+    claimed = False
+    db_calls = 0
+
+    async def _client():
+        return client
+
+    async def _db_claim(_token, _conversation_id, _kind):
+        nonlocal claimed, db_calls
+        db_calls += 1
+        if db_calls == 1:
+            in_db.set()
+            await release.wait()
+        if claimed:
+            return None
+        claimed = True
+        return payload
+
+    monkeypatch.setattr(paused_build, "get_client", _client)
+    monkeypatch.setattr(paused_build, "_claim_in_postgres", _db_claim)
+
+    async def _run():
+        first = asyncio.create_task(paused_build.load_and_claim("race", _CONV))
+        await in_db.wait()
+        second = await paused_build.load_and_claim("race", _CONV)
+        release.set()
+        return await first, second
+
+    results = asyncio.run(_run())
+    assert sum(result is not None for result in results) == 1
 
 
 def test_a_pick_from_another_conversation_is_refused(monkeypatch):
