@@ -21,6 +21,10 @@ class ChatMessage(BaseModel):
     content: str
     # Display context only; never accepted as a build to persist or execute.
     build: dict[str, Any] | None = None
+    # The complete-system offer card on this message, same terms as `build`:
+    # it tells discussion what is on screen, and nothing more. Redeeming an
+    # offer goes through its token (app/services/systems/offer.py), never this.
+    system_offer: dict[str, Any] | None = None
 
 
 class ChatRequest(BaseModel):

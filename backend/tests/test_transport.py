@@ -109,6 +109,7 @@ def test_the_users_own_message_is_put_into_state_by_the_run(monkeypatch):
         "content": "I want a gaming PC for 1440p",
         "build": None,
         "case_options": None,
+        "system_offer": None,
     }
 
 

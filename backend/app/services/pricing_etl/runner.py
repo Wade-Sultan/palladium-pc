@@ -24,7 +24,7 @@ DAILY_BATCH_SIZE = 20
 _MAX_VARIANTS_PER_GROUP = 3
 
 # part_type values that live directly on pc_parts (see crud.NON_GROUPED_MODELS)
-_HIGH_NON_GROUPED = ["cpu", "motherboard"]
+_HIGH_NON_GROUPED = ["cpu", "motherboard", "system"]
 _LOW_NON_GROUPED = ["cpucooler", "case", "fan"]
 
 # target_kind values for the grouped types (see crud.GROUP_SPECS)
@@ -45,7 +45,7 @@ class _Target:
 
 async def _build_batch(db, limit: int, low_priority_allowed: bool) -> list[_Target]:
     """Oldest-checked-first across every priced type. High-priority types
-    (cpu/gpu/motherboard/ram/storage) are always eligible; low-priority types
+    (cpu/gpu/motherboard/ram/storage/system) are always eligible; low-priority types
     (cooler/case/psu/fan) drop out once the month's quota runs low. See
     quota.low_priority_allowed."""
     targets: list[_Target] = []

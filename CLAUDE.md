@@ -95,6 +95,7 @@ Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres 
 ```bash
 ./scripts/mk-smoke.sh                  # end-to-end chat turn through the DISPATCHED path, no LLM spend
 ./scripts/mk-verify-locked-parts.sh    # locked-parts machinery against the real seeded catalog
+./scripts/mk-verify-system-offer.sh    # system offers: fit, offer store, picks via a worker, commerce
 ./scripts/seed-local-db.sh [--force]   # restore .local-seed/palladium.dump, strip PII
 ./scripts/dump-prod-db.sh              # refresh that dump from Cloud SQL
 ./scripts/logs.sh [-H]                 # prod GKE logs (live kubectl, or -H for Cloud Logging history)
@@ -117,6 +118,10 @@ Things that will bite:
   or the worker logs `NotFound` forever.
 - `pricing-etl` and `discovery` CronJobs are deployed but manual-trigger locally: the pricing ETL
   burns SerpAPI quota.
+- The complete-system catalog is not in the prod dump yet: after `seed-local-db.sh`, run
+  `uv run python -m app.seeds.seed_systems` (idempotent, overwrites admin edits to those rows).
+- After restarting the Pub/Sub emulator, restart the builder and worker too: their gRPC channels
+  stay pinned to the dead emulator pod, so publishes vanish and turns hang with no error.
 - The local seed currently has no games/benchmark rows and no embeddings, and `OPENAI_API_KEY` is
   unset locally, so game-spec lookups and pgvector search need seeding before they can be exercised.
 
@@ -164,10 +169,22 @@ disconnect before its turn is durable.
 ### The graph (`app/services/graph/`)
 
 ```
-START → collect → route ─┬─ (incomplete) → ask ──────────→ finalize → END
-                         └─ (complete)   → build ─┬─ present → finalize → END
-                                                  └─ (paused) → finalize → END
+START ─┬─ collect → route ─┬─ (incomplete) → ask ─────────────→ finalize → END
+       │                   └─ (complete) → assess ─┬─ (fits) → offer → finalize
+       │                                           └─ build ─┬─ present → finalize
+       │                                                     └─ (paused) → finalize
+       ├─ discuss ──────────────────────────────────────────────→ finalize
+       └─ system_choice ─┬─ (custom) → build
+                         └─ (taken / expired) ───────────────────→ finalize
 ```
+
+**Complete systems** (`app/services/systems/`): `assess` may offer a ready-made machine (DGX Spark,
+Mac Studio, Strix Halo) instead of building. The decision is rules over catalog data in `fit.py`,
+never a model. What each family is good for, its OS and backend are columns on `system_families`
+(`suited_for`), curated in admin, because they change with the market; keep product facts out of
+code. An offer ends the turn like the case picker, saved in `paused_build`'s stores with
+`kind="system_offer"`, and the click returns as a `select-system` command that enters at
+`system_choice`.
 
 `build` is **one** node wrapping the whole component pipeline. The DSPy steps have their own
 sequencing, budget allocation and telemetry, and nothing branches between them. Checkpointing is a

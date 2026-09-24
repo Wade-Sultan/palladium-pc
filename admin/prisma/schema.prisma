@@ -34,6 +34,7 @@ model PcPart {
   pcCase                      PcCase?
   cpuCooler                   CpuCooler?
   fan                         Fan?
+  system                      System?
   listings                    Listing[]
   listingFailure              ListingLookupFailure?
   referenceBuilds             ReferenceBuildPart[]
@@ -45,9 +46,9 @@ model PcPart {
   @@map("pc_parts")
 }
 
-// A listing targets exactly one of: a part, or one of the four part groups.
-// The DB enforces that with ck_listings_one_target (see the Alembic migration
-// e5a7c9b1d3f5): Prisma cannot express "exactly one of these five", so a
+// A listing targets exactly one of: a part, or one of the five part groups.
+// The DB enforces that with ck_listings_one_target (see the Alembic migrations
+// e5a7c9b1d3f5 and c3e5a7b9d1f2): Prisma cannot express "exactly one of these six", so a
 // write that sets two or none fails at the database rather than here.
 //
 // Group targeting is for eBay, whose listings are filtered search URLs: one
@@ -65,6 +66,8 @@ model Listing {
   ramGroup           RamGroup?     @relation(fields: [ramGroupId], references: [id], onDelete: Cascade)
   storageGroupId     String?       @map("storage_group_id") @db.Uuid
   storageGroup       StorageGroup? @relation(fields: [storageGroupId], references: [id], onDelete: Cascade)
+  systemFamilyId     String?       @map("system_family_id") @db.Uuid
+  systemFamily       SystemFamily? @relation(fields: [systemFamilyId], references: [id], onDelete: Cascade)
   listingType        String        @map("listing_type")
   marketplace        String
   url                String?
@@ -242,6 +245,50 @@ model Cpu {
   supportsEcc       Boolean? @map("supports_ecc")
 
   @@map("cpus")
+}
+
+// Complete machines sold whole (DGX Spark, Mac Studio, ...). A System is a
+// pc_parts subtype like Gpu, grouped by SystemFamily like Gpu is by
+// GpuChipset. See backend/app/models/systems.py for why.
+//
+// suitedFor is what the backend's offer rules read to decide which workloads
+// a family may be offered for (backend/app/services/systems/fit.py). It is
+// curated here on purpose: "which box is good for training" changes with
+// driver releases, and changing it must not need a deploy.
+model SystemFamily {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  platform    String
+  gpuBackend  String   @map("gpu_backend")
+  os          String
+  suitedFor   String[] @default([]) @map("suited_for")
+  summary     String?
+  strengths   String[]
+  limitations String[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  variants System[]
+  listings Listing[]
+
+  @@map("system_families")
+}
+
+model System {
+  id                     String       @id @db.Uuid
+  pcPart                 PcPart       @relation(fields: [id], references: [id], onDelete: Cascade)
+  systemFamilyId         String       @map("system_family_id") @db.Uuid
+  family                 SystemFamily @relation(fields: [systemFamilyId], references: [id])
+  chip                   String
+  cpuCores               Int?         @map("cpu_cores")
+  gpuCores               Int?         @map("gpu_cores")
+  unifiedMemoryGb        Int          @map("unified_memory_gb")
+  gpuAddressableMemoryGb Int          @map("gpu_addressable_memory_gb")
+  memoryBandwidthGbps    Int          @map("memory_bandwidth_gbps")
+  storageGb              Int?         @map("storage_gb")
+  tdpWatts               Int?         @map("tdp_watts")
+
+  @@map("systems")
 }
 
 model Gpu {

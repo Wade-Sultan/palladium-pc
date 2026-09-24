@@ -37,7 +37,7 @@ import type { CaseOption, CaseOptionsData } from "@/types/build"
  * refused by the paused build's one-shot claim and surface as "this session
  * expired" on a build that is finishing perfectly well.
  */
-function useTurnRunning(): boolean {
+export function useTurnRunning(): boolean {
   return useAuiState((s) => {
     const extras = s.thread?.extras as { state?: ChatAgentState } | undefined
     return Boolean(extras?.state?.pipeline)

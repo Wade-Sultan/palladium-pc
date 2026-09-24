@@ -121,8 +121,10 @@ class ProfileExtraction(dspy.Signature):
     )
     workload_intensity: str = dspy.OutputField(
         desc="Exactly one of: light, moderate, heavy, none: scale of the workload for "
-        "software_dev (codebase size, VMs/containers) or music_production "
-        "(track/plugin counts); 'none' for other use cases"
+        "video_editing (multicam, effects and timeline complexity), software_dev "
+        "(codebase size, VMs/containers), or music_production (track/plugin counts). "
+        "Use 'heavy' for an explicitly heavy multicam editing workload. "
+        "'none' for other use cases or when intensity was not stated"
     )
     budget_tier: str = dspy.OutputField(
         desc="Exactly one of: entry, mid, high, elite, custom, unknown: "

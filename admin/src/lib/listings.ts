@@ -27,7 +27,7 @@ async function resolveListingFailure(where: { partId: string } | { partId: { in:
 }
 
 /**
- * What a listing is attached to: one part, or one of the four part groups the
+ * What a listing is attached to: one part, or one of the five part groups the
  * catalog models. Exactly one, enforced by ck_listings_one_target in the
  * database (Alembic e5a7c9b1d3f5).
  *
@@ -40,9 +40,10 @@ export type ListingTarget =
   | { kind: 'gpuChipset'; id: string }
   | { kind: 'psuGroup'; id: string }
   | { kind: 'ramGroup'; id: string }
-  | { kind: 'storageGroup'; id: string };
+  | { kind: 'storageGroup'; id: string }
+  | { kind: 'systemFamily'; id: string };
 
-/** The target as Prisma column data: one key set, four left undefined. */
+/** The target as Prisma column data: one key set, the other five null. */
 function targetData(target: ListingTarget) {
   return {
     partId: target.kind === 'part' ? target.id : null,
@@ -50,6 +51,7 @@ function targetData(target: ListingTarget) {
     psuGroupId: target.kind === 'psuGroup' ? target.id : null,
     ramGroupId: target.kind === 'ramGroup' ? target.id : null,
     storageGroupId: target.kind === 'storageGroup' ? target.id : null,
+    systemFamilyId: target.kind === 'systemFamily' ? target.id : null,
   };
 }
 
@@ -71,6 +73,8 @@ async function partsCoveredBy(target: ListingTarget): Promise<string[]> {
       return (await db.ramKit.findMany({ where: { ramGroupId: target.id }, select: { id: true } })).map((p) => p.id);
     case 'storageGroup':
       return (await db.storageDrive.findMany({ where: { storageGroupId: target.id }, select: { id: true } })).map((p) => p.id);
+    case 'systemFamily':
+      return (await db.system.findMany({ where: { systemFamilyId: target.id }, select: { id: true } })).map((p) => p.id);
   }
 }
 

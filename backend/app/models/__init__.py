@@ -35,4 +35,5 @@ from .price_subscription import PriceSubscription, PriceSubscriptionTarget
 from .pricing_etl import PriceCheck, PricingRun, SerpApiQuota
 from .shared_build import SharedBuild
 from .software_catalog import Software, SoftwareCategory, SoftwareMinimumPart
+from .systems import System, SystemFamily, SystemWorkload
 from .user import User

@@ -35,6 +35,11 @@ logger = logging.getLogger(__name__)
 
 
 def entry_stage(state: ChatTurnState) -> str:
+    # A click on a system offer is answered before anything else: it carries
+    # no message to extract from and, whatever phase the thread is in, it is
+    # the thing this turn exists to handle.
+    if state.get("system_pick"):
+        return "system_choice"
     return "discuss" if state.get("proposed_build") else "collect"
 
 
@@ -147,6 +152,8 @@ async def _pick_question(
             f"- {item}" for item in asked
         )
     prompt += "\n\nReply with one number."
+    if ChatModelConfig.ROUTE_NO_THINK:
+        prompt += " /no_think"
 
     # Only the tail of the conversation: the router needs the user's last beat
     # to judge what follows naturally, not the whole history it would otherwise
@@ -250,7 +257,11 @@ async def route(state: ChatTurnState) -> dict[str, Any]:
 
 
 def should_build(state: ChatTurnState) -> str:
-    """Conditional edge out of `route`."""
+    """Conditional edge out of `route`.
+
+    "build" means the profile is complete. The graph sends that to `assess`
+    first, which may offer a complete system instead; see graph.py.
+    """
     return "build" if state.get("next_question") is None else "ask"
 
 
@@ -281,6 +292,154 @@ async def ask(state: ChatTurnState) -> dict[str, Any]:
     await cp._finalize_usage(sink)
     cp._merge_usage(usage, sink)
     return {"usage": usage}
+
+
+# --- complete systems ---------------------------------------------------------
+# A ready-made machine (DGX Spark, Mac Studio, ...) may suit the user better
+# than anything we would build. Whether it does is decided by rules over catalog
+# data in app/services/systems/fit.py, never by a model; these nodes only carry
+# that decision through the turn. See app/services/systems/ for the why.
+
+
+async def assess(state: ChatTurnState) -> dict[str, Any]:
+    """Decide whether this complete profile gets a system offer.
+
+    No progress event: the frontend reads any progress event as "a build is on
+    its way", and an offer is not one. The check is a few indexed queries and at
+    most one catalog lookup, short enough not to need a status line.
+    """
+    from app.services.systems import catalog, offer
+
+    if state.get("system_offer_declined"):
+        return {"system_offer": None}
+
+    profile = _profile_of(state)
+    conversation_id = state.get("conversation_id")
+
+    async def reference() -> dict | None:
+        _key, built, _cached = await cp._get_reference_build(profile, conversation_id)
+        return dict(built)
+
+    assessment = await catalog.assess_profile(profile, reference)
+    if assessment is None:
+        return {"system_offer": None}
+
+    token = await offer.save(conversation_id, profile, assessment)
+    if token is None:
+        logger.warning("system offer could not be saved; building custom instead")
+        return {"system_offer": None}
+    return {"system_offer": offer.offer_data(token, assessment)}
+
+
+def should_offer(state: ChatTurnState) -> str:
+    """Conditional edge out of `assess`."""
+    return "offer" if state.get("system_offer") else "build"
+
+
+async def offer(state: ChatTurnState) -> dict[str, Any]:
+    """Show the offer card and stream the pitch that introduces it.
+
+    The turn ends here, like the case picker's: the answer is a click, and it
+    arrives as its own turn (see system_choice), so no worker waits on a human.
+    """
+    from app.services.systems.pitch import stream_pitch
+
+    writer = get_stream_writer()
+    usage = dict(state.get("usage") or new_usage())
+    sink: dict[str, Any] = {}
+    data = state["system_offer"] or {}
+
+    writer({"type": "system_offer", "data": data})
+    async for chunk in stream_pitch(
+        _messages_of(state),
+        _profile_of(state),
+        data,
+        usage_sink=sink,
+        session_id=state.get("session_id"),
+    ):
+        writer({"type": "token", "text": chunk})
+
+    if sink:
+        await cp._finalize_usage(sink)
+        cp._merge_usage(usage, sink)
+    return {"usage": usage}
+
+
+# Fixed lines, not model output, for the same reason as _CASE_PROMPT: they are
+# about the card directly above them, and a model paraphrasing one sentence
+# costs latency and can drift into describing things it cannot see.
+_SYSTEM_TAKEN = (
+    "Good choice. Buying links for the {name} are on the card above. Ask me "
+    "anything about it, from setup to what it will run."
+)
+_OFFER_GONE = (
+    "That offer has expired, so I can't act on it any more. Tell me what you'd "
+    "like to do and I'll pick it up from here."
+)
+
+
+def _say(writer: Any, text: str) -> None:
+    for word in text.split(" "):
+        writer({"type": "token", "text": word + " "})
+
+
+async def system_choice(state: ChatTurnState) -> dict[str, Any]:
+    """Redeem a click on an offer card: take the system, or build custom.
+
+    Everything trusted comes from the saved offer, claimed once under its token
+    (app/services/systems/offer.py). That includes the profile: a guest has no
+    checkpoint to read it from, and for anyone else the saved copy is exactly
+    what the offer was assessed on, so the custom build is sized the same way.
+    """
+    from app.services.systems import offer as offers
+
+    writer = get_stream_writer()
+    pick = state.get("system_pick") or {}
+    saved = await offers.claim(
+        str(pick.get("token") or ""), state.get("conversation_id")
+    )
+    if saved is None:
+        _say(writer, _OFFER_GONE)
+        return {"system_pick": None}
+
+    shown = saved.get("offer") or {}
+    profile = saved.get("profile") or state.get("profile")
+    choice = pick.get("choice")
+
+    if choice == offers.CUSTOM:
+        writer({"type": "system_offer", "data": {**shown, "chosen": offers.CUSTOM}})
+        return {
+            "system_pick": None,
+            "profile": profile,
+            "system_offer_declined": True,
+            "system_comparison": {
+                "reason": shown.get("reason"),
+                "system": shown.get("primary"),
+                "memory_need_gb": shown.get("memory_need_gb"),
+            },
+        }
+
+    system = offers.offered_system(shown, str(choice or ""))
+    if system is None:
+        # A choice that was never on the card. Only a tampered or broken client
+        # sends one, and the claim is already spent, so say so plainly.
+        logger.warning("system pick named %r, which was not offered", choice)
+        _say(writer, _OFFER_GONE)
+        return {"system_pick": None}
+
+    writer({"type": "system_offer", "data": {**shown, "chosen": choice}})
+    _say(writer, _SYSTEM_TAKEN.format(name=system.get("name")))
+    return {
+        "system_pick": None,
+        "profile": profile,
+        "proposed_build": offers.proposed_system(system, profile or {}),
+        "phase": "discussion",
+    }
+
+
+def after_system_choice(state: ChatTurnState) -> str:
+    """Conditional edge out of `system_choice`: only "build custom" builds."""
+    return "build" if state.get("system_comparison") else "finalize"
 
 
 # --- build --------------------------------------------------------------------
@@ -397,6 +556,10 @@ async def build(state: ChatTurnState) -> dict[str, Any]:
     share_token = await cp.create_shared_build(payload, build_key, conversation_id)
     if share_token is not None:
         payload["share_token"] = share_token
+    # After the share snapshot, not before: the comparison is about this
+    # conversation's choice, and a shared link republishes the build alone.
+    if state.get("system_comparison"):
+        payload["system_comparison"] = state["system_comparison"]
     writer({"type": "build", "key": build_key, "data": payload})
     writer(
         {

@@ -4,8 +4,11 @@ import os
 
 
 class ChatModelConfig:
-    # Gemma 3 4B for extraction: fast, supports json_object response_format, no Gemma 4 small on OpenRouter
-    EXTRACT_MODEL: str = os.getenv("CHAT_EXTRACT_MODEL", "google/gemma-3-4b-it")
+    # Extraction uses DSPy. Keep its effective default aligned with the build
+    # model; opt into a smaller model after checking extraction quality.
+    EXTRACT_MODEL: str = os.getenv("CHAT_EXTRACT_MODEL") or os.getenv(
+        "RECOMMEND_MODEL", "openrouter/google/gemma-4-31b-it"
+    )
     # Keep the larger model for the recommendation (needs nuance and personality)
     RECOMMEND_MODEL: str = os.getenv("CHAT_RECOMMEND_MODEL", "google/gemma-4-31b-it")
     ELICIT_MODEL: str = os.getenv("CHAT_ELICIT_MODEL", "google/gemma-4-31b-it")
@@ -14,6 +17,23 @@ class ChatModelConfig:
     # stack on purpose. It runs on every elicitation turn and it cannot decide
     # anything except which of several known-missing items to raise first.
     ROUTE_MODEL: str = os.getenv("CHAT_ROUTE_MODEL", "google/gemma-3-4b-it")
+    # Qwen's /no_think switch is useful for this one-number decision on a local
+    # reasoning model. Keep it opt-in so other models and OpenRouter prompts are
+    # unchanged. The model still chooses among the same missing fields.
+    ROUTE_NO_THINK: bool = os.getenv("CHAT_ROUTE_NO_THINK", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    # An offer's facts and tradeoffs are already decided by catalog rules.
+    # Locally, a reasoning model can spend tens of seconds phrasing them.
+    SYSTEM_PITCH_TEMPLATE: bool = os.getenv(
+        "SYSTEM_PITCH_TEMPLATE", "false"
+    ).lower() in (
+        "1",
+        "true",
+        "yes",
+    )
     # MiniMax M3 for parts-discovery spec extraction: multimodal (rasterized
     # PDF spec sheets) and cheap enough for 2-3 extraction calls per SKU.
     DISCOVERY_EXTRACT_MODEL: str = os.getenv(

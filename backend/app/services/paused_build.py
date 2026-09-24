@@ -8,13 +8,18 @@ whoever answers after the timeout. So the turn ends instead: everything decided
 so far is written here, and the pick starts a fresh turn that picks the
 pipeline back up exactly where it stopped.
 
-TWO STORES, ONE ANSWER. Valkey is the read path and answers essentially every
-resume within its TTL. Postgres is the durable copy, because eviction or expiry
-here does not cost a cache miss. It costs the whole build. `load_and_claim`
-tries them in that order and each store's claim is atomic on its own terms:
-GETDEL on Valkey, a conditional UPDATE on Postgres. Whichever answers first,
-the resume happens at most once, so a double-click or a redelivered message
-cannot produce two builds.
+TWO STORES, ONE ANSWER. Valkey is the read path and Postgres is the durable
+copy. When Postgres saved the pause, its conditional UPDATE is the claim even
+if Valkey serves the payload. A Valkey-only pause uses GETDEL. This prevents
+a second pick from claiming Postgres between a Valkey GETDEL and a later stamp.
+
+TWO KINDS OF PAUSE share these stores: a build stopped at the case step, and a
+complete-system offer waiting for the user to take it or ask for a custom
+build (app/services/systems/offer.py). Both are "a turn ended on a choice that
+must be redeemed at most once, by the conversation that saw it", so they share
+the claim. A payload's `kind` is checked before claiming, alongside the
+conversation, so a token of one kind can never spend a pause of the other.
+Payloads written before `kind` existed are case pauses.
 
 WHAT IS NOT HERE. A never-resumed pause leaves a row behind with `resumed_at`
 still null. Sweeping those, and recording them as ABANDONED build_sessions,
@@ -74,7 +79,11 @@ async def save(token: str, conversation_id: str | None, payload: dict) -> bool:
     client = await get_client()
     if client is not None:
         try:
-            await client.set(_key(token), json.dumps(payload, default=str), ex=_TTL_S)
+            await client.set(
+                _key(token),
+                json.dumps({"payload": payload, "durable": stored}, default=str),
+                ex=_TTL_S,
+            )
             stored = True
         except (RedisError, TypeError):
             logger.warning("paused build could not be written to Valkey", exc_info=True)
@@ -82,7 +91,9 @@ async def save(token: str, conversation_id: str | None, payload: dict) -> bool:
     return stored
 
 
-async def load_and_claim(token: str, conversation_id: str | None) -> dict | None:
+async def load_and_claim(
+    token: str, conversation_id: str | None, kind: str = "case"
+) -> dict | None:
     """The paused build for `token`, claimed so nothing else can resume it.
 
     `conversation_id` is the conversation the resuming turn will append to, and
@@ -92,9 +103,12 @@ async def load_and_claim(token: str, conversation_id: str | None) -> dict | None
     wherever the resuming turn says.
 
     Returns None when the token is unknown, already resumed, aimed at the wrong
-    conversation, or lost from both stores. All of which the caller handles
+    conversation, of the wrong `kind`, or lost from both stores. All of which the caller handles
     identically, because from the user's side they are the same event: this
     pick cannot be acted on.
+
+    A pause saved to Postgres needs Postgres available when claimed. Falling
+    back to its cached copy after a database error could redeem it twice.
     """
     import json
 
@@ -106,26 +120,36 @@ async def load_and_claim(token: str, conversation_id: str | None) -> dict | None
             # would let anyone holding a token burn a build they cannot resume.
             raw = await client.get(_key(token))
             if raw is not None:
-                payload = json.loads(raw)
-                if not _same_conversation(payload, conversation_id):
-                    _log_mismatch(token, payload, conversation_id)
+                cached = json.loads(raw)
+                # Bare payloads predate the wrapper. They were normally also
+                # saved in Postgres, so require its claim for safety.
+                wrapped = isinstance(cached, dict) and "durable" in cached
+                payload = cached["payload"] if wrapped else cached
+                durable = cached["durable"] if wrapped else True
+                if not _claimable(token, payload, conversation_id, kind):
                     return None
-                # GETDEL is the claim proper: two picks that both pass the
-                # check above still cannot both come away with the payload.
+                # GETDEL removes the cached copy. For a durable pause the
+                # Postgres UPDATE below is still the one-time claim: another
+                # pick may have fallen through after this key disappeared.
                 if await client.getdel(_key(token)) is None:
                     return None
-                await _mark_resumed(token)
-                return payload
+                return (
+                    await _claim_in_postgres(token, conversation_id, kind)
+                    if durable
+                    else payload
+                )
         except (RedisError, ValueError):
             logger.warning(
                 "paused build read from Valkey failed; falling through to Postgres",
                 exc_info=True,
             )
 
-    return await _claim_in_postgres(token, conversation_id)
+    return await _claim_in_postgres(token, conversation_id, kind)
 
 
-async def _claim_in_postgres(token: str, conversation_id: str | None) -> dict | None:
+async def _claim_in_postgres(
+    token: str, conversation_id: str | None, kind: str
+) -> dict | None:
     """Claim and return the durable copy, or None if it is gone or taken.
 
     Verify first, claim second, for the same reason the Valkey path does: a
@@ -153,8 +177,7 @@ async def _claim_in_postgres(token: str, conversation_id: str | None) -> dict | 
             if row is None:
                 return None
             payload = row[0]
-            if not _same_conversation(payload, conversation_id):
-                _log_mismatch(token, payload, conversation_id)
+            if not _claimable(token, payload, conversation_id, kind):
                 return None
 
             claimed = await db.execute(
@@ -172,6 +195,23 @@ async def _claim_in_postgres(token: str, conversation_id: str | None) -> dict | 
     except Exception:
         logger.warning("paused build claim in Postgres failed", exc_info=True)
         return None
+
+
+def _claimable(
+    token: str, payload: dict, conversation_id: str | None, kind: str
+) -> bool:
+    if (payload.get("kind") or "case") != kind:
+        logger.warning(
+            "pick for token %s expected a %r pause but found %r; refusing",
+            token,
+            kind,
+            payload.get("kind") or "case",
+        )
+        return False
+    if not _same_conversation(payload, conversation_id):
+        _log_mismatch(token, payload, conversation_id)
+        return False
+    return True
 
 
 def _same_conversation(payload: dict, conversation_id: str | None) -> bool:
@@ -198,27 +238,6 @@ def _log_mismatch(token: str, payload: dict, conversation_id: str | None) -> Non
     )
 
 
-async def _mark_resumed(token: str) -> None:
-    """Best-effort: stamp the durable row after a Valkey claim already won.
-
-    Not the claim itself, Valkey's GETDEL was, so a failure here costs
-    nothing a user can see. It only keeps the table honest for the sweeper.
-    """
-    try:
-        async with AsyncSessionLocal() as db:
-            await db.execute(
-                update(PausedBuild)
-                .where(
-                    PausedBuild.token == token,
-                    PausedBuild.resumed_at.is_(None),
-                )
-                .values(resumed_at=datetime.now(UTC))
-            )
-            await db.commit()
-    except Exception:
-        logger.debug("could not stamp paused build as resumed", exc_info=True)
-
-
 async def peek(token: str) -> dict | None:
     """The paused build without claiming it. For diagnostics only.
 
@@ -232,7 +251,8 @@ async def peek(token: str) -> dict | None:
         try:
             raw = await client.get(_key(token))
             if raw is not None:
-                return json.loads(raw)
+                cached = json.loads(raw)
+                return cached["payload"] if "durable" in cached else cached
         except (RedisError, ValueError):
             pass
     try:

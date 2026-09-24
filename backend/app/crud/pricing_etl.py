@@ -23,6 +23,7 @@ from app.models.pcparts import (
     StorageGroup,
 )
 from app.models.pricing_etl import PriceCheck, PricingRun, SerpApiQuota
+from app.models.systems import System
 
 # part_type -> model, for the types whose street_price_cents lives directly on
 # the pc_parts row. gpu/psu/ramkit/storagedrive are deliberately absent. Their
@@ -33,6 +34,9 @@ NON_GROUPED_MODELS: dict[str, type[PCPart]] = {
     "motherboard": Motherboard,
     "case": Case,
     "fan": Fan,
+    # Complete systems price per variant (memory and storage change the price),
+    # so they sit here rather than on system_families. See models/systems.py.
+    "system": System,
 }
 
 # target_kind -> (group model, relationship to its exact/variant model). The

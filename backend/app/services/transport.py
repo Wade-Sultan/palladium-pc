@@ -64,9 +64,16 @@ def _message(role: str, content: str = "") -> dict[str, Any]:
     a build would drag the card down onto the reply.
 
     `case_options` hangs off the message for the same reason: it is the case
-    picker shown mid-build, and it must stay on the turn that asked.
+    picker shown mid-build, and it must stay on the turn that asked. So does
+    `system_offer`, the complete-system offer card (app/services/systems/).
     """
-    return {"role": role, "content": content, "build": None, "case_options": None}
+    return {
+        "role": role,
+        "content": content,
+        "build": None,
+        "case_options": None,
+        "system_offer": None,
+    }
 
 
 def initial_state(messages: list[ChatMessage] | None = None) -> dict[str, Any]:
@@ -193,6 +200,9 @@ def to_chat_messages(messages: Any) -> list[ChatMessage]:
                     role=role,
                     content=content,
                     build=msg.get("build") if role == "assistant" else None,
+                    system_offer=(
+                        msg.get("system_offer") if role == "assistant" else None
+                    ),
                 )
             )
     return out
@@ -254,6 +264,7 @@ def _begin_assistant_turn(controller: RunController, *, resuming: bool = False) 
         messages[index]["content"] = ""
         messages[index]["build"] = None
         messages[index]["case_options"] = None
+        messages[index]["system_offer"] = None
         return index
 
     messages.append(_message("assistant"))
@@ -288,16 +299,21 @@ def _apply_event(controller: RunController, index: int, event: dict) -> bool:
         # set, it would pin the progress line under a finished card.
         controller.state["pipeline"] = None
     elif etype == "case_options":
-        _apply_case_options(controller, index, event.get("data") or {})
+        _apply_by_token(controller, index, "case_options", event.get("data") or {})
+    elif etype == "system_offer":
+        _apply_by_token(controller, index, "system_offer", event.get("data") or {})
     elif etype == "part":
         controller.state["messages"][index]["part"] = event.get("data")
     return True
 
 
-def _apply_case_options(
-    controller: RunController, index: int, data: dict[str, Any]
+def _apply_by_token(
+    controller: RunController, index: int, key: str, data: dict[str, Any]
 ) -> None:
-    """Put the case picker on the message it belongs to.
+    """Put a picker (`case_options` or `system_offer`) on the message it belongs to.
+
+    Written for the case picker, and the system offer card behaves identically:
+    shown open by one turn, resolved by the next.
 
     Emitted twice, and by two different turns. The turn that pauses emits it
     open (`chosen` null) and it belongs to that turn's own message. The turn
@@ -313,11 +329,11 @@ def _apply_case_options(
     messages = controller.state["messages"]
     if token:
         for i in range(len(messages) - 1, -1, -1):
-            existing = messages[i].get("case_options")
+            existing = messages[i].get(key)
             if existing and existing.get("token") == token:
-                messages[i]["case_options"] = data
+                messages[i][key] = data
                 return
-    messages[index]["case_options"] = data
+    messages[index][key] = data
 
 
 async def stream_turn_into(
@@ -399,6 +415,7 @@ async def run_turn_inline_into(
     pending: list[dict[str, Any]] | None = None,
     keep: list[dict[str, Any]] | None = None,
     case_pick: tuple[str, str] | None = None,
+    system_pick: tuple[str, str] | None = None,
 ) -> None:
     """Drive a run directly from the pipeline, with no Valkey in between.
 
@@ -422,7 +439,9 @@ async def run_turn_inline_into(
     events = (
         resume_chat_turn(case_pick[0], case_pick[1], conversation_id=conversation_id)
         if case_pick is not None
-        else run_chat_turn(messages, conversation_id=conversation_id)
+        else run_chat_turn(
+            messages, conversation_id=conversation_id, system_pick=system_pick
+        )
     )
 
     try:

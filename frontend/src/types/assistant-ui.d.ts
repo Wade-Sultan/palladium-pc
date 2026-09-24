@@ -24,6 +24,17 @@ declare module "@assistant-ui/react" {
         /** Must be one of the three offered; the server validates. */
         caseName: string
       }
+      /**
+       * The answer to a complete-system offer. Rides /chat like select-case;
+       * the backend counterpart is `_system_pick` in routes/chat.py.
+       */
+      selectSystem: {
+        type: "select-system"
+        /** Identifies the saved offer this answers. */
+        token: string
+        /** An offered system's part_id, or "custom" to build a PC instead. */
+        choice: string
+      }
     }
   }
 }

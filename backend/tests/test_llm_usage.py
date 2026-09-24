@@ -285,7 +285,7 @@ def test_extraction_retries_once_with_the_cache_disabled(monkeypatch):
 
     lm = _FakeLM()
     monkeypatch.setattr(
-        "app.services.recommender.dspy_pipeline.session_lm", lambda _sid: lm
+        "app.services.recommender.dspy_pipeline.session_lm", lambda _sid, **_kw: lm
     )
 
     calls = {"n": 0}
@@ -352,7 +352,7 @@ def test_a_second_parse_failure_is_not_swallowed(monkeypatch):
 
     lm = _FakeLM(finish_reason="stop")
     monkeypatch.setattr(
-        "app.services.recommender.dspy_pipeline.session_lm", lambda _sid: lm
+        "app.services.recommender.dspy_pipeline.session_lm", lambda _sid, **_kw: lm
     )
 
     class _AlwaysFails:

@@ -355,11 +355,21 @@ async def validate_build(
         )
         total += price * quantity
     issues.extend(check_hardware(parts, quantities))
-    if budget_usd != NO_BUDGET_CEILING and total > budget_usd * 100:
-        over = total / 100 - budget_usd
+    # A firm stated budget is an actual ceiling. The recommender targets 90%
+    # of it to leave headroom, but that target must not be described to the
+    # buyer as the amount they said they could spend.
+    display_budget = budget_usd
+    if (
+        profile is not None
+        and profile.price_sensitivity == "firm"
+        and profile.stated_budget_usd is not None
+    ):
+        display_budget = profile.stated_budget_usd
+    if display_budget != NO_BUDGET_CEILING and total > display_budget * 100:
+        over = total / 100 - display_budget
         caveats.append(
             f"The parts total ${total / 100:,.0f}, which is ${over:,.0f} over the "
-            f"${budget_usd:,} budget"
+            f"${display_budget:,} budget"
         )
     if profile is not None and parts.get("cpu"):
         gpu_count = sum(quantities[str(p.id)] for p in parts.get("gpu", []))

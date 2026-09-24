@@ -104,6 +104,38 @@ def test_discovery_follows_chat_when_it_has_no_override(monkeypatch):
     assert not settings.discovery_endpoint.is_openrouter
 
 
+def test_extraction_model_override_keeps_local_endpoint(monkeypatch):
+    import dspy
+
+    from app.core.config import settings
+    from app.services.recommender.dspy_pipeline import session_lm
+
+    monkeypatch.setattr(settings, "LLM_BASE_URL", _LOCAL)
+    base = dspy.LM(model="openai/qwen3.8-27b", api_base=_LOCAL, api_key="local")
+    with dspy.context(lm=base):
+        same = session_lm("turn-1", model="qwen3.8-27b")
+        other = session_lm("turn-1", model="qwen3.6-27b")
+
+    assert same is base
+    assert other.model == "openai/qwen3.6-27b"
+    assert other.kwargs["api_base"] == _LOCAL
+
+
+def test_extraction_model_override_keeps_openrouter_session(monkeypatch):
+    import dspy
+
+    from app.core.config import settings
+    from app.services.recommender.dspy_pipeline import session_lm
+
+    monkeypatch.setattr(settings, "LLM_BASE_URL", "")
+    base = dspy.LM(model="openrouter/google/gemma-4-31b-it", api_key="test")
+    with dspy.context(lm=base):
+        extraction = session_lm("turn-1", model="google/gemma-3-4b-it")
+
+    assert extraction.model == "openrouter/google/gemma-3-4b-it"
+    assert extraction.kwargs["extra_body"]["session_id"] == "turn-1"
+
+
 # --- Token budgets ------------------------------------------------------------
 
 

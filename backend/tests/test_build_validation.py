@@ -411,6 +411,21 @@ def test_an_over_budget_build_is_returned_with_a_caveat(catalog):
     ]
 
 
+def test_firm_budget_caveat_uses_the_buyers_stated_ceiling(catalog):
+    profile = BuildProfile(
+        primary_use="gaming",
+        budget_tier="mid",
+        stated_budget_usd=1800,
+        price_sensitivity="firm",
+    )
+    out = _validate(
+        catalog, _build_dict(catalog.parts), budget_usd=1620, profile=profile
+    )
+    assert out["caveats"] == [
+        "The parts total $1,955, which is $155 over the $1,800 budget"
+    ]
+
+
 def test_a_part_without_a_catalog_id_is_rejected(catalog):
     build = _build_dict(catalog.parts)
     build["parts"][0]["part_id"] = ""

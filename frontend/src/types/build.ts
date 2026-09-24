@@ -53,6 +53,75 @@ export interface BuildData {
    * badge is never the whole story. Absent on builds made before the check.
    */
   caveats?: string[]
+  /**
+   * The complete system the user turned down in favour of this build, when
+   * they did. Present only on the build that answered a system offer; the card
+   * shows the two side by side. See SystemOfferData.
+   */
+  system_comparison?: SystemComparison | null
+}
+
+/**
+ * A complete, ready-made machine (DGX Spark, Mac Studio, ...). One variant,
+ * flattened with its family. Mirrors SystemOption in
+ * backend/app/services/systems/fit.py. Specs and copy are catalog data, so
+ * the card renders them as given and never adds its own claims.
+ */
+export interface SystemOption {
+  /** pc_parts id: listings resolve through it like any other part. */
+  part_id: string
+  name: string
+  manufacturer: string | null
+  family_name: string
+  gpu_backend: string
+  os: string
+  chip: string
+  unified_memory_gb: number
+  /** What a model can actually use, which is less than unified_memory_gb. */
+  gpu_memory_gb: number
+  bandwidth_gbps: number
+  storage_gb: number | null
+  /** Cents. Street price when the ETL has one, list price otherwise. */
+  price_cents: number
+  image_url: string | null
+  image_credit: string | null
+  summary: string | null
+  strengths: string[]
+  limitations: string[]
+}
+
+/** The custom-tower side of the comparison. Always an estimate. */
+export interface CustomEstimate {
+  /** Null for a creative offer, which compares against a whole reference build. */
+  gpu_name: string | null
+  gpu_count: number
+  gpu_memory_gb: number | null
+  gpu_cents: number
+  platform_cents: number
+  total_cents: number
+}
+
+/**
+ * The complete-system offer card's wire shape. Like CaseOptionsData, `chosen`
+ * is null while the offer is open and set by the server when the user answers:
+ * an offered part_id, or "custom" for "build me a PC instead".
+ */
+export interface SystemOfferData {
+  token: string
+  chosen: string | null
+  reason: "memory" | "creative"
+  primary: SystemOption
+  alternates: SystemOption[]
+  /** GPU memory the user's models need; null for a creative offer. */
+  memory_need_gb: number | null
+  estimate: CustomEstimate | null
+  budget_usd: number | null
+}
+
+export interface SystemComparison {
+  reason: SystemOfferData["reason"]
+  system: SystemOption
+  memory_need_gb: number | null
 }
 
 /**

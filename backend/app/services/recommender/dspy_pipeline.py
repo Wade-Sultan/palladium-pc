@@ -229,10 +229,11 @@ def litellm_model(name: str) -> str:
     Rewriting rather than demanding the caller get it right keeps the existing
     RECOMMEND_MODEL / GEPA_REFLECTION_MODEL values and their defaults working
     unchanged. An environment on LM Studio only has to name a model it has
-    loaded, not also learn litellm's prefix convention.
+    loaded, not also learn litellm's prefix convention. The separate extraction
+    model may likewise use a bare OpenRouter slug.
     """
     if settings.chat_endpoint.is_openrouter:
-        return name
+        return name if name.startswith("openrouter/") else f"openrouter/{name}"
     bare = name.split("/", 1)[1] if name.startswith("openrouter/") else name
     return bare if bare.startswith("openai/") else f"openai/{bare}"
 
@@ -286,11 +287,14 @@ def load_all_programs() -> None:
         load()
 
 
-def session_lm(session_id: str | None) -> dspy.LM:
+def session_lm(session_id: str | None, model: str | None = None) -> dspy.LM:
     """
-    Clone the globally-configured LM with OpenRouter's `session_id` set, so
-    every call made under it groups into one session in OpenRouter's
-    dashboard. With no session_id, returns the LM unchanged (no-op override).
+    Clone the configured LM for a session or a different model.
+
+    An explicit model lets profile extraction use its own configured model
+    while keeping the same DSPy adapter, endpoint, and usage recording as the
+    build steps. OpenRouter's `session_id` groups a turn's calls in its dashboard.
+    With neither override, return the configured LM unchanged.
 
     Use via `with dspy.context(lm=session_lm(...)):` around a run. Dspy.context
     is safe to call from any thread/task, unlike dspy.configure (which is
@@ -312,11 +316,18 @@ def session_lm(session_id: str | None) -> dspy.LM:
     # `session_id` is an OpenRouter dashboard concept and travels in extra_body,
     # which litellm sends verbatim, so off OpenRouter there is nothing to group
     # calls into and nowhere safe to put the field.
-    if not session_id or not settings.chat_endpoint.is_openrouter:
-        return dspy.settings.lm
-    return dspy.settings.lm.copy(
-        extra_body={**_openrouter_extra_body(), "session_id": session_id}
-    )
+    lm = dspy.settings.lm
+    overrides: dict[str, Any] = {}
+    if model is not None:
+        resolved = litellm_model(model)
+        if resolved != lm.model:
+            overrides["model"] = resolved
+    if session_id and settings.chat_endpoint.is_openrouter:
+        overrides["extra_body"] = {
+            **_openrouter_extra_body(),
+            "session_id": session_id,
+        }
+    return lm.copy(**overrides) if overrides else lm
 
 
 # --- Streamified execution helper ---------------------------------------------
