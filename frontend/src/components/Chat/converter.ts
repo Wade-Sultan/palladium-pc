@@ -7,7 +7,12 @@ import type {
 import { unstable_createMessageConverter as createMessageConverter } from "@assistant-ui/react"
 import type { ReadonlyJSONValue } from "assistant-stream/utils"
 
-import type { BuildData, CaseOptionsData, PartData } from "@/types/build"
+import type {
+  BuildData,
+  CaseOptionsData,
+  PartData,
+  SystemOfferData,
+} from "@/types/build"
 import { stepMessage } from "./pipeline-steps"
 
 /**
@@ -32,6 +37,8 @@ export interface ChatMessageState {
   /** The mid-build case picker, on the turn that asked. See types/build.ts. */
   case_options?: CaseOptionsData | null
   part?: PartData | null
+  /** The complete-system offer card, on the turn that made the offer. */
+  system_offer?: SystemOfferData | null
 }
 
 export interface ChatAgentState {
@@ -80,7 +87,10 @@ const messageConverter = createMessageConverter<ChatMessageState>(
   (message): ThreadMessageLike & { convertConfig: typeof NEVER_JOIN } => {
     if (
       message.role !== "assistant" ||
-      (!message.build && !message.case_options && !message.part)
+      (!message.build &&
+        !message.case_options &&
+        !message.part &&
+        !message.system_offer)
     ) {
       return {
         role: message.role,
@@ -95,7 +105,15 @@ const messageConverter = createMessageConverter<ChatMessageState>(
       | DataMessagePart<CaseOptionsData>
       | DataMessagePart<BuildData>
       | DataMessagePart<PartData>
+      | DataMessagePart<SystemOfferData>
     )[] = []
+    if (message.system_offer) {
+      parts.push({
+        type: "data",
+        name: "system_offer",
+        data: message.system_offer,
+      })
+    }
     if (message.case_options) {
       parts.push({
         type: "data",

@@ -58,6 +58,20 @@ class ChatTurnState(TypedDict, total=False):
     # so a reload rebuilds it. Shaped like the case_options event's data.
     case_options: dict[str, Any] | None
 
+    # -- complete-system offers (app/services/systems/) -------------------
+    # {"token", "choice"} when this turn is a click on a system offer card
+    # rather than something typed. Input only; the entry edge branches on it.
+    system_pick: dict[str, Any] | None
+    # The offer this turn showed, if any, as the system_offer event's data.
+    system_offer: dict[str, Any] | None
+    # The user turned an offer down in favour of a custom build. Accumulated,
+    # never reset by run_chat_turn: once declined, later turns in the same
+    # conversation go straight to the builder rather than asking again.
+    system_offer_declined: bool
+    # The declined system, attached to the build this turn produces so the
+    # BuildCard can show the two side by side. Per turn.
+    system_comparison: dict[str, Any] | None
+
 
 def new_usage() -> dict[str, Any]:
     """A zeroed per-turn usage total, shaped for chat_pipeline._merge_usage."""

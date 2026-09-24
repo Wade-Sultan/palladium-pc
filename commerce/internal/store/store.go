@@ -292,7 +292,9 @@ const listingFromJoin = `FROM listings l LEFT JOIN amazon_listings a ON a.id = l
 // SQLAlchemy's polymorphic identities. Note "ramkit" and "storagedrive"
 // rather than "ram" and "storage" (backend/app/models/pcparts.py).
 //
-// Only these four part types have a group. A CPU, motherboard, cooler, case or
+// Only these five part types have a group. "system" is a complete machine
+// (DGX Spark, Mac Studio, ...), grouped by family so one eBay search covers
+// every OEM variant of it (backend/app/models/systems.py). A CPU, motherboard, cooler, case or
 // fan is not a variant of anything, so its listings are found by part_id alone
 // and its lookup reads no subtype table at all. That matters beyond the saved
 // work: a query that named all four tables regardless of type coupled every
@@ -305,6 +307,7 @@ var groupMatchByPartType = map[string]string{
 	"psu":          `l.psu_group_id     = (SELECT psu_group_id     FROM psus           WHERE id = $%[1]d)`,
 	"ramkit":       `l.ram_group_id     = (SELECT ram_group_id     FROM ram_kits       WHERE id = $%[1]d)`,
 	"storagedrive": `l.storage_group_id = (SELECT storage_group_id FROM storage_drives WHERE id = $%[1]d)`,
+	"system":       `l.system_family_id = (SELECT system_family_id FROM systems        WHERE id = $%[1]d)`,
 }
 
 // partOrGroupMatch builds the predicate selecting the listings that apply to

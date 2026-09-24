@@ -22,10 +22,16 @@ import { toast } from "sonner"
 import { BuildCard } from "@/components/assistant-ui/build-card"
 import { CaseOptionsCard } from "@/components/assistant-ui/case-card"
 import { PartCard } from "@/components/assistant-ui/part-card"
+import { SystemOfferCard } from "@/components/assistant-ui/system-offer-card"
 import { getAccessToken } from "@/hooks/useAuth"
 import { usePipelineStatusStore } from "@/hooks/usePipelineStatus"
 import type { FeedbackRating } from "@/lib/feedback"
-import type { BuildData, CaseOptionsData, PartData } from "@/types/build"
+import type {
+  BuildData,
+  CaseOptionsData,
+  PartData,
+  SystemOfferData,
+} from "@/types/build"
 import {
   type ChatAgentState,
   commandsToMessages,
@@ -37,6 +43,10 @@ import { type AgentTransition, diffAgentState } from "./transitions"
 
 const BuildDataUI = makeAssistantDataUI({ name: "build", render: BuildCard })
 const PartDataUI = makeAssistantDataUI({ name: "part", render: PartCard })
+const SystemOfferUI = makeAssistantDataUI({
+  name: "system_offer",
+  render: SystemOfferCard,
+})
 const CaseOptionsUI = makeAssistantDataUI({
   name: "case_options",
   render: CaseOptionsCard,
@@ -164,6 +174,7 @@ function ConversationLoader({
               build?: BuildData
               case_options?: CaseOptionsData
               part?: PartData
+              system_offer?: SystemOfferData
             }
           }>
         ).filter((m) => m.role === "user" || m.role === "assistant")
@@ -188,6 +199,9 @@ function ConversationLoader({
               // Persisted with `chosen` always set (see save_turn), so history
               // renders a locked picker, never one still soliciting a click.
               case_options: m.metadata?.case_options ?? null,
+              // Same persistence rule as case_options: an answered offer is
+              // written back with `chosen` set, so history shows the decision.
+              system_offer: m.metadata?.system_offer ?? null,
             })),
             pipeline: null,
           },
@@ -337,6 +351,7 @@ function ChatRuntimeMount({
         <BuildDataUI />
         <PartDataUI />
         <CaseOptionsUI />
+        <SystemOfferUI />
         <AgentStateSync />
         {children}
       </AssistantRuntimeProvider>

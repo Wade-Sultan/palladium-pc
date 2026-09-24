@@ -12,10 +12,10 @@ class Listing(Base):
     __tablename__ = "listings"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    # A listing targets exactly one of the five columns below: a single part,
-    # or one of the four groups the catalog already models. A DB CHECK
+    # A listing targets exactly one of the six columns below: a single part,
+    # or one of the five groups the catalog already models. A DB CHECK
     # (ck_listings_one_target) enforces the "exactly one" part, so this is not
-    # five independent nullable columns however much it looks like it.
+    # six independent nullable columns however much it looks like it.
     #
     # Group targeting exists for eBay, whose listings are filtered search URLs:
     # one "RTX 3090" search is correct for every partner board of the chipset,
@@ -48,6 +48,14 @@ class Listing(Base):
     storage_group_id = Column(
         UUID(as_uuid=True),
         ForeignKey("storage_groups.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    # Group target for complete systems: one eBay "DGX Spark" search covers
+    # every GB10 box. See app/models/systems.py.
+    system_family_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("system_families.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )

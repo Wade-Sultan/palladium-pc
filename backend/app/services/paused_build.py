@@ -16,6 +16,14 @@ GETDEL on Valkey, a conditional UPDATE on Postgres. Whichever answers first,
 the resume happens at most once, so a double-click or a redelivered message
 cannot produce two builds.
 
+TWO KINDS OF PAUSE share these stores: a build stopped at the case step, and a
+complete-system offer waiting for the user to take it or ask for a custom
+build (app/services/systems/offer.py). Both are "a turn ended on a choice that
+must be redeemed at most once, by the conversation that saw it", so they share
+the claim. A payload's `kind` is checked before claiming, alongside the
+conversation, so a token of one kind can never spend a pause of the other.
+Payloads written before `kind` existed are case pauses.
+
 WHAT IS NOT HERE. A never-resumed pause leaves a row behind with `resumed_at`
 still null. Sweeping those, and recording them as ABANDONED build_sessions,
 which is what that status was defined for, wants a periodic job rather than a
@@ -82,7 +90,9 @@ async def save(token: str, conversation_id: str | None, payload: dict) -> bool:
     return stored
 
 
-async def load_and_claim(token: str, conversation_id: str | None) -> dict | None:
+async def load_and_claim(
+    token: str, conversation_id: str | None, kind: str = "case"
+) -> dict | None:
     """The paused build for `token`, claimed so nothing else can resume it.
 
     `conversation_id` is the conversation the resuming turn will append to, and
@@ -92,7 +102,7 @@ async def load_and_claim(token: str, conversation_id: str | None) -> dict | None
     wherever the resuming turn says.
 
     Returns None when the token is unknown, already resumed, aimed at the wrong
-    conversation, or lost from both stores. All of which the caller handles
+    conversation, of the wrong `kind`, or lost from both stores. All of which the caller handles
     identically, because from the user's side they are the same event: this
     pick cannot be acted on.
     """
@@ -107,8 +117,7 @@ async def load_and_claim(token: str, conversation_id: str | None) -> dict | None
             raw = await client.get(_key(token))
             if raw is not None:
                 payload = json.loads(raw)
-                if not _same_conversation(payload, conversation_id):
-                    _log_mismatch(token, payload, conversation_id)
+                if not _claimable(token, payload, conversation_id, kind):
                     return None
                 # GETDEL is the claim proper: two picks that both pass the
                 # check above still cannot both come away with the payload.
@@ -122,10 +131,12 @@ async def load_and_claim(token: str, conversation_id: str | None) -> dict | None
                 exc_info=True,
             )
 
-    return await _claim_in_postgres(token, conversation_id)
+    return await _claim_in_postgres(token, conversation_id, kind)
 
 
-async def _claim_in_postgres(token: str, conversation_id: str | None) -> dict | None:
+async def _claim_in_postgres(
+    token: str, conversation_id: str | None, kind: str
+) -> dict | None:
     """Claim and return the durable copy, or None if it is gone or taken.
 
     Verify first, claim second, for the same reason the Valkey path does: a
@@ -153,8 +164,7 @@ async def _claim_in_postgres(token: str, conversation_id: str | None) -> dict | 
             if row is None:
                 return None
             payload = row[0]
-            if not _same_conversation(payload, conversation_id):
-                _log_mismatch(token, payload, conversation_id)
+            if not _claimable(token, payload, conversation_id, kind):
                 return None
 
             claimed = await db.execute(
@@ -172,6 +182,23 @@ async def _claim_in_postgres(token: str, conversation_id: str | None) -> dict | 
     except Exception:
         logger.warning("paused build claim in Postgres failed", exc_info=True)
         return None
+
+
+def _claimable(
+    token: str, payload: dict, conversation_id: str | None, kind: str
+) -> bool:
+    if (payload.get("kind") or "case") != kind:
+        logger.warning(
+            "pick for token %s expected a %r pause but found %r; refusing",
+            token,
+            kind,
+            payload.get("kind") or "case",
+        )
+        return False
+    if not _same_conversation(payload, conversation_id):
+        _log_mismatch(token, payload, conversation_id)
+        return False
+    return True
 
 
 def _same_conversation(payload: dict, conversation_id: str | None) -> bool:

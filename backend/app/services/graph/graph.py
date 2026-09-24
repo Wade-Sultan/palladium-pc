@@ -1,8 +1,19 @@
 """Assembly and caching of the compiled chat turn graph.
 
-    START → collect → route ─┬─ (incomplete) → ask ────────────→ finalize → END
-                             └─ (complete)   → build ─┬─ present → finalize → END
-                                                      └─ (paused) → finalize → END
+    START ─┬─ collect → route ─┬─ (incomplete) → ask ─────────────────→ finalize
+           │                   └─ (complete) → assess ─┬─ (fits) → offer ─→ finalize
+           │                                           └─ build ─┬─ present → finalize
+           │                                                     └─ (paused) → finalize
+           ├─ discuss ──────────────────────────────────────────────────────→ finalize
+           └─ system_choice ─┬─ (custom) → build
+                             └─ (taken / expired) ─────────────────────────→ finalize
+
+`assess` / `offer` are the complete-system fork (app/services/systems/): when
+rules over the catalog say a ready-made machine suits the profile, the turn
+ends on an offer card instead of building. The click comes back as its own turn
+and enters at `system_choice`, which either records the system as the proposal
+or goes straight to `build`, skipping collect and route because the profile the
+offer was assessed on is saved with it.
 
 The `paused` branch is the case picker: the builder stops after choosing three
 cases, saves the pipeline mid-flight (app/services/paused_build.py) and ends
@@ -55,14 +66,28 @@ def build_graph() -> StateGraph:
     builder.add_node("present", nodes.present)
     builder.add_node("finalize", nodes.finalize)
     builder.add_node("discuss", nodes.discuss)
+    builder.add_node("assess", nodes.assess)
+    builder.add_node("offer", nodes.offer)
+    builder.add_node("system_choice", nodes.system_choice)
 
     builder.add_conditional_edges(
-        START, nodes.entry_stage, {"collect": "collect", "discuss": "discuss"}
+        START,
+        nodes.entry_stage,
+        {"collect": "collect", "discuss": "discuss", "system_choice": "system_choice"},
     )
     builder.add_edge("discuss", "finalize")
     builder.add_edge("collect", "route")
     builder.add_conditional_edges(
-        "route", nodes.should_build, {"ask": "ask", "build": "build"}
+        "route", nodes.should_build, {"ask": "ask", "build": "assess"}
+    )
+    builder.add_conditional_edges(
+        "assess", nodes.should_offer, {"offer": "offer", "build": "build"}
+    )
+    builder.add_edge("offer", "finalize")
+    builder.add_conditional_edges(
+        "system_choice",
+        nodes.after_system_choice,
+        {"build": "build", "finalize": "finalize"},
     )
     builder.add_edge("ask", "finalize")
     builder.add_conditional_edges(

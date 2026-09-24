@@ -8,9 +8,9 @@ import {
   ThumbsUpIcon,
 } from "lucide-react"
 import { useEffect, useState } from "react"
-import type { IconType } from "react-icons"
 import { FaAmazon, FaEbay } from "react-icons/fa6"
 import { toast } from "sonner"
+import { MarketplaceButton } from "@/components/assistant-ui/marketplace-button"
 import {
   PriceAlertBell,
   usePriceTargets,
@@ -34,8 +34,9 @@ import {
 } from "@/lib/feedback"
 import { fetchListingsByPart, type PartListings } from "@/lib/listings"
 import { sharedBuildPdfUrl, sharedBuildUrl } from "@/lib/share"
+import { shortFamilyName } from "@/lib/systems"
 import { cn, formatCents } from "@/lib/utils"
-import type { BuildData } from "@/types/build"
+import type { BuildData, SystemComparison } from "@/types/build"
 
 /**
  * Thumbs up/down on this build.
@@ -121,47 +122,6 @@ function BuildFeedback({ buildKey }: { buildKey: string }) {
 }
 
 /**
- * A single marketplace buy button: the brand's icon as a link to the
- * marketplace. Renders as a disabled button when no url is available so the
- * marketplace stays visible. `className` carries the per-brand hover-border
- * effect (see .mp-btn-* in index.css).
- */
-function MarketplaceButton({
-  url,
-  label,
-  icon: Icon,
-  className,
-  partLabel,
-}: {
-  url: string | null | undefined
-  label: string
-  icon: IconType
-  className?: string
-  partLabel: string
-}) {
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      size="icon-sm"
-      className={className}
-      disabled={!url}
-      title={`Buy on ${label}`}
-      aria-label={`Buy ${partLabel} on ${label}`}
-      asChild={!!url}
-    >
-      {url ? (
-        <a href={url} target="_blank" rel="noopener noreferrer sponsored">
-          <Icon className="size-4" />
-        </a>
-      ) : (
-        <Icon className="size-4" />
-      )}
-    </Button>
-  )
-}
-
-/**
  * Fetch the current listing for each part from the commerce service. The
  * BuildData embedded in the message is a snapshot from when the build was
  * generated; live listings give historical builds current prices and working
@@ -230,6 +190,40 @@ function ShareActions({ shareToken }: { shareToken: string }) {
   )
 }
 
+/**
+ * The ready-made system the user passed on for this build, side by side with
+ * it. Only facts both sides carry: the price, and what the system offered.
+ * The build's own parts are right below, so this does not restate them.
+ */
+function SystemComparisonStrip({
+  comparison,
+  buildTotal,
+}: {
+  comparison: SystemComparison
+  buildTotal: number
+}) {
+  const { system } = comparison
+  const difference = buildTotal - system.price_cents
+  return (
+    <div className="mt-1 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+      <p className="font-medium">
+        Compared with the {shortFamilyName(system)} you passed on
+      </p>
+      <p className="text-muted-foreground">
+        {system.name}: ~{formatCents(system.price_cents)},{" "}
+        {comparison.reason === "memory"
+          ? `${system.gpu_memory_gb} GB for models at ${system.bandwidth_gbps} GB/s`
+          : `${system.unified_memory_gb} GB unified memory`}
+        . This build is{" "}
+        {difference === 0
+          ? "the same price"
+          : `~${formatCents(Math.abs(difference))} ${difference > 0 ? "more" : "less"}`}
+        .
+      </p>
+    </div>
+  )
+}
+
 export const BuildCard: DataMessagePartComponent<BuildData> = (props) => {
   const data = props.data as BuildData
   const listings = usePartListings(data.parts)
@@ -256,6 +250,12 @@ export const BuildCard: DataMessagePartComponent<BuildData> = (props) => {
                 <li key={caveat}>{caveat}</li>
               ))}
             </ul>
+          )}
+          {data.system_comparison && (
+            <SystemComparisonStrip
+              comparison={data.system_comparison}
+              buildTotal={data.total_approx}
+            />
           )}
           {/* Above the parts list, not in the footer: the disclosure has to be
               readable before the first buy button, not after it. See

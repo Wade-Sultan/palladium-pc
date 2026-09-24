@@ -101,11 +101,17 @@ def _decode(
         # step. Absent on every ordinary turn, and on anything published before
         # the picker existed. None simply means "run the graph".
         _decode_case_pick(payload.get("case_pick")),
+        # [token, choice] answering a complete-system offer. Same shape and the
+        # same "absent means run the graph" default as case_pick.
+        _decode_case_pick(payload.get("system_pick")),
     )
 
 
 def _decode_case_pick(value: Any) -> tuple[str, str] | None:
-    """[token, case_name] off the wire, or None if it is not that."""
+    """[token, value] off the wire, or None if it is not that.
+
+    Decodes both case_pick and system_pick: each is a pair of non-empty strings.
+    """
     if (
         isinstance(value, list | tuple)
         and len(value) == 2
@@ -123,6 +129,7 @@ async def _handle(
     load_test: bool = False,
     rewound: bool = False,
     case_pick: tuple[str, str] | None = None,
+    system_pick: tuple[str, str] | None = None,
 ) -> None:
     # FIRST, and before the claim below. This turn has reached a worker, which
     # is the entire question the wake queue answers, so it stops counting
@@ -149,6 +156,7 @@ async def _handle(
                 conversation_id,
                 rewound=rewound,
                 case_pick=case_pick,
+                system_pick=system_pick,
             )
     except BaseException:
         # Includes CancelledError from a SIGTERM mid-turn. Releasing the claim is
@@ -319,9 +327,16 @@ class Worker:
         if decoded is None:
             message.ack()  # permanent; see _decode
             return
-        turn_id, messages, user, conversation_id, load_test, rewound, case_pick = (
-            decoded
-        )
+        (
+            turn_id,
+            messages,
+            user,
+            conversation_id,
+            load_test,
+            rewound,
+            case_pick,
+            system_pick,
+        ) = decoded
 
         future = asyncio.run_coroutine_threadsafe(
             _handle(
@@ -332,6 +347,7 @@ class Worker:
                 load_test,
                 rewound,
                 case_pick,
+                system_pick,
             ),
             self._loop,
         )

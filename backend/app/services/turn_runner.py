@@ -127,7 +127,9 @@ def _is_open_picker(case_options: dict | None) -> bool:
     return bool(case_options) and not case_options.get("chosen")
 
 
-def _apply_case_pick(db: Any, conv_uuid: uuid.UUID, case_options: dict) -> None:
+def _apply_case_pick(
+    db: Any, conv_uuid: uuid.UUID, case_options: dict, key: str = "case_options"
+) -> None:
     """Write the resolved picker back onto the message that showed it.
 
     Matched on the token rather than on position, because a conversation can
@@ -147,12 +149,12 @@ def _apply_case_pick(db: Any, conv_uuid: uuid.UUID, case_options: dict) -> None:
         .all()
     )
     for row in rows:
-        existing = (row.metadata_ or {}).get("case_options")
+        existing = (row.metadata_ or {}).get(key)
         if not existing or existing.get("token") != token:
             continue
         # Reassigned rather than mutated in place: JSONB columns are tracked by
         # identity, so mutating the dict leaves SQLAlchemy unaware it changed.
-        row.metadata_ = {**(row.metadata_ or {}), "case_options": case_options}
+        row.metadata_ = {**(row.metadata_ or {}), key: case_options}
         db.add(row)
         return
 
@@ -174,6 +176,7 @@ def save_turn(
     rewound: bool = False,
     case_options_data: dict | None = None,
     part_data: dict | None = None,
+    system_offer_data: dict | None = None,
 ) -> bool:
     """Persist this chat turn. Runs in a thread executor (sync SQLAlchemy).
 
@@ -319,7 +322,12 @@ def save_turn(
             opening_picker = (
                 case_options_data if _is_open_picker(case_options_data) else None
             )
-            if is_this_turns_reply and (build_data or opening_picker or part_data):
+            opening_offer = (
+                system_offer_data if _is_open_picker(system_offer_data) else None
+            )
+            if is_this_turns_reply and (
+                build_data or opening_picker or part_data or opening_offer
+            ):
                 metadata = {}
                 if build_data:
                     metadata["build"] = build_data
@@ -327,6 +335,8 @@ def save_turn(
                     metadata["case_options"] = opening_picker
                 if part_data:
                     metadata["part"] = part_data
+                if opening_offer:
+                    metadata["system_offer"] = opening_offer
             db.add(
                 Message(
                     conversation_id=conv_uuid,
@@ -343,6 +353,10 @@ def save_turn(
         # paused build's one-shot claim would then refuse.
         if case_options_data and not _is_open_picker(case_options_data):
             _apply_case_pick(db, conv_uuid, case_options_data)
+        # Same for a resolved system offer: it updates the message that showed
+        # the card, so a reload shows the decision rather than live buttons.
+        if system_offer_data and not _is_open_picker(system_offer_data):
+            _apply_case_pick(db, conv_uuid, system_offer_data, key="system_offer")
 
         # Roll this turn's OpenRouter spend into the conversation's running total.
         if turn_usage:
@@ -419,6 +433,7 @@ async def run_turn(
     conversation_id: str | None,
     rewound: bool = False,
     case_pick: tuple[str, str] | None = None,
+    system_pick: tuple[str, str] | None = None,
 ) -> None:
     """Run one turn end to end, emitting into the turn's Valkey stream.
 
@@ -461,6 +476,7 @@ async def run_turn(
             ref_estimate_key,
             rewound,
             case_pick,
+            system_pick,
         )
     finally:
         TURNS_INFLIGHT.dec()
@@ -481,6 +497,7 @@ async def _run_turn(
     ref_estimate_key: str | None,
     rewound: bool = False,
     case_pick: tuple[str, str] | None = None,
+    system_pick: tuple[str, str] | None = None,
 ) -> None:
     """The body of run_turn. Split out only so the metrics wrapper above stays
     readable; there is no second caller."""
@@ -493,11 +510,16 @@ async def _run_turn(
     # the opening one, so what gets persisted is the resolved picker.
     case_options_data: dict | None = None
     part_data: dict | None = None
+    # Same last-wins rule as case_options: a pick turn re-emits the offer
+    # resolved, and that is the copy to persist.
+    system_offer_data: dict | None = None
 
     events = (
         resume_chat_turn(case_pick[0], case_pick[1], conversation_id=conversation_id)
         if case_pick is not None
-        else run_chat_turn(messages, conversation_id=conversation_id)
+        else run_chat_turn(
+            messages, conversation_id=conversation_id, system_pick=system_pick
+        )
     )
 
     try:
@@ -509,6 +531,8 @@ async def _run_turn(
                 case_options_data = event.get("data")
             elif etype == "part":
                 part_data = event.get("data")
+            elif etype == "system_offer":
+                system_offer_data = event.get("data")
             elif etype == "build":
                 # The recommend path emitted a build. This conversation is a completed build.
                 reached_recommendation = True
@@ -571,6 +595,7 @@ async def _run_turn(
                 "graph_checkpoint_id": graph_checkpoint_id,
                 "case_options_data": case_options_data,
                 "part_data": part_data,
+                "system_offer_data": system_offer_data,
             },
         )
 
@@ -593,6 +618,7 @@ async def _run_turn(
                 rewound,
                 case_options_data,
                 part_data,
+                system_offer_data,
             ),
         )
 

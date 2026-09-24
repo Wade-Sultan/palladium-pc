@@ -77,6 +77,7 @@ async def _dispatch(
     conversation_id: str | None,
     rewound: bool = False,
     case_pick: tuple[str, str] | None = None,
+    system_pick: tuple[str, str] | None = None,
 ) -> bool:
     """Hand the turn to a worker. False means it must run in this process.
 
@@ -108,6 +109,8 @@ async def _dispatch(
             # [token, case_name] when this turn finishes a build that paused at
             # the case step, rather than answering something the user typed.
             "case_pick": list(case_pick) if case_pick else None,
+            # [token, choice] when this turn answers a complete-system offer.
+            "system_pick": list(system_pick) if system_pick else None,
         },
     )
     if dispatched:
@@ -143,6 +146,23 @@ def _case_pick(commands: list[dict]) -> tuple[str, str] | None:
             and case_name
         ):
             found = (token, case_name)
+    return found
+
+
+def _system_pick(commands: list[dict]) -> tuple[str, str] | None:
+    """The answer to a complete-system offer, if this request carries one.
+
+    `select-system` rides /chat for the same reasons `select-case` does (see
+    _case_pick). `choice` is an offered system's part id, or "custom" for
+    "build me a PC instead"; the server checks it against the saved offer.
+    """
+    found: tuple[str, str] | None = None
+    for command in commands or []:
+        if not isinstance(command, dict) or command.get("type") != "select-system":
+            continue
+        token, choice = command.get("token"), command.get("choice")
+        if isinstance(token, str) and isinstance(choice, str) and token and choice:
+            found = (token, choice)
     return found
 
 
@@ -189,7 +209,8 @@ async def chat(
     # arrives with no message of its own, and the turn it starts is still a
     # real turn. Only a request carrying neither has nothing to respond to.
     case_pick = _case_pick(req.commands)
-    if not messages and case_pick is None:
+    system_pick = _system_pick(req.commands)
+    if not messages and case_pick is None and system_pick is None:
         raise HTTPException(status_code=400, detail="No message to respond to.")
 
     # One id per turn, minted here rather than derived from conversation_id: a
@@ -204,6 +225,7 @@ async def chat(
         conversation_id,
         rewound=keep is not None,
         case_pick=case_pick,
+        system_pick=system_pick,
     )
 
     if not dispatched and await valkey_available():
@@ -218,6 +240,7 @@ async def chat(
                 conversation_id,
                 rewound=keep is not None,
                 case_pick=case_pick,
+                system_pick=system_pick,
             )
         )
         _background_turns.add(task)
@@ -245,6 +268,7 @@ async def chat(
             pending=pending,
             keep=keep,
             case_pick=case_pick,
+            system_pick=system_pick,
         )
 
     return _stream_response(inline_callback, state)

@@ -471,7 +471,7 @@ async def extract_profile(
 
     conversation = _format_conversation(messages)
     program = _get_extract_program()
-    lm = session_lm(session_id)
+    lm = session_lm(session_id, model=ChatModelConfig.get_extract_model())
     with dspy.context(lm=lm):
         try:
             result = await asyncio.to_thread(program, conversation=conversation)
@@ -1902,14 +1902,34 @@ async def _load_proposed_build(
             .all()
         )
         for row in rows:
-            if row.content in retained and row.metadata_ and row.metadata_.get("build"):
-                return row.metadata_["build"]
+            if row.content not in retained or not row.metadata_:
+                continue
+            proposal = _proposal_of(
+                row.metadata_.get("build"), row.metadata_.get("system_offer")
+            )
+            if proposal is not None:
+                return proposal
     return None
+
+
+def _proposal_of(build: dict | None, system_offer: dict | None) -> dict | None:
+    """What one assistant message proposes: its build, or its system offer.
+
+    A message carries one or the other, never both. An offer proposes the
+    system if it was taken, itself while it is still open, and nothing once
+    declined; the declined turn's build is on a later message of its own.
+    """
+    if build:
+        return build
+    from app.services.systems.offer import proposal_from_offer
+
+    return proposal_from_offer(system_offer)
 
 
 async def run_chat_turn(
     messages: list[ChatMessage],
     conversation_id: str | None = None,
+    system_pick: tuple[str, str] | None = None,
 ) -> AsyncIterator[dict]:
     """
     Main entry point. Yields SSE-ready dicts:
@@ -1917,6 +1937,7 @@ async def run_chat_turn(
       {"type": "token",    "text": "..."}
       {"type": "reference_estimate", "key": "...", "data": {...}}
       {"type": "build",    "key": "...", "data": {...}}
+      {"type": "system_offer", "data": {"token": "...", "chosen": ..., ...}}
       {"type": "usage",    "cost_usd": ..., "tokens_in": ..., "tokens_out": ..., "models": [...]}
       {"type": "checkpoint", "checkpoint_id": "...", "data": {...}}
       {"type": "done"}
@@ -1972,11 +1993,11 @@ async def run_chat_turn(
     # Client-supplied, so bounded: it is pasted into a prompt verbatim.
     proposed_build = next(
         (
-            m.build
+            proposal
             for m in reversed(messages)
             if m.role == "assistant"
-            and m.build
-            and len(json.dumps(m.build)) <= _MAX_CLIENT_BUILD_BYTES
+            and (proposal := _proposal_of(m.build, m.system_offer)) is not None
+            and len(json.dumps(proposal)) <= _MAX_CLIENT_BUILD_BYTES
         ),
         None,
     )
@@ -2003,6 +2024,13 @@ async def run_chat_turn(
         "build_paused": False,
         "build_rejected": False,
         "case_options": None,
+        # (token, choice) when this turn is a click on a system offer. The
+        # graph enters at system_choice, which trusts only the saved offer.
+        "system_pick": (
+            {"token": system_pick[0], "choice": system_pick[1]} if system_pick else None
+        ),
+        "system_offer": None,
+        "system_comparison": None,
     }
 
     async for _mode, event in graph.astream(initial, config, stream_mode=["custom"]):

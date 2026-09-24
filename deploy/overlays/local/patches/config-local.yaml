@@ -64,16 +64,15 @@ data:
   # loaded; keep these in sync with it.
   #
   # ONE MODEL FOR ALL FOUR ROLES, which is not how production runs.
-  # app/services/chat_models.py deliberately splits them: a 4B for extraction
-  # and question-ordering (they return a JSON object or a single integer index,
-  # and both run on every turn), a 31B for the prose a person actually reads.
-  # That split saves money on OpenRouter; locally it would cost VRAM instead,
-  # because two resident models is two models' weights on one GPU. A single 27B
-  # doing all four is the cheaper trade here, at the price of slower extraction.
-  # If turns feel slow, load a small model in LM Studio and point the two
-  # cheap roles at it. That is the change to make, not a bigger recommend model.
+  # The router and extraction each have a model setting. Extraction uses DSPy,
+  # whose default is the build model until a separate model is selected here.
+  # A small model can shorten these frequent calls, but it also occupies VRAM
+  # alongside the 27B model. Check extraction quality before switching it.
   CHAT_EXTRACT_MODEL: "qwen3.8-27b"
   CHAT_ROUTE_MODEL: "qwen3.8-27b"
+  # The router chooses one index from a fixed list. Skip extended reasoning
+  # for this call while leaving extraction and user-facing prose untouched.
+  CHAT_ROUTE_NO_THINK: "true"
   CHAT_RECOMMEND_MODEL: "qwen3.8-27b"
   CHAT_ELICIT_MODEL: "qwen3.8-27b"
 
