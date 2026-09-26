@@ -20,11 +20,18 @@ Budget allocation:
 
 Status messages:
     Each step emits one stable, user-facing progress message up front (before
-    the DB query) via _emit(). DSPy's own per-callback sub-messages
-    (module_start / lm_start) are intentionally swallowed (_noop_status) so the
-    frontend keeps showing that one message for the whole step instead of
+    the DB query) via _emit(). Nothing else is emitted while a module runs, so
+    the frontend keeps showing that one message for the whole step instead of
     flickering: e.g. "Building your PC…" stays put through the entire DDR step
     and only changes when the next step begins.
+
+    Modules used to run through dspy.streamify with a status provider whose
+    per-callback messages (module_start / lm_start) were then discarded at every
+    call site. That wrapper is gone rather than kept for messages nobody reads:
+    its anyio task group also re-raised every module failure as an opaque
+    "unhandled errors in a TaskGroup (1 sub-exception)", which is what the
+    fallback warning and the recorder then logged instead of the real cause
+    (e.g. a response truncated at max_tokens). See _call_program.
     The pipeline is fully async: await run_pipeline() from an async context.
 """
 
@@ -41,7 +48,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import dspy
-from dspy.streaming.messages import StatusMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -94,12 +100,8 @@ from app.services.recommender.db.queries import (
 )
 from app.services.recommender.recording import BuildRecorder
 from app.services.recommender.scoring import find_dominant
-from app.services.recommender.status_provider import BuildStatusProvider
 
 logger = logging.getLogger(__name__)
-
-# Module-level singleton: stateless, safe to share across concurrent requests
-_status_provider = BuildStatusProvider()
 
 # Model the Decide* modules run on. Routed through OpenRouter so every call
 # returns cost/tokens uniformly (and model_name is meaningful for Haiku-vs-Gemma
@@ -120,6 +122,37 @@ RECOMMEND_MODEL = os.getenv("RECOMMEND_MODEL", "openrouter/google/gemma-4-31b-it
 # was enough for the same call to finish. Raise this alongside the CHAT_*
 # budgets in app/services/chat_models.py, never on its own.
 RECOMMEND_MAX_TOKENS = int(os.getenv("RECOMMEND_MAX_TOKENS", "1024"))
+
+# Which DSPy calls may use a reasoning model's native thinking, by step name:
+# a Decide* module's `category` (ddr, cpu, cooler, motherboard, ram, storage,
+# gpu, psu, case, fans), "extract" for profile extraction, "discuss" for the
+# post-build part lookup. Every call NOT named is sent reasoning_effort=none.
+#
+# UNSET (the default, and production) CHANGES NOTHING: no call is touched and
+# the request is byte-identical to before. Production's model answers directly,
+# so there is nothing to switch off. Set to an empty string to switch thinking
+# off for every call.
+#
+# Why it exists: against qwen3.8-27b in LM Studio, native thinking was nearly
+# all of a build's latency. Most steps are ChainOfThought, so the model thought
+# natively AND then wrote DSPy's `reasoning` field, reasoning twice. Replaying
+# the recorded ddr/cpu/storage/gpu inputs of one completed build took 445s with
+# thinking and 61s without; three of the four picks were identical. It also
+# ends the failure where a step thinks past RECOMMEND_MAX_TOKENS, is truncated,
+# and the whole ladder is discarded for a reference build.
+#
+# Only for an OpenAI-compatible server (LLM_BASE_URL). Two things there are
+# not obvious. litellm refuses `reasoning_effort` as an argument for an
+# `openai/` model (UnsupportedParamsError), so it travels in extra_body, which
+# is forwarded verbatim. And Qwen's "/no_think" prompt suffix is NOT an
+# equivalent: measured on this model it only roughly halved the thinking.
+# On OpenRouter the setting is ignored, see step_lm.
+_THINK_STEPS_ENV = os.getenv("RECOMMEND_THINK_STEPS")
+RECOMMEND_THINK_STEPS: frozenset[str] | None = (
+    None
+    if _THINK_STEPS_ENV is None
+    else frozenset(s.strip().lower() for s in _THINK_STEPS_ENV.split(",") if s.strip())
+)
 
 # Dependency order of the Decide* steps. Recorded as sequence_order so later
 # decisions (which depend on earlier ones) can be reconstructed.
@@ -330,31 +363,43 @@ def session_lm(session_id: str | None, model: str | None = None) -> dspy.LM:
     return lm.copy(**overrides) if overrides else lm
 
 
-# --- Streamified execution helper ---------------------------------------------
+def step_lm(lm: dspy.LM, step: str) -> dspy.LM:
+    """The LM one DSPy call should use: `lm`, or a copy that skips thinking.
 
+    See RECOMMEND_THINK_STEPS. Returns `lm` itself, untouched, whenever the
+    setting is unset, the step is one allowed to think, or the endpoint is
+    OpenRouter, whose reasoning controls take a different shape and whose
+    default model does not think in the first place.
 
-async def _call_streamified(
-    program: dspy.Module,
-    status_fn: Callable[[str], None],
-    **kwargs: Any,
-) -> dspy.Prediction:
+    A copy has its own empty history, so a caller reading `history[-1]` off
+    the returned LM sees exactly this call rather than whichever concurrent
+    turn wrote last to the shared one.
     """
-    Run a DSPy module wrapped with streamify and forward any StatusMessage
-    objects to status_fn before returning the final Prediction.
+    if (
+        RECOMMEND_THINK_STEPS is None
+        or step in RECOMMEND_THINK_STEPS
+        or settings.chat_endpoint.is_openrouter
+    ):
+        return lm
+    return lm.copy(
+        extra_body={
+            **(lm.kwargs.get("extra_body") or {}),
+            "reasoning_effort": "none",
+        }
+    )
 
-    A fresh stream is created per call, so concurrent pipeline runs are
-    fully isolated even though they share the same _status_provider singleton.
+
+# --- Module execution ---------------------------------------------------------
+
+
+async def _call_program(program: dspy.Module, **kwargs: Any) -> dspy.Prediction:
+    """Run a DSPy module in a worker thread and return its Prediction.
+
+    dspy.asyncify carries the caller's dspy.context (the session LM) into the
+    thread, which is all dspy.streamify was ever used for here, and lets a
+    module's own exception propagate as itself. See the module header.
     """
-    streamed = dspy.streamify(program, status_message_provider=_status_provider)
-    result: dspy.Prediction | None = None
-    async for item in streamed(**kwargs):
-        if isinstance(item, StatusMessage) and item.message:
-            status_fn(item.message)
-        elif isinstance(item, dspy.Prediction):
-            result = item
-    if result is None:
-        raise RuntimeError("DSPy streamify yielded no Prediction")
-    return result
+    return await dspy.asyncify(program)(**kwargs)
 
 
 def _try_dominance(
@@ -514,24 +559,22 @@ def _locked_result(
 async def _run_step(
     recorder: BuildRecorder | None,
     program: dspy.Module,
-    status_fn: Callable[[str], None],
     *,
     candidates: str,
     **inputs: Any,
 ) -> dspy.Prediction:
     """
-    Run one Decide* module via _call_streamified and, if a recorder is present,
+    Run one Decide* module via _call_program and, if a recorder is present,
     capture the decision (candidates, inputs, usage, latency) into it.
 
     Recording is best-effort and reads program-level telemetry metadata
     (category / signature_name / signature_version / output_name_field) added to
-    each Decide* class. With no recorder this is a plain _call_streamified call.
+    each Decide* class. With no recorder this is a plain _call_program call.
     """
-    lm = dspy.settings.lm
+    lm = step_lm(dspy.settings.lm, getattr(program, "category", ""))
     start = time.perf_counter()
-    result = await _call_streamified(
-        program, status_fn, candidates=candidates, **inputs
-    )
+    with dspy.context(lm=lm):
+        result = await _call_program(program, candidates=candidates, **inputs)
     latency_ms = int((time.perf_counter() - start) * 1000)
 
     if recorder is not None:
@@ -1141,11 +1184,6 @@ def _emit(state: DSPyBuildState, step: str, message: str) -> None:
         state.progress_callback(step, message)
 
 
-def _noop_status(_msg: str) -> None:
-    """Swallow DSPy's per-callback status messages (module_start / lm_start)."""
-    return None
-
-
 # --- Pipeline steps -----------------------------------------------------------
 
 
@@ -1162,7 +1200,6 @@ async def _step_ddr(
     result = await _run_step(
         recorder,
         program,
-        status_fn=_noop_status,
         use_cases=state.use_case_summary or str(state.request.use_cases),
         budget_total=state.request.budget_usd,
         candidates=candidates,
@@ -1206,7 +1243,6 @@ async def _step_cpu(
         ) or await _run_step(
             recorder,
             program,
-            status_fn=_noop_status,
             candidates=candidates,
             **step_inputs,
         )
@@ -1259,7 +1295,6 @@ async def _step_cooler(
         result = await _run_step(
             recorder,
             program,
-            status_fn=_noop_status,
             use_cases=state.use_case_summary or str(state.request.use_cases),
             cpu_name=state.cpu_name,
             cpu_tdp_w=state.cpu_tdp_w,
@@ -1294,7 +1329,6 @@ async def _step_motherboard(
         result = await _run_step(
             recorder,
             program,
-            status_fn=_noop_status,
             use_cases=state.use_case_summary or str(state.request.use_cases),
             cpu_name=state.cpu_name,
             ddr_gen=", ".join(state.cpu_ddr_gens),
@@ -1345,7 +1379,6 @@ async def _step_ram(
         result = await _run_step(
             recorder,
             program,
-            status_fn=_noop_status,
             use_cases=state.use_case_summary or str(state.request.use_cases),
             ddr_gen=ddr_for_ram,
             budget_ceiling=budget["ram"],
@@ -1452,7 +1485,6 @@ async def _step_storage(
     result = await _run_step(
         recorder,
         program,
-        status_fn=_noop_status,
         use_cases=state.use_case_summary or str(state.request.use_cases),
         budget_ceiling=budget["storage"],
         max_drives=max_drives,
@@ -1552,7 +1584,6 @@ async def _step_gpu(
         ) or await _run_step(
             recorder,
             program,
-            status_fn=_noop_status,
             candidates=candidates,
             **step_inputs,
         )
@@ -1733,7 +1764,6 @@ async def _step_psu(
         result = await _run_step(
             recorder,
             program,
-            status_fn=_noop_status,
             required_wattage=min_wattage,
             budget_ceiling=budget["psu"],
             candidates=candidates,
@@ -1792,7 +1822,6 @@ async def _step_case(
     result = await _run_step(
         recorder,
         program,
-        status_fn=_noop_status,
         use_cases=state.use_case_summary or str(state.request.use_cases),
         mobo_form_factor=state.mobo_form_factor,
         budget_ceiling=budget["case"],
@@ -1819,7 +1848,6 @@ async def _step_fans(
     result = await _run_step(
         recorder,
         program,
-        status_fn=_noop_status,
         cpu_tdp_w=state.cpu_tdp_w,
         # Total heat, not per-card: four GPUs is four times the load the case
         # has to clear, and that is the whole reason to add fans.
@@ -1850,10 +1878,8 @@ async def run_pipeline(
     """
     Run the full DSPy component-by-component pipeline.
 
-    Each step emits progress via progress_callback at two levels:
-      - A step-start message before the DB query (_emit).
-      - DSPy-native messages (module_start, lm_start) from BuildStatusProvider,
-        forwarded via _call_streamified as the module runs.
+    Each step emits one step-start message via progress_callback, before its
+    DB query (_emit). See the module header for why there is only one.
 
     Pass a BuildRecorder to capture per-decision telemetry (see recording.py).
     The pipeline pauses at the case step, so on the success path the recorder is

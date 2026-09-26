@@ -115,9 +115,7 @@ def _async_return(value):
 
 
 def _patch_run_step(monkeypatch, prediction, capture: dict | None = None):
-    async def _fake(
-        recorder=None, program=None, *, status_fn=None, candidates=None, **inputs
-    ):
+    async def _fake(recorder=None, program=None, *, candidates=None, **inputs):
         if capture is not None:
             capture["candidates"] = candidates
             capture["inputs"] = inputs
@@ -651,7 +649,7 @@ def test_step_gpu_multi_card_allowed_when_the_board_has_the_slots(monkeypatch):
 def test_step_gpu_sees_the_slot_and_lane_context(monkeypatch):
     capture: dict = {}
 
-    async def _fake_run_step(recorder, program, status_fn, **kwargs):
+    async def _fake_run_step(recorder, program, **kwargs):
         capture.update(kwargs)
         return SimpleNamespace(
             gpu_chipset="RTX 5090",
@@ -819,7 +817,7 @@ def test_step_storage_skips_groups_that_resolve_to_nothing(monkeypatch):
 def test_step_fans_quantity_is_capped_by_empty_slots(monkeypatch):
     capture: dict = {}
 
-    async def _fake_run_step(recorder, program, status_fn, **kwargs):
+    async def _fake_run_step(recorder, program, **kwargs):
         capture.update(kwargs)
         return SimpleNamespace(fan_name="Noctua NF-A12x25", fan_quantity=9, reason="r")
 
@@ -949,3 +947,20 @@ def test_variant_resolver_ignores_width_for_a_single_card(monkeypatch):
     asyncio.run(dp._resolve_gpu_variant(state, object()))
 
     assert state.gpu_name == "Triple-slot 5090"
+
+
+def test_a_failing_module_raises_its_own_exception():
+    """The cause of a failed step reaches the log and the recorder as itself.
+
+    dspy.streamify used to wrap every module failure in an anyio task group, so
+    a response truncated at max_tokens was logged as "unhandled errors in a
+    TaskGroup (1 sub-exception)" and nothing else.
+    """
+    import dspy
+
+    class _Boom(dspy.Module):
+        def forward(self, **kwargs):
+            raise ValueError("truncated at max_tokens")
+
+    with pytest.raises(ValueError, match="truncated at max_tokens"):
+        asyncio.run(dp._call_program(_Boom(), candidates="[]"))

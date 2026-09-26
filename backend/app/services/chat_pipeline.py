@@ -467,11 +467,13 @@ async def extract_profile(
     import dspy
     from dspy.utils.exceptions import AdapterParseError
 
-    from app.services.recommender.dspy_pipeline import session_lm
+    from app.services.recommender.dspy_pipeline import session_lm, step_lm
 
     conversation = _format_conversation(messages)
     program = _get_extract_program()
-    lm = session_lm(session_id, model=ChatModelConfig.get_extract_model())
+    lm = step_lm(
+        session_lm(session_id, model=ChatModelConfig.get_extract_model()), "extract"
+    )
     with dspy.context(lm=lm):
         try:
             result = await asyncio.to_thread(program, conversation=conversation)
@@ -799,10 +801,14 @@ def _missing_llm_serving_fields(profile: BuildProfile) -> list[str]:
     return missing
 
 
-# Mirrors is_profile_complete()'s branches so the elicitation model is told
-# exactly which field it's blocked on, instead of judging "enough info" for
-# itself from the raw conversation (which is what let it drift into saying
-# things like "the build recommender will be back with your build").
+# The one place the intake rules live. is_profile_complete() is defined as
+# "nothing here is missing", so the readiness gate and the list of gaps cannot
+# drift apart. They used to be two copies of the same branches, and the router
+# carried an error path for the day they disagreed. The list also tells the
+# elicitation model exactly which field it's blocked on, instead of judging
+# "enough info" for itself from the raw conversation (which is what let it
+# drift into saying things like "the build recommender will be back with your
+# build").
 def _missing_fields(profile: BuildProfile) -> list[str]:
     if profile.primary_use == "unknown":
         return [
@@ -954,44 +960,7 @@ def is_profile_complete(profile: BuildProfile) -> bool:
     build when volunteered but none of them forks it, and gating on taste would
     turn a two-question intake into a survey.
     """
-    if profile.primary_use == "unknown":
-        return False
-    if profile.budget_tier == "unknown":
-        return False
-    if profile.budget_tier != "custom" and profile.price_sensitivity is None:
-        return False
-
-    use = profile.primary_use
-    if use == "gaming":
-        return profile.gaming_resolution is not None and profile.gaming_fps is not None
-    if use == "streaming":
-        if profile.streaming_style is None:
-            return False
-        if profile.streaming_style == "while_gaming":
-            return (
-                profile.gaming_resolution is not None and profile.gaming_fps is not None
-            )
-        return True
-    if use == "ai":
-        if profile.ai_workload is None:
-            return False
-        if (
-            profile.ai_workload in ("inference", "training")
-            and profile.ai_model_scale is None
-        ):
-            return False
-        return not _missing_llm_serving_fields(profile)
-    if use == "server":
-        if profile.server_workload is None or profile.server_gpu_count is None:
-            return False
-        return not _missing_llm_serving_fields(profile)
-    if use == "video_editing":
-        return profile.editing_resolution is not None
-    if use == "3d_rendering":
-        return profile.rendering_software is not None
-    if use in ("software_dev", "music_production"):
-        return profile.workload_intensity is not None
-    return True
+    return not _missing_fields(profile)
 
 
 # --- Build resolution cache. Profile → build mapping is deterministic --------

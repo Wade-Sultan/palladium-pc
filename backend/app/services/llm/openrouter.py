@@ -68,6 +68,7 @@ def get_chat_model(
     temperature: float | None = None,
     max_tokens: int | None = None,
     streaming: bool = False,
+    think: bool = True,
 ) -> BaseChatModel:
     """Build a chat model for one call.
 
@@ -75,6 +76,11 @@ def get_chat_model(
     conversation, and it is what groups a turn's calls together in OpenRouter's
     dashboard. Construction is cheap. No connection is opened until the first
     request.
+
+    `think=False` asks a local reasoning model to answer without thinking,
+    as `reasoning_effort: "none"` in the request body. It only applies off
+    OpenRouter, for the reasons given at RECOMMEND_THINK_STEPS in
+    app/services/recommender/dspy_pipeline.py; on OpenRouter it is ignored.
     """
     # Checked before anything else so a load-test request cannot fall through to
     # the real client, and deliberately not cached: the decision is per-request,
@@ -106,6 +112,7 @@ def get_chat_model(
             temperature=temperature,
             max_tokens=max_tokens,
             streaming=streaming,
+            **({} if think else {"extra_body": {"reasoning_effort": "none"}}),
         )
 
     from langchain_openrouter import ChatOpenRouter

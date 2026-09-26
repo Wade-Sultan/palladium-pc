@@ -152,8 +152,6 @@ async def _pick_question(
             f"- {item}" for item in asked
         )
     prompt += "\n\nReply with one number."
-    if ChatModelConfig.ROUTE_NO_THINK:
-        prompt += " /no_think"
 
     # Only the tail of the conversation: the router needs the user's last beat
     # to judge what follows naturally, not the whole history it would otherwise
@@ -168,6 +166,7 @@ async def _pick_question(
             session_id=session_id,
             temperature=0.0,
             max_tokens=ChatModelConfig.ROUTE_MAX_TOKENS,
+            think=not ChatModelConfig.ROUTE_NO_THINK,
         )
         # Not streamed, a single integer has nothing to stream, so cost comes
         # back on the response itself and needs no second lookup.
@@ -209,16 +208,8 @@ async def route(state: ChatTurnState) -> dict[str, Any]:
     if cp.is_profile_complete(profile):
         return {"next_question": None, "missing_fields": [], "usage": usage}
 
+    # Never empty here: is_profile_complete is defined as "nothing missing".
     missing = cp._missing_fields(profile)
-    if not missing:
-        # is_profile_complete said no but _missing_fields found nothing, which
-        # means the two have drifted apart. Building on a profile the gate
-        # rejected is the worse of the two failures, so ask the catch-all.
-        logger.error(
-            "profile incomplete but no missing fields identified; "
-            "is_profile_complete and _missing_fields have diverged"
-        )
-        missing = ["anything else about what they need the machine to do"]
 
     chosen = await _pick_question(
         missing,

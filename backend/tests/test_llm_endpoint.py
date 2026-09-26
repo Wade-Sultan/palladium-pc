@@ -218,3 +218,81 @@ def test_provider_pin_is_not_sent_to_a_local_server(monkeypatch):
     import dspy
 
     assert not dspy.settings.lm.kwargs.get("extra_body")
+
+
+# --- Native thinking switched off per call -------------------------------------
+# reasoning_effort=none travels in extra_body because litellm refuses it as an
+# argument for an `openai/` model. Measured on qwen3.8-27b in LM Studio it removed
+# thinking entirely, where Qwen's "/no_think" prompt suffix only roughly halved it.
+
+
+def test_think_false_asks_a_local_server_to_skip_thinking(monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "LLM_BASE_URL", _LOCAL)
+
+    assert get_chat_model("qwen3.8-27b", think=False).extra_body == {
+        "reasoning_effort": "none"
+    }
+    assert not get_chat_model("qwen3.8-27b").extra_body
+
+
+def test_think_false_is_ignored_on_openrouter(monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "OPENROUTER_PROVIDER", None)
+    monkeypatch.setattr(settings, "LLM_BASE_URL", "")
+
+    model = get_chat_model("google/gemma-4-31b-it", think=False)
+    assert not getattr(model, "model_kwargs", None)
+    assert not getattr(model, "extra_body", None)
+
+
+def _local_lm():
+    import dspy
+
+    return dspy.LM(
+        "openai/qwen3.8-27b", api_base=_LOCAL, api_key="x", extra_body={"keep": 1}
+    )
+
+
+def test_step_lm_changes_nothing_when_unset(monkeypatch):
+    """Unset is production: every DSPy request stays exactly as it was."""
+    from app.core.config import settings
+    from app.services.recommender import dspy_pipeline as dp
+
+    monkeypatch.setattr(settings, "LLM_BASE_URL", _LOCAL)
+    monkeypatch.setattr(dp, "RECOMMEND_THINK_STEPS", None)
+    lm = _local_lm()
+
+    for step in ("extract", "ddr", "cpu", "gpu", "fans", "discuss"):
+        assert dp.step_lm(lm, step) is lm
+
+
+def test_step_lm_lets_only_the_named_steps_think(monkeypatch):
+    from app.core.config import settings
+    from app.services.recommender import dspy_pipeline as dp
+
+    monkeypatch.setattr(settings, "LLM_BASE_URL", _LOCAL)
+    monkeypatch.setattr(dp, "RECOMMEND_THINK_STEPS", frozenset({"cpu", "gpu"}))
+    lm = _local_lm()
+
+    assert dp.step_lm(lm, "cpu") is lm
+    assert dp.step_lm(lm, "gpu") is lm
+    for step in ("extract", "ddr", "storage", "case", "fans", "discuss"):
+        quiet = dp.step_lm(lm, step)
+        assert quiet is not lm
+        # Merged into whatever extra_body the LM already carried, not replacing it.
+        assert quiet.kwargs["extra_body"] == {"keep": 1, "reasoning_effort": "none"}
+    assert lm.kwargs["extra_body"] == {"keep": 1}
+
+
+def test_step_lm_is_ignored_on_openrouter(monkeypatch):
+    from app.core.config import settings
+    from app.services.recommender import dspy_pipeline as dp
+
+    monkeypatch.setattr(settings, "LLM_BASE_URL", "")
+    monkeypatch.setattr(dp, "RECOMMEND_THINK_STEPS", frozenset())
+    lm = _local_lm()
+
+    assert dp.step_lm(lm, "ddr") is lm

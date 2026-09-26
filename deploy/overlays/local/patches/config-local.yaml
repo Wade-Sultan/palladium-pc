@@ -70,8 +70,9 @@ data:
   # alongside the 27B model. Check extraction quality before switching it.
   CHAT_EXTRACT_MODEL: "qwen3.8-27b"
   CHAT_ROUTE_MODEL: "qwen3.8-27b"
-  # The router chooses one index from a fixed list. Skip extended reasoning
-  # for this call while leaving extraction and user-facing prose untouched.
+  # The router chooses one index from a fixed list. Skip native thinking for
+  # this call (sent as reasoning_effort=none) while leaving user-facing prose
+  # untouched. Extraction is covered by RECOMMEND_THINK_STEPS below.
   CHAT_ROUTE_NO_THINK: "true"
   CHAT_RECOMMEND_MODEL: "qwen3.8-27b"
   # The offer card already carries the rule-checked fit and tradeoffs. Avoid
@@ -105,6 +106,25 @@ data:
   # whole DSPy run and hands the turn to the reference-build fallback. The
   # same silent substitution DSPY_CHAT_TIMEOUT_S below is raised to avoid.
   RECOMMEND_MAX_TOKENS: "8192"
+
+  # --- No native thinking in any DSPy call ------------------------------------
+  # Empty means no step is allowed to think: extraction, every Decide* step and
+  # the post-build part lookup are all sent reasoning_effort=none. List step
+  # names here to let those think again. See RECOMMEND_THINK_STEPS in
+  # app/services/recommender/dspy_pipeline.py. Production sets nothing, so
+  # nothing there changes.
+  #
+  # Why not even CPU and GPU, the two biggest decisions. Measured on
+  # qwen3.8-27b, thinking bought nothing and cost a great deal:
+  #   - Replaying one build's ddr/cpu/storage/gpu steps took 445s thinking and
+  #     61s not; three of the four picks were identical.
+  #   - The CPU step picked the same part in all eight completed runs, thinking
+  #     or not, at 89-157s thinking against 18s without.
+  #   - Thinking is unbounded. The CPU step ran past RECOMMEND_MAX_TOKENS in two
+  #     of four real builds and each fell back to a reference build.
+  #     reasoning_effort "low" and "medium" did not bound it (3.5k-7.5k tokens);
+  #     on this model only "none" has a reliable effect.
+  RECOMMEND_THINK_STEPS: ""
 
   # --- The build timeout, raised for a local GPU --------------------------
   # Production's 180s default (chat_pipeline._DSPY_CHAT_TIMEOUT_S) is sized for

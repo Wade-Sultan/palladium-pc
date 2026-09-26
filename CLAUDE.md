@@ -201,8 +201,11 @@ ExtractProfile → DDR → CPU → Cooler → Motherboard → RAM → Storage �
 ```
 
 - `_allocate_budget()` derives independent **soft** per-slot ceilings; they need not sum to the total.
-- Each step emits one stable progress message before its DB query; DSPy's own sub-messages are
-  swallowed so the UI does not flicker.
+- Each step emits one stable progress message before its DB query and nothing else while its module
+  runs, so the UI does not flicker. Modules run via `dspy.asyncify`, not `streamify`, so a failing
+  step raises its real exception rather than an anyio `TaskGroup` wrapper.
+- `RECOMMEND_THINK_STEPS` (local only) names the DSPy calls allowed to use a reasoning model's
+  native thinking; every other call is sent `reasoning_effort=none`. Unset, nothing changes.
 - **Locked parts** (`locked_parts.py`): a part the user named short-circuits its Decide step
   entirely. Refused only as `unresolved`, `unaffordable` or `overspec` (plus `insufficient`).
 - **Paused builds** (`paused_build.py`): the case step stops the turn rather than holding a worker

@@ -196,3 +196,43 @@ def test_only_retractions_are_replayed_from_history():
     assert result["stated_budget_usd"] == 3000
     assert result["games"] == ["Cyberpunk 2077"]
     assert result["form_factor"] is None
+
+
+def test_a_set_with_no_value_does_not_erase_the_field():
+    """A value-less set is malformed, not a retraction; `clear` is how a field
+    is emptied. qwen3.8-27b with thinking off emitted exactly this for every
+    field it had just extracted, and applying it wiped the resolution and the
+    budget firmness the user had stated one sentence earlier."""
+    msg = "Gaming PC for 1440p at 165fps. Budget is $3000 and that is a hard ceiling."
+    updates = [
+        ProfileUpdate(field="gaming_resolution", operation="set", evidence="for 1440p"),
+        ProfileUpdate(
+            field="price_sensitivity",
+            operation="set",
+            value="  ",
+            evidence="that is a hard ceiling",
+        ),
+    ]
+
+    result, applied = apply_profile_updates(_profile(), updates, msg)
+
+    assert result["gaming_resolution"] == "1440p"
+    assert result["price_sensitivity"] == "firm"
+    assert applied == []
+
+
+def test_a_set_with_a_value_still_applies():
+    msg = "Actually make it 4k"
+    updates = [
+        ProfileUpdate(
+            field="gaming_resolution",
+            operation="set",
+            value="4k",
+            evidence="make it 4k",
+        )
+    ]
+
+    result, applied = apply_profile_updates(_profile(), updates, msg)
+
+    assert result["gaming_resolution"] == "4k"
+    assert [op["field"] for op in applied] == ["gaming_resolution"]
