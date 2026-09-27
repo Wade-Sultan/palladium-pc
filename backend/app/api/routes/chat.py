@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from app.core import pubsub
 from app.core.auth import optional_firebase_token
 from app.core.loadtest import is_load_test
+from app.core.ratelimit import limit_chat
 from app.core.valkey import is_available as valkey_available
 from app.services import transport, turn_stream
 from app.services.turn_runner import run_turn
@@ -166,7 +167,7 @@ def _system_pick(commands: list[dict]) -> tuple[str, str] | None:
     return found
 
 
-@router.post("/chat")
+@router.post("/chat", dependencies=[Depends(limit_chat)])
 async def chat(
     req: ChatRequest, user: dict | None = Depends(optional_firebase_token)
 ) -> Response:

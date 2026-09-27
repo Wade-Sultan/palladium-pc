@@ -42,6 +42,12 @@ data:
   # project. Same value as local because the frontend project is shared; a
   # mismatch surfaces as invalid-credential on every authenticated request.
   FIREBASE_PROJECT_ID: "project-b8abf13d-d1ce-43f1-837"
+  # The /chat rate limit reads the guest's address from X-Forwarded-For, where
+  # the external Application Load Balancer appends `<client-ip>,<lb-ip>`, so the
+  # client is 2 from the right. Left at the default 0 it would key every guest
+  # on the Google front end that connected to the pod: one shared bucket for
+  # the whole internet. See app/core/ratelimit.py.
+  TRUSTED_PROXY_HOPS: "2"
   # --- Valkey / Pub/Sub -----------------------------------------------------
   # VALKEY_HOST is deliberately ABSENT here, for the same reason as
   # POSTGRES_SERVER above: it is the Memorystore instance's private VPC address

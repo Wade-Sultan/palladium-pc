@@ -294,6 +294,21 @@ class Settings(BaseSettings):
     # expiry costs resumability mid-turn, not the accumulated build profile.
     GRAPH_CHECKPOINT_TTL_S: int = 86400
 
+    # --- /chat rate limit -----------------------------------------------------
+    # Every turn bills OpenRouter and /chat accepts guests, so this is a cost
+    # guard rather than a fairness one. Comma-separated rates in the SDK's
+    # "N/unit" syntax, every one enforced; empty disables the limit. Counted per
+    # Firebase uid when signed in, per client IP otherwise (app/core/ratelimit.py).
+    CHAT_RATE_LIMITS: str = "10/minute,60/hour"
+    # How many X-Forwarded-For entries our own infrastructure appends, the
+    # client's address included. The client is that many entries from the
+    # right; anything further left is client-supplied and must never be
+    # trusted. 0 ignores the header and uses the socket peer, which is right for
+    # local dev (nothing in front of the pod) and wrong in prod, where the peer
+    # is always a Google front end. Prod sets 2: the external Application Load
+    # Balancer appends `<client-ip>,<load-balancer-ip>`.
+    TRUSTED_PROXY_HOPS: int = 0
+
     # --- Tracing --------------------------------------------------------------
     # Empty key disables the LangSmith span exporter entirely; the Google
     # Cloud Observability side is driven separately by the standard
