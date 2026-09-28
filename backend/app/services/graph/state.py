@@ -220,6 +220,16 @@ def apply_profile_updates(
         if not quote or quote.casefold() not in user_text.casefold():
             continue
         value = update.value
+        if update.operation == "set" and (
+            value is None or (isinstance(value, str) and not value.strip())
+        ):
+            # A set with nothing to set. Clearing has its own operation, so
+            # this is a malformed update, not a retraction, and applying it
+            # erased the very field the extraction had just filled in. Seen
+            # from qwen3.8-27b with thinking off: every field in "1440p ...
+            # $3000 and that is a hard ceiling" came back as set-to-None, and
+            # the turn asked for the resolution the user had just given.
+            continue
         if update.operation == "clear":
             value = (
                 "unknown"

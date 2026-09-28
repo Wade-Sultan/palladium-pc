@@ -181,22 +181,25 @@ def test_already_asked_fields_are_shown_to_the_router(stub_router):
     assert "target frame rate" in prompt
 
 
-def test_local_router_can_request_brief_reasoning(stub_router, monkeypatch):
-    client = stub_router("1")
-    monkeypatch.setattr(nodes.ChatModelConfig, "ROUTE_NO_THINK", True)
+@pytest.mark.parametrize("no_think", [True, False])
+def test_route_no_think_switches_thinking_not_the_prompt(monkeypatch, no_think):
+    """ROUTE_NO_THINK reaches the request as think=False and leaves the prompt
+    alone. It used to append Qwen's "/no_think" suffix, which only roughly
+    halved the thinking on qwen3.8-27b."""
+    model = StubRouterModel("1")
+    seen: dict = {}
+
+    def _get_chat_model(*args, **kwargs):
+        seen.update(kwargs)
+        return model
+
+    monkeypatch.setattr(nodes, "get_chat_model", _get_chat_model)
+    monkeypatch.setattr(nodes.ChatModelConfig, "ROUTE_NO_THINK", no_think)
 
     asyncio.run(nodes.route(_state(_profile(gaming_resolution=None, gaming_fps=None))))
 
-    assert client.last_messages[-1].content.endswith("Reply with one number. /no_think")
-
-
-def test_router_prompt_is_unchanged_by_default(stub_router, monkeypatch):
-    client = stub_router("1")
-    monkeypatch.setattr(nodes.ChatModelConfig, "ROUTE_NO_THINK", False)
-
-    asyncio.run(nodes.route(_state(_profile(gaming_resolution=None, gaming_fps=None))))
-
-    assert client.last_messages[-1].content.endswith("Reply with one number.")
+    assert seen["think"] is (not no_think)
+    assert model.last_messages[-1].content.endswith("Reply with one number.")
 
 
 # ------------------------------------------------------------- profile accretion --
