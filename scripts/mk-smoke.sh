@@ -79,22 +79,80 @@ step "driving a turn"
 SESSIONS_BEFORE="$(psql_ 'select count(*) from build_sessions')"
 CLAIMS_BEFORE="$(valkey --scan --pattern 'chat:claim:*' | sort | tr '\n' ' ')"
 
-BODY=$(cat <<JSON
-{"conversation_id":null,"state":{"messages":[],"pipeline":null},
- "commands":[{"type":"add-message","message":{"role":"user",
-   "parts":[{"type":"text","text":"$PROMPT"}]}}]}
-JSON
-)
-RESP="$(curl -sS -N -m 300 -X POST "$API/api/v1/chat" \
-  -H 'Content-Type: application/json' \
-  -H "X-Palladium-Load-Test: $SECRET" \
-  -d "$BODY")"
+# Two requests, as a user makes them. The stubbed profile runs the whole
+# component ladder, which pauses at the case picker; picking the first case
+# resumes the paused build and finishes it. One request used to be enough only
+# because the stub could not get past the CPU step, so every smoke turn was a
+# reference-build fallback and the pipeline itself was never exercised.
+#
+# Python for the driver because the pick has to send back the conversation
+# state the first stream built up, which means applying its operations, and
+# that is not a job for grep. Standard library only.
+DRIVE="$(SECRET="$SECRET" API="$API" PROMPT="$PROMPT" python3 - <<'PY'
+import json, os, urllib.request
 
-if grep -q '"build"' <<<"$RESP" && grep -q '"total_approx"' <<<"$RESP"; then
-  pass "turn returned a build ($(grep -o '"label": "[^"]*"' <<<"$RESP" | head -1))"
+def apply(state, op):
+    path, value = op.get("path") or [], op.get("value")
+    node = state
+    for key in path[:-1]:
+        node = node[int(key)] if isinstance(node, list) else node.setdefault(key, {})
+    last, append = path[-1], op.get("type") == "append-text"
+    if isinstance(node, list):
+        i = int(last)
+        node.extend([None] * (i + 1 - len(node)))
+        node[i] = (node[i] or "") + value if append else value
+    else:
+        node[last] = (node.get(last) or "") + value if append else value
+
+def turn(state, commands):
+    body = {"conversation_id": None, "state": state, "commands": commands}
+    req = urllib.request.Request(
+        os.environ["API"] + "/api/v1/chat",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json",
+                 "X-Palladium-Load-Test": os.environ["SECRET"]},
+    )
+    state = json.loads(json.dumps(state))
+    with urllib.request.urlopen(req, timeout=300) as res:
+        for raw in res:
+            line = raw.decode().strip()
+            if line.startswith("aui-state:"):
+                for op in json.loads(line[len("aui-state:"):]):
+                    apply(state, op)
+    return state
+
+out = {}
+try:
+    s1 = turn({"messages": [], "pipeline": None},
+              [{"type": "add-message", "message": {"role": "user",
+                "parts": [{"type": "text", "text": os.environ["PROMPT"]}]}}])
+    picker = s1["messages"][-1].get("case_options") or {}
+    out["cases"] = [o.get("name") for o in picker.get("options") or []]
+    if out["cases"]:
+        s2 = turn(s1, [{"type": "select-case", "token": picker.get("token"),
+                        "caseName": out["cases"][0]}])
+        build = s2["messages"][-1].get("build") or {}
+        out["label"] = build.get("label")
+        out["total"] = build.get("total_approx")
+        out["parts"] = [p.get("component") for p in build.get("parts") or []]
+    else:
+        out["reply"] = (s1["messages"][-1].get("content") or "")[-300:]
+except Exception as exc:
+    out["error"] = repr(exc)
+print(json.dumps(out))
+PY
+)"
+field() { python3 -c 'import json,sys; v=json.loads(sys.argv[1]).get(sys.argv[2]); print("" if v is None else (", ".join(map(str, v)) if isinstance(v, list) else v))' "$DRIVE" "$1"; }
+
+if [ -n "$(field cases)" ]; then
+  pass "first turn ran the ladder to the case picker ($(field cases))"
 else
-  fail "turn did not produce a build"
-  printf '%s\n' "$RESP" | tail -c 500 >&2
+  fail "first turn did not reach the case picker: $(field error)$(field reply)"
+fi
+if [ -n "$(field total)" ]; then
+  pass "case pick finished the build ($(field label): $(field parts))"
+else
+  fail "case pick did not produce a build $(field error)"
 fi
 
 # --- the assertion that matters ----------------------------------------------

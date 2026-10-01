@@ -12,13 +12,15 @@
 #   3. One chat turn is ONE trace across the Pub/Sub hop, API request span and
 #      worker spans together. That is the reason the Google pipe exists, and it
 #      depends on the request span existing to be propagated at all.
+#   4. Load-test traffic is NOT traced. Otherwise a Locust run ships a trace per
+#      stubbed turn to Cloud Trace and LangSmith.
 #
 # The method: every request here carries a W3C traceparent with a trace id this
 # script generated. FastAPI continues an incoming trace, so each assertion is an
 # exact lookup of that id in Jaeger rather than a search for "something recent".
 #
-# NO LLM IS CALLED. The chat turn uses the load-test header, as mk-smoke.sh
-# does. Whether the build itself succeeds is not this script's question.
+# NO LLM IS CALLED. The traced turn is a case pick nothing can claim, answered
+# with fixed text; the untraced one carries the load-test header.
 #
 #   ./scripts/mk-verify-tracing.sh
 #
@@ -145,14 +147,17 @@ else
 fi
 
 # --- 3. one trace across the Pub/Sub hop -------------------------------------
+# NOT a load-test turn: those are deliberately untraced now (see 4 below). And
+# not an ordinary message either, which would call the real model. A case pick
+# with a token nothing issued is the one turn that is both real and free: it is
+# dispatched over Pub/Sub, run by a worker, looked up in Valkey and Postgres,
+# and answered with a fixed apology (resume_build in chat_pipeline.py).
 step "a chat turn is one trace, API and worker"
 T_TURN="$(hex 16)"
-BODY='{"conversation_id":null,"state":{"messages":[],"pipeline":null},
- "commands":[{"type":"add-message","message":{"role":"user",
-   "parts":[{"type":"text","text":"I want a gaming PC for 1440p, budget around $1500"}]}}]}'
+BODY="{\"conversation_id\":null,\"state\":{\"messages\":[],\"pipeline\":null},
+ \"commands\":[{\"type\":\"select-case\",\"token\":\"$(hex 16)\",\"caseName\":\"none\"}]}"
 curl -sS -N -m 300 -o /dev/null -X POST "$API/api/v1/chat" \
   -H 'Content-Type: application/json' \
-  -H "X-Palladium-Load-Test: $SECRET" \
   -H "traceparent: $(traceparent "$T_TURN")" \
   -d "$BODY"
 
@@ -180,6 +185,28 @@ fi
 printf '        spans by service: %s\n' \
   "$(trace_spans "$T_TURN" | cut -f1 | sort | uniq -c | awk '{printf "%s=%s ", $2, $1}' || true)"
 printf '        view: %s/trace/%s\n' "$JAEGER" "$T_TURN"
+
+# --- 4. load-test traffic is not traced --------------------------------------
+# The caller's traceparent goes unused (FastAPI's span is excluded for these
+# requests, and the sampler drops everything under them), so the id it carried
+# must never appear. Checked after 3 has seen its spans arrive, so the export
+# path is known to be working and an empty answer means something.
+step "a load-test turn leaves no trace"
+T_LOAD="$(hex 16)"
+LOAD_BODY='{"conversation_id":null,"state":{"messages":[],"pipeline":null},
+ "commands":[{"type":"add-message","message":{"role":"user",
+   "parts":[{"type":"text","text":"gaming pc"}]}}]}'
+curl -sS -N -m 300 -o /dev/null -X POST "$API/api/v1/chat" \
+  -H 'Content-Type: application/json' \
+  -H "X-Palladium-Load-Test: $SECRET" \
+  -H "traceparent: $(traceparent "$T_LOAD")" \
+  -d "$LOAD_BODY"
+sleep 15  # two batch intervals, so anything recorded has been exported
+if [ -z "$(trace_spans "$T_LOAD")" ]; then
+  pass "no spans under the load-test request's trace id"
+else
+  fail "load-test turn was traced: $(trace_spans "$T_LOAD" | cut -f1,2 | head -3 | tr '\n' ';')"
+fi
 
 step "result"
 if [ "$FAILED" = "0" ]; then

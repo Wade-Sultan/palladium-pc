@@ -453,6 +453,10 @@ def _explicit_gaming_preferences(messages: list[ChatMessage]) -> dict[str, str]:
     return preferences
 
 
+# What ExtractProfile's server_gpu_count is allowed to say, besides "none".
+_SERVER_GPU_COUNTS = frozenset({"0", "1", "2", "4", "8"})
+
+
 async def extract_profile(
     messages: list[ChatMessage],
     usage_sink: dict | None = None,
@@ -515,6 +519,17 @@ async def extract_profile(
         v = _opt(value)
         return None if v is None or v.lower() == "no_preference" else v
 
+    def _gpu_count(value: str) -> str | None:
+        """_opt, restricted to the slot counts the signature allows.
+
+        validate_build compares this to the build's GPU count with int(), so
+        anything else the model writes ("2-4", "two") used to raise there and
+        turn the whole turn into an error message. Dropped to None instead: no
+        stated count, which is what an unparseable answer amounts to.
+        """
+        v = _opt(value)
+        return v if v in _SERVER_GPU_COUNTS else None
+
     budget_tier, price_sensitivity = _resolve_budget(
         result.budget_tier, _opt(getattr(result, "price_sensitivity", "")), messages
     )
@@ -542,7 +557,7 @@ async def extract_profile(
         llm_quantization=_opt(getattr(result, "llm_quantization", "")),
         llm_context_tokens=_opt(getattr(result, "llm_context_tokens", "")),
         server_workload=_opt(result.server_workload),
-        server_gpu_count=_opt(result.server_gpu_count),
+        server_gpu_count=_gpu_count(result.server_gpu_count),
         editing_resolution=_opt(result.editing_resolution),
         rendering_software=_opt(result.rendering_software),
         workload_intensity=_opt(result.workload_intensity),

@@ -87,3 +87,78 @@ def test_startup_leaves_global_provider_to_configure_tracing(
         pass
 
     assert isinstance(trace.get_tracer_provider(), ProxyTracerProvider)
+
+
+def test_load_test_request_gets_no_request_span(
+    exporter: InMemorySpanExporter, monkeypatch: pytest.MonkeyPatch
+):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "LOAD_TEST_SECRET", "s3cret", raising=False)
+    client = TestClient(app)
+
+    client.get("/api/v1/health", headers={"X-Palladium-Load-Test": "s3cret"})
+    assert exporter.get_finished_spans() == ()
+
+    # A wrong secret is an ordinary request, and an ordinary request is traced.
+    client.get("/api/v1/health", headers={"X-Palladium-Load-Test": "guess"})
+    assert [
+        s.name for s in exporter.get_finished_spans() if s.kind == SpanKind.SERVER
+    ] == ["GET /api/v1/health"]
+
+
+def test_sampler_drops_load_test_spans_and_their_descendants(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Includes the Pub/Sub shape: a span started later, with no load-test flag
+    in sight, whose parent is a span the sampler dropped."""
+    from opentelemetry.sdk.trace.sampling import ALWAYS_ON, ParentBased
+
+    from app.core.config import settings
+    from app.core.loadtest import load_test_scope
+    from app.core.tracing import _build_load_test_sampler
+
+    monkeypatch.setattr(settings, "LOAD_TEST_SECRET", "s3cret", raising=False)
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider(sampler=_build_load_test_sampler(ParentBased(ALWAYS_ON)))
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider.get_tracer(__name__)
+
+    with load_test_scope(True), tracer.start_as_current_span("publish") as publish:
+        carried = trace.set_span_in_context(publish)
+    with tracer.start_as_current_span("subscribe", context=carried):
+        pass
+    with tracer.start_as_current_span("real request"):
+        pass
+
+    assert [s.name for s in exporter.get_finished_spans()] == ["real request"]
+
+
+def test_pubsub_batch_span_with_no_sampled_messages_is_dropped():
+    """Pub/Sub links a batch RPC span only to sampled message spans, so an
+    unlinked one belongs to unsampled (load-test) messages. A linked one, or any
+    per-message span, is left to the inner sampler."""
+    from opentelemetry.sdk.trace.sampling import ALWAYS_ON, ParentBased
+    from opentelemetry.trace import Link
+
+    from app.core.tracing import _build_load_test_sampler
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider(sampler=_build_load_test_sampler(ParentBased(ALWAYS_ON)))
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    tracer = provider.get_tracer(__name__)
+    batch = {"messaging.system": "gcp_pubsub", "messaging.batch.message_count": 1}
+
+    with tracer.start_as_current_span("real create") as create:
+        pass
+    tracer.start_span("load-test publish", attributes=batch).end()
+    tracer.start_span(
+        "real publish", attributes=batch, links=[Link(create.get_span_context())]
+    ).end()
+    tracer.start_span("subscribe", attributes={"messaging.system": "gcp_pubsub"}).end()
+
+    assert [s.name for s in exporter.get_finished_spans()] == [
+        "real create",
+        "real publish",
+        "subscribe",
+    ]
