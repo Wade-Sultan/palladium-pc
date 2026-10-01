@@ -260,14 +260,14 @@ async def discuss(messages, proposed_build: dict, session_id: str | None):
     from app.services import chat_pipeline as cp
     from app.services.chat_models import ChatModelConfig
     from app.services.llm import get_chat_model
-    from app.services.recommender.dspy_pipeline import session_lm
+    from app.services.recommender.dspy_pipeline import session_lm, step_lm
 
     usage = {}
     part = None
     lookup_status = "No additional part lookup requested."
     try:
         program = load_program()
-        with dspy.context(lm=session_lm(session_id)):
+        with dspy.context(lm=step_lm(session_lm(session_id), "discuss")):
             plan = await asyncio.to_thread(
                 program,
                 conversation=cp._format_conversation(messages),

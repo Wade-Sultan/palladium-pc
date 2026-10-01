@@ -81,6 +81,7 @@ dependencies = [
     "langchain-openrouter>=0.2.7",
     "assistant-stream>=0.0.36",
     "pgvector>=0.3.6",
+    "fastapi-redis-sdk>=0.8.1,<0.9",
 ]
 
 [dependency-groups]
@@ -90,6 +91,7 @@ dev = [
     "ruff<1.0.0,>=0.2.2",
     "pre-commit<4.0.0,>=3.6.2",
     "coverage<8.0.0,>=7.4.3",
+    "fakeredis[lua]>=2.36",
 ]
 
 # NO locust GROUP HERE, deliberately. See deploy/loadtest/requirements.txt.

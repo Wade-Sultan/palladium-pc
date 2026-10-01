@@ -17,9 +17,13 @@ class ChatModelConfig:
     # stack on purpose. It runs on every elicitation turn and it cannot decide
     # anything except which of several known-missing items to raise first.
     ROUTE_MODEL: str = os.getenv("CHAT_ROUTE_MODEL", "google/gemma-3-4b-it")
-    # Qwen's /no_think switch is useful for this one-number decision on a local
-    # reasoning model. Keep it opt-in so other models and OpenRouter prompts are
-    # unchanged. The model still chooses among the same missing fields.
+    # Skip native thinking for this one-number decision on a local reasoning
+    # model. Keep it opt-in so other models are unchanged; it is ignored on
+    # OpenRouter. The model still chooses among the same missing fields.
+    #
+    # Sent as reasoning_effort=none (see get_chat_model), not as Qwen's
+    # "/no_think" prompt suffix, which this used to append: measured on
+    # qwen3.8-27b the suffix only roughly halved the thinking.
     ROUTE_NO_THINK: bool = os.getenv("CHAT_ROUTE_NO_THINK", "false").lower() in (
         "1",
         "true",
