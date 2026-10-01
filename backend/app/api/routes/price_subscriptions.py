@@ -63,7 +63,7 @@ async def _resolve_user(db: AsyncSession, token: dict) -> User:
     if user is None:
         if not email:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Token has no email claim",
             )
         user = User(

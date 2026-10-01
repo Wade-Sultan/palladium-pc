@@ -1,0 +1,70 @@
+# Jaeger for local development, standing in for Managed OpenTelemetry's
+# collector and Cloud Trace behind it.
+#
+# In prod, Managed OTel injects OTEL_EXPORTER_OTLP_ENDPOINT into the Pods it
+# selects and backend/app/core/tracing.py attaches its Google exporter only when
+# it finds that variable. Without something here, that whole half of tracing (the
+# FastAPI request spans, SQL, Valkey, Pub/Sub, and the API-to-worker trace
+# continuity they exist to show) never runs locally. config-local.yaml points
+# the variable at this Service instead, the one difference being who sets it.
+#
+# Jaeger rather than a bare OTel collector because it is also the viewer, and
+# because its query API is what scripts/mk-verify-tracing.sh asserts against.
+# UI on http://localhost:16686 via the Tiltfile's port-forward.
+#
+# In-memory storage, nothing persists. Same reasoning as valkey.yaml: an empty
+# store on every cluster rebuild is what a test wants.
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+    - name: query
+      port: 16686
+      targetPort: query
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: jaegertracing/jaeger:2.21.0
+          env:
+            # Every endpoint in Jaeger v2's built-in config binds
+            # ${JAEGER_LISTEN_HOST:-localhost}. Left at localhost, the OTLP
+            # receiver refuses every pod but itself, and the exporters in
+            # builder and worker fail with connection refused on each batch.
+            - name: JAEGER_LISTEN_HOST
+              value: "0.0.0.0"
+          ports:
+            - containerPort: 4318
+              name: otlp-http
+            - containerPort: 16686
+              name: query
+          readinessProbe:
+            tcpSocket:
+              port: otlp-http
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "50m"
+              memory: 128Mi
+            limits:
+              memory: 1Gi

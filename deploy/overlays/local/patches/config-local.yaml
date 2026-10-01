@@ -227,6 +227,13 @@ data:
   # metadata server here, and core/pubsub.py's _project_id() would raise. It
   # must match the emulator's --project or the topics are invisible.
   GOOGLE_CLOUD_PROJECT: "palladium-local"
+
+  # Set here because nothing injects it. In prod, Managed OpenTelemetry writes
+  # this into each selected Pod at admission and the base ConfigMap deliberately
+  # leaves it out. Here it points at the Jaeger stand-in (jaeger.yaml), so the
+  # Google half of app/core/tracing.py runs locally too. The worker reads this
+  # same ConfigMap, which is what lets one trace cross the Pub/Sub hop.
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318"
 ---
 apiVersion: v1
 kind: ConfigMap

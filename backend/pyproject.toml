@@ -6,7 +6,12 @@ description = ""
 # reached transitively through dspy.
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "fastapi[standard]<1.0.0,>=0.114.2",
+    # 0.142.2 floor: native OpenTelemetry (FastAPI(telemetry=...), see app/main.py)
+    # landed in 0.142.0, and 0.142.2 stops a failed auto-configure from aborting
+    # startup. The no-cloud-cli extra is [standard] minus fastapi-cloud-cli, which
+    # needs sentry-sdk>=2.20 (see the pin below) and is for FastAPI Cloud, which
+    # this does not deploy to.
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.142.2,<1.0.0",
     "email-validator<3.0.0.0,>=2.1.0.post1",
     "tenacity<9.0.0,>=8.2.3",
     "pydantic>2.0",
@@ -26,9 +31,10 @@ dependencies = [
     "dspy-ai>=3.2.1",
     "psycopg2-binary>=2.9.12",
     "sqlalchemy>=2.0.35",
-    # Capped below 8.0: that release requires starlette>=1.0, which cannot be
-    # satisfied alongside fastapi<1.0 (it pins starlette<0.42).
-    "prometheus-fastapi-instrumentator>=7.1.0,<8.0.0",
+    # 8.1.0 floor, and with it starlette>=1.0. Below 8.0.1 it resolves route
+    # names by reading .path off every entry in app.routes, and FastAPI 0.116+
+    # puts _IncludedRouter objects there that have none: every request 500s.
+    "prometheus-fastapi-instrumentator>=8.1.0",
     # Discovery pipeline: lazy-imported inside app/services/discovery/ only,
     # so the API's startup path never pays for them.
     "trafilatura>=1.12",
@@ -67,7 +73,6 @@ dependencies = [
     # one of these. Managed OTel for GKE injects a collector endpoint but does
     # NOT auto-instrument Python, so without these packages the Google pipe
     # carries nothing but the same LLM spans LangSmith already has.
-    "opentelemetry-instrumentation-fastapi>=0.65b0",
     "opentelemetry-instrumentation-httpx>=0.65b0",
     "opentelemetry-instrumentation-sqlalchemy>=0.65b0",
     "opentelemetry-instrumentation-redis>=0.65b0",

@@ -30,8 +30,12 @@ import os
 import signal
 import threading
 import uuid
+from collections.abc import Awaitable
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+
+from opentelemetry import context as otel_context
+from opentelemetry import trace
 
 from app.core.config import settings
 from app.core.loadtest import load_test_scope
@@ -165,6 +169,36 @@ async def _handle(
         # drop every turn that was in flight.
         await turn_stream.release_claim(turn_id)
         raise
+
+
+def _trace_parent(message: Any) -> otel_context.Context:
+    """The context a turn's spans should be children of.
+
+    google-cloud-pubsub (2.39 through 2.41 at least) never makes its own spans
+    current while the callback runs: start_process_span returns from inside its
+    `with start_as_current_span(...)`, which detaches the span again before the
+    callback is called. The trace the API injected at publish reaches the
+    subscriber's spans and stops there, and every Redis, SQL and LLM span of the
+    turn opens a trace of its own. Found on minikube with Jaeger.
+
+    The subscribe span rather than the process span because it is the public
+    one. It covers the message's whole life on this worker, so the turn lands
+    beside "process" in the same trace, which is what matters.
+    """
+    data = getattr(message, "opentelemetry_data", None)
+    span = getattr(data, "subscribe_span", None) if data is not None else None
+    if span is None:
+        return otel_context.get_current()
+    return trace.set_span_in_context(span)
+
+
+async def _within(parent: otel_context.Context, turn: Awaitable[None]) -> None:
+    """Run `turn` with `parent` as its OpenTelemetry context, on the loop thread."""
+    token = otel_context.attach(parent)
+    try:
+        await turn
+    finally:
+        otel_context.detach(token)
 
 
 class Worker:
@@ -339,15 +373,18 @@ class Worker:
         ) = decoded
 
         future = asyncio.run_coroutine_threadsafe(
-            _handle(
-                turn_id,
-                messages,
-                user,
-                conversation_id,
-                load_test,
-                rewound,
-                case_pick,
-                system_pick,
+            _within(
+                _trace_parent(message),
+                _handle(
+                    turn_id,
+                    messages,
+                    user,
+                    conversation_id,
+                    load_test,
+                    rewound,
+                    case_pick,
+                    system_pick,
+                ),
             ),
             self._loop,
         )

@@ -10,6 +10,8 @@ resources:
   # inline in the API process.
   - valkey.yaml
   - pubsub-emulator.yaml
+  # Stands in for Managed OpenTelemetry's collector and Cloud Trace.
+  - jaeger.yaml
   # Requires KEDA on the cluster, installed by scripts/minikube-cilium-up.sh.
   - keda-worker.yaml
   - gateway.yaml
