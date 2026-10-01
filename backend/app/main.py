@@ -11,7 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.main import api_router
 from app.core import pubsub
 from app.core.config import settings
-from app.core.loadtest import LoadTestMiddleware
+from app.core.loadtest import LoadTestMiddleware, is_load_test_request
 from app.core.logging import configure_logging
 from app.core.metrics import PROBE_PATHS
 from app.core.metrics import instrument as instrument_metrics
@@ -126,7 +126,12 @@ app = FastAPI(
         # app/core/metrics.py). Inert today, as no OTel MeterProvider exists, but
         # adding one later would otherwise double-count every request.
         "metrics": False,
-        "exclude": lambda scope: scope.get("path") in PROBE_PATHS,
+        # Load-test requests too: this span starts outside LoadTestMiddleware,
+        # before the flag the tracing sampler drops everything else by is set.
+        # See _build_load_test_sampler in app/core/tracing.py.
+        "exclude": lambda scope: (
+            scope.get("path") in PROBE_PATHS or is_load_test_request(scope)
+        ),
     },
 )
 

@@ -370,3 +370,57 @@ def test_a_second_parse_failure_is_not_swallowed(monkeypatch):
 
     with pytest.raises(AdapterParseError):
         asyncio.run(cp.extract_profile([ChatMessage(role="user", content="gaming pc")]))
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("4", "4"),
+        (" 8 ", "8"),
+        ("none", None),
+        ("2-4", None),
+        ("two", None),
+        ("stub", None),
+    ],
+)
+def test_server_gpu_count_outside_the_signature_is_dropped(monkeypatch, raw, expected):
+    """validate_build runs int() on this. An answer outside the signature's set
+    used to raise there and turn the whole turn into an error message."""
+    import dspy
+
+    from app.schemas.chat import ChatMessage
+    from app.services import chat_pipeline as cp
+
+    monkeypatch.setattr(
+        "app.services.recommender.dspy_pipeline.session_lm",
+        lambda _sid, **_kw: _FakeLM(),
+    )
+    fields = {
+        "games": "",
+        "workloads": "",
+        "notes": "",
+        "primary_use": "server",
+        "budget_tier": "mid",
+        "gaming_resolution": "none",
+        "gaming_fps": "none",
+        "streaming_style": "none",
+        "ai_workload": "none",
+        "ai_model_scale": "none",
+        "server_workload": "ai_training",
+        "server_gpu_count": raw,
+        "editing_resolution": "none",
+        "rendering_software": "",
+        "workload_intensity": "none",
+    }
+    monkeypatch.setattr(
+        cp, "_get_extract_program", lambda: lambda conversation: type("P", (), fields)()
+    )
+    monkeypatch.setattr(
+        dspy, "context", lambda **kw: __import__("contextlib").nullcontext()
+    )
+
+    profile = asyncio.run(
+        cp.extract_profile([ChatMessage(role="user", content="training rig")])
+    )
+
+    assert profile.server_gpu_count == expected

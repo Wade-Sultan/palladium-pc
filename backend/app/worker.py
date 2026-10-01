@@ -258,6 +258,18 @@ class Worker:
         # accepting one it is not ready to run.
         warm_dspy_pipeline()
 
+        # SIGTERM during the warm-up above is routine, not an edge case: a
+        # rollout or a KEDA scale-in can land in that 8-20s window. stop() runs
+        # in the signal handler, finds no pull to cancel and stops the loop, and
+        # then returns here. Subscribing anyway made a pod that leased turns it
+        # could never run (their coroutines target the stopped loop) and held
+        # them until SIGKILL, terminationGracePeriodSeconds later. Each one was
+        # a user watching a stream that never moved. Found on minikube, where
+        # back-to-back rebuilds hit it every time.
+        if self._stopping.is_set():
+            logger.info("worker %s stopped during startup; not subscribing", WORKER_ID)
+            return
+
         from app.core.pubsub import _project_id  # deliberate: same resolution logic
 
         # Matches the publisher in app/core/pubsub.py: this is the side that
@@ -291,6 +303,11 @@ class Worker:
         self._pull = self._subscriber.subscribe(
             path, callback=self._callback, flow_control=flow, scheduler=scheduler
         )
+        if self._stopping.is_set():
+            # The signal landed during subscribe() itself, after the check above
+            # and before self._pull existed for stop() to cancel.
+            self._pull.cancel()
+            return
         logger.info(
             "worker %s subscribed to %s (concurrency=%s)",
             WORKER_ID,
@@ -303,7 +320,9 @@ class Worker:
         self._loop.run_forever()
 
     def wait(self) -> None:
-        assert self._pull is not None
+        if self._pull is None:
+            # start() returned without subscribing because stop() came first.
+            return
         try:
             self._pull.result()
         except Exception:

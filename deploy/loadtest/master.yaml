@@ -45,11 +45,18 @@ spec:
             # Adds a user-class selector to the UI. The default 1:4 chat:browse
             # weighting mirrors real traffic and is right for asking "how does
             # the service behave under load", but it is the wrong tool for
-            # finding the worker pool's ceiling: saturating 16 concurrent turn
-            # slots that way takes ~550 users, most of them generating browse
-            # traffic that is not the constraint. Selecting ChatUser alone gets
-            # there at ~110. Both runs are worth having; this flag is what lets
-            # one deployment do both.
+            # finding the worker pool's ceiling, since most of its users
+            # generate browse traffic that is not the constraint. Selecting
+            # ChatUser alone is. Both runs are worth having; this flag is what
+            # lets one deployment do both.
+            #
+            # Sizing, at the default LOAD_TEST_STUB_DSPY_MS=2000 on the server
+            # (backend/app/core/loadtest_stubs.py): a ChatUser session holds a
+            # worker slot ~23s of every ~26s (a ~20s first turn, a ~3s case
+            # pick, a 2-5s wait), so each keeps ~0.87 slots busy. 16 slots (2
+            # workers x 8) fill at ~19 ChatUsers, ~95 users at the 1:4 mix;
+            # KEDA's ceiling of 64 (8 x 8) at ~74 ChatUsers. Change the stub
+            # delay and these move with it.
             - --class-picker
           ports:
             - containerPort: 8089

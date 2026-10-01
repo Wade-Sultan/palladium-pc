@@ -90,6 +90,76 @@ def _build_scope_filter_processor(inner):
     return ScopeFilterSpanProcessor(inner)
 
 
+def _unsampled_pubsub_batch(attributes, links) -> bool:
+    """A Pub/Sub batch RPC span none of whose messages were sampled.
+
+    See _build_load_test_sampler. The batch-count attribute is what tells the
+    batch RPCs apart from Pub/Sub's per-message spans (create, subscribe,
+    process), which have a parent to decide by and must be left to it.
+    """
+    return bool(
+        attributes
+        and attributes.get("messaging.system") == "gcp_pubsub"
+        and "messaging.batch.message_count" in attributes
+        and not links
+    )
+
+
+def _build_load_test_sampler(inner):
+    """Wrap a sampler so nothing started during a load-tested request or turn is
+    recorded.
+
+    A load test runs thousands of stubbed turns, and tracing them ships
+    thousands of traces describing LLM calls that never happened: into Cloud
+    Trace, and into LangSmith, which bills per trace and whose threads are what
+    the spend and abandonment questions are asked of. This used to be a check at
+    the top of configure_tracing(), which could never fire: the load-test flag
+    is per request, and that runs once at startup, when no request exists.
+
+    Per span instead, at creation, when the flag is set: LoadTestMiddleware sets
+    it for the API request and load_test_scope() for the worker's turn. The two
+    gaps it cannot see on its own are covered elsewhere. FastAPI's request span
+    starts outside the middleware, so app/main.py excludes load-test requests
+    from it. And Pub/Sub's subscriber spans start before the worker reads the
+    message, but their parent is the publish span this sampler dropped, so a
+    parent-based inner sampler (the default, and Managed OTel's) drops them too.
+
+    Pub/Sub's batch RPC spans (publish, modack, ack, nack) are the one thing
+    left. They start on the library's own threads with no parent and no flag,
+    one of each per turn, so a load test still shipped three orphan traces a
+    turn. What they do carry is links to the message spans in the batch, and
+    the library adds a link only for a message span that was sampled. A batch
+    span with no links therefore covers no sampled message, and recording it
+    would describe work nothing else in the trace backend contains. Found on
+    minikube, with Jaeger counting what a Locust run left behind.
+    """
+    from opentelemetry.sdk.trace.sampling import Decision, Sampler, SamplingResult
+
+    from app.core.loadtest import is_load_test
+
+    class LoadTestSampler(Sampler):
+        def should_sample(
+            self,
+            parent_context,
+            trace_id,
+            name,
+            kind=None,
+            attributes=None,
+            links=None,
+            trace_state=None,
+        ) -> SamplingResult:
+            if is_load_test() or _unsampled_pubsub_batch(attributes, links):
+                return SamplingResult(Decision.DROP)
+            return inner.should_sample(
+                parent_context, trace_id, name, kind, attributes, links, trace_state
+            )
+
+        def get_description(self) -> str:
+            return f"LoadTestSampler{{{inner.get_description()}}}"
+
+    return LoadTestSampler()
+
+
 def _instrument_infra() -> None:
     """Attach span emission to the non-LLM half of a turn.
 
@@ -194,13 +264,6 @@ def configure_tracing(service_name: str) -> None:
         return
 
     from app.core.config import settings
-    from app.core.loadtest import is_load_test
-
-    if is_load_test():
-        # A load test runs thousands of stubbed turns. Tracing them would ship
-        # thousands of traces describing calls that never happened.
-        logger.info("load test in progress; tracing not configured")
-        return
 
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
     langsmith_key = settings.LANGSMITH_API_KEY
@@ -229,6 +292,11 @@ def configure_tracing(service_name: str) -> None:
             }
         )
     )
+    # Wrapped, not replaced: provider.sampler is what TracerProvider resolved
+    # from OTEL_TRACES_SAMPLER, which Managed OTel injects, and that ratio must
+    # keep governing real traffic. Set before any tracer exists, since each
+    # tracer copies the sampler when it is created.
+    provider.sampler = _build_load_test_sampler(provider.sampler)
 
     if otlp_endpoint:
         # No endpoint argument: the exporter reads OTEL_EXPORTER_OTLP_ENDPOINT

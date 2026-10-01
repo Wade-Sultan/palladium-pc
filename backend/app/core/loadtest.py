@@ -116,6 +116,16 @@ class LoadTestMiddleware:
             _load_test.reset(token)
 
 
+def is_load_test_request(scope: Scope) -> bool:
+    """is_load_test() for code that runs before LoadTestMiddleware has set it.
+
+    FastAPI's native telemetry wraps the whole middleware stack, so its request
+    span starts before the ContextVar exists. This answers the same question
+    from the raw scope, with the same secret check.
+    """
+    return scope.get("type") == "http" and _authorized(scope.get("headers") or [])
+
+
 def _authorized(headers: list[tuple[bytes, bytes]]) -> bool:
     secret = settings.LOAD_TEST_SECRET
     if not secret:

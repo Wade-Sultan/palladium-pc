@@ -75,3 +75,67 @@ def test_tracing_off_still_runs_the_turn(worker, seen):
 
     message.ack.assert_called_once()
     assert not seen[0].is_valid
+
+
+class _FakeSubscriber:
+    """Stands in for pubsub_v1.SubscriberClient; records subscribe calls."""
+
+    def __init__(self, on_subscribe=None, **_kwargs):
+        self.subscribed = 0
+        self.future = MagicMock()
+        self._on_subscribe = on_subscribe
+
+    def subscription_path(self, project, sub):
+        return f"projects/{project}/subscriptions/{sub}"
+
+    def subscribe(self, *_args, **_kwargs):
+        self.subscribed += 1
+        if self._on_subscribe:
+            self._on_subscribe()
+        return self.future
+
+
+@pytest.fixture
+def quiet_start(monkeypatch):
+    """Everything start()/stop() touch besides the subscription, made inert."""
+    from google.cloud import pubsub_v1
+
+    from app.core import valkey
+    from app.core.config import settings
+
+    async def nothing(*_a, **_k):
+        return None
+
+    monkeypatch.setattr(settings, "PUBSUB_SUBSCRIPTION", "chat-turns-workers")
+    monkeypatch.setattr(worker_mod, "start_metrics_exporter", lambda: None)
+    monkeypatch.setattr(worker_mod, "configure_tracing", lambda _name: None)
+    monkeypatch.setattr(worker_mod, "buffer_gauge_loop", nothing)
+    monkeypatch.setattr(valkey, "close_client", nothing)
+    monkeypatch.setattr("app.core.pubsub._project_id", lambda: "palladium-test")
+    return monkeypatch, pubsub_v1
+
+
+def test_sigterm_during_warmup_never_subscribes(quiet_start):
+    monkeypatch, pubsub_v1 = quiet_start
+    w = worker_mod.Worker()
+    subscriber = _FakeSubscriber()
+    monkeypatch.setattr(pubsub_v1, "SubscriberClient", lambda **kw: subscriber)
+    # What the signal handler does when SIGTERM lands mid warm-up.
+    monkeypatch.setattr(worker_mod, "warm_dspy_pipeline", w.stop)
+
+    w.start()
+    w.wait()  # returns, rather than asserting on a pull that never existed
+
+    assert subscriber.subscribed == 0
+
+
+def test_sigterm_during_subscribe_cancels_the_pull(quiet_start):
+    monkeypatch, pubsub_v1 = quiet_start
+    w = worker_mod.Worker()
+    subscriber = _FakeSubscriber(on_subscribe=w.stop)
+    monkeypatch.setattr(pubsub_v1, "SubscriberClient", lambda **kw: subscriber)
+    monkeypatch.setattr(worker_mod, "warm_dspy_pipeline", lambda: None)
+
+    w.start()
+
+    subscriber.future.cancel.assert_called_once()

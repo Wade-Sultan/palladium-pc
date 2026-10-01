@@ -213,7 +213,7 @@ def test_stub_chat_model_answers_a_non_streaming_call() -> None:
     assert usage["tokens_in"] == 0
 
 
-def test_stub_lm_satisfies_typed_signatures() -> None:
+def test_stub_lm_satisfies_typed_signatures(monkeypatch) -> None:
     """Generic field-type coercion, which is what lets one stub serve all the
     Decide* modules instead of a hand-maintained answer per signature.
 
@@ -224,7 +224,10 @@ def test_stub_lm_satisfies_typed_signatures() -> None:
     """
     import dspy
 
+    from app.core import loadtest_stubs
     from app.core.loadtest_stubs import make_stub_lm
+
+    monkeypatch.setattr(loadtest_stubs, "_DSPY_CALL_S", 0)
 
     class Sig(dspy.Signature):
         question: str = dspy.InputField()
