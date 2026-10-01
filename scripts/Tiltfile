@@ -127,6 +127,9 @@ k8s_resource('postgres', port_forwards='5433:5432', labels=['data'])
 # poking at keys from the host (any redis client speaks to Valkey).
 k8s_resource('valkey', port_forwards='6379:6379', labels=['data'])
 k8s_resource('pubsub-emulator', labels=['data'])
+# The trace backend that config-local.yaml's OTEL_EXPORTER_OTLP_ENDPOINT points
+# at. The forward is the UI and query API: http://localhost:16686.
+k8s_resource('jaeger', port_forwards='16686:16686', labels=['data'])
 
 # Declares the topics and subscriptions into the emulator, which starts empty
 # and persists nothing. MANUAL trigger mode with the default auto_init: it runs

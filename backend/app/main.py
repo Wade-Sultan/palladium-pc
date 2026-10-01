@@ -13,6 +13,7 @@ from app.core import pubsub
 from app.core.config import settings
 from app.core.loadtest import LoadTestMiddleware
 from app.core.logging import configure_logging
+from app.core.metrics import PROBE_PATHS
 from app.core.metrics import instrument as instrument_metrics
 from app.core.metrics import start_exporter as start_metrics_exporter
 from app.core.tracing import configure_tracing, shutdown_tracing
@@ -62,7 +63,7 @@ async def lifespan(app: FastAPI):
     # Before the warm-up task, so the DSPy/litellm import chain it triggers is
     # itself traced. That chain is the slowest thing a cold pod does, and a
     # trace that starts after it hides exactly the part worth seeing.
-    configure_tracing("palladium-api", fastapi_app=app)
+    configure_tracing("palladium-api")
 
     # Fire-and-forget: don't await, so lifespan startup (and thus port
     # binding) isn't blocked on the dspy/litellm import chain.
@@ -108,6 +109,25 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
     lifespan=lifespan,
+    # Native request spans, plus child spans for dependency resolution, the
+    # endpoint and serialization. They go through the global provider that
+    # configure_tracing() installs, looked up per request, so a process with no
+    # tracing configured (local, tests) emits nothing.
+    telemetry={
+        # Off, or tracing silently loses LangSmith. FastAPI's auto-configure runs
+        # on the lifespan startup message, before the lifespan body above, and
+        # with Managed OTel's injected OTEL_EXPORTER_OTLP_ENDPOINT it installs a
+        # global TracerProvider of its own. The global can only be set once, so
+        # configure_tracing()'s provider (LangSmith exporter, service.name) would
+        # then be refused with a single warning. It would also start pushing
+        # OTLP metrics and logs that GMP and stdout already carry.
+        "auto_configure": False,
+        # HTTP metrics belong to prometheus-fastapi-instrumentator (see
+        # app/core/metrics.py). Inert today, as no OTel MeterProvider exists, but
+        # adding one later would otherwise double-count every request.
+        "metrics": False,
+        "exclude": lambda scope: scope.get("path") in PROBE_PATHS,
+    },
 )
 
 if settings.all_cors_origins:

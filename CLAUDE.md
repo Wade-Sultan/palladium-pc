@@ -89,13 +89,14 @@ unrecoverable control plane. `minikube-cilium-up.sh` is the only supported way t
 header explains why.
 
 Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres `:5433`, Valkey
-`:6379`. `scripts/gateway-forward.sh` relays `127.0.0.1:8081` → the Cilium Gateway (hosts
+`:6379`, Jaeger UI `:16686` (the local stand-in for Managed OTel and Cloud Trace). `scripts/gateway-forward.sh` relays `127.0.0.1:8081` → the Cilium Gateway (hosts
 `api.palladium.local`, `commerce.palladium.local`); port 80 is unavailable under WSL2.
 
 ```bash
 ./scripts/mk-smoke.sh                  # end-to-end chat turn through the DISPATCHED path, no LLM spend
 ./scripts/mk-verify-locked-parts.sh    # locked-parts machinery against the real seeded catalog
 ./scripts/mk-verify-system-offer.sh    # system offers: fit, offer store, picks via a worker, commerce
+./scripts/mk-verify-tracing.sh         # OTel: request spans, probe exclusion, one trace across Pub/Sub
 ./scripts/seed-local-db.sh [--force]   # restore .local-seed/palladium.dump, strip PII
 ./scripts/dump-prod-db.sh              # refresh that dump from Cloud SQL
 ./scripts/logs.sh [-H]                 # prod GKE logs (live kubectl, or -H for Cloud Logging history)

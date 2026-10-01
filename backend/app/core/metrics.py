@@ -26,6 +26,12 @@ logger = logging.getLogger(__name__)
 
 METRICS_PORT = int(os.environ.get("METRICS_PORT", "9090"))
 
+# The health endpoints are hit by three probes on 5-15s periods, which would
+# otherwise dominate every request-rate panel and bury real traffic. Shared
+# with the trace exclusion in app/main.py, where the same probes would mint a
+# trace every few seconds per pod.
+PROBE_PATHS = ("/api/v1/healthz", "/api/v1/readyz")
+
 
 def instrument(app: FastAPI) -> None:
     """Attach request instrumentation to `app`.
@@ -35,11 +41,9 @@ def instrument(app: FastAPI) -> None:
     job, on its own port.
     """
     Instrumentator(
-        # The health endpoints are hit by three probes on 5-15s periods, which
-        # would otherwise dominate every request-rate panel and bury real
-        # traffic. GMP's own scrape of /metrics is on the other port and never
-        # reaches this app at all.
-        excluded_handlers=["/api/v1/healthz", "/api/v1/readyz"],
+        # GMP's own scrape of /metrics is on the other port and never reaches
+        # this app at all, so the probes are the only noise to drop.
+        excluded_handlers=list(PROBE_PATHS),
         # THE IMPORTANT ONE FOR THIS SERVICE. /chat streams SSE for up to
         # _DSPY_CHAT_TIMEOUT_S (180s), and by default the duration histogram
         # measures until the stream *closes*, so a normal, healthy build

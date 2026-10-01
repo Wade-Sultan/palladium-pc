@@ -90,14 +90,24 @@ def _build_scope_filter_processor(inner):
     return ScopeFilterSpanProcessor(inner)
 
 
-def _instrument_infra(fastapi_app) -> None:
+def _instrument_infra() -> None:
     """Attach span emission to the non-LLM half of a turn.
 
     These are the spans the scope filter deliberately keeps out of LangSmith:
-    the inbound request, the SQL it runs, the Valkey checkpoint reads, the
-    outbound HTTP. They exist for Cloud Trace, and they are the reason the
-    Google pipe is worth turning on at all, without them it carries the same
-    LLM spans LangSmith already has and nothing else.
+    the SQL a turn runs, the Valkey checkpoint reads, the outbound HTTP. They
+    exist for Cloud Trace, and they are the reason the Google pipe is worth
+    turning on at all, without them it carries the same LLM spans LangSmith
+    already has and nothing else.
+
+    The inbound request span is not attached here. FastAPI emits it natively
+    (see the telemetry= argument in app/main.py) through whatever global
+    provider is installed when a request arrives. The contrib
+    FastAPIInstrumentor used to live here and never produced a span in
+    production: called from the lifespan hook, it patched
+    build_middleware_stack after Starlette had already built the stack for the
+    lifespan event itself, so the patch never ran. It is gone rather than moved
+    to module level because FastAPI disables its native telemetry whenever that
+    middleware is present.
 
     Managed OpenTelemetry for GKE does not supply any of this. It runs a
     collector and injects OTEL_EXPORTER_OTLP_ENDPOINT; instrumenting the
@@ -106,18 +116,6 @@ def _instrument_infra(fastapi_app) -> None:
     Each instrumentor is caught separately. A missing optional dependency or
     a version skew in one should not cost the others.
     """
-    if fastapi_app is not None:
-        try:
-            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-            # instrument_app, not the global instrument(): configure_tracing runs
-            # from the lifespan hook, which is long after app.main built the
-            # FastAPI object, and the global form only patches instances
-            # constructed after it is called.
-            FastAPIInstrumentor.instrument_app(fastapi_app)
-        except Exception:
-            logger.warning("FastAPI OTel instrumentation failed", exc_info=True)
-
     try:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
@@ -183,15 +181,12 @@ def _instrument_llm_clients(langsmith_enabled: bool) -> None:
         logger.warning("litellm callback setup failed", exc_info=True)
 
 
-def configure_tracing(service_name: str, fastapi_app=None) -> None:
+def configure_tracing(service_name: str) -> None:
     """Install the tracer provider for this process. Idempotent.
 
     service_name distinguishes the API pod from the worker pod in both
     backends: they run the same image and the same pipeline, so without it a
     trace gives no clue which one produced it.
-
-    fastapi_app is the object to attach request instrumentation to; the worker
-    has no such object and passes nothing.
     """
     global _provider
 
@@ -278,7 +273,7 @@ def configure_tracing(service_name: str, fastapi_app=None) -> None:
     _provider = provider
 
     _instrument_llm_clients(langsmith_enabled=bool(langsmith_key))
-    _instrument_infra(fastapi_app)
+    _instrument_infra()
 
 
 def shutdown_tracing() -> None:
