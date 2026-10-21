@@ -292,12 +292,13 @@ steps:
 
         # OPENAI_API_KEY, same shape as VALKEY_HOST: a WARNING, because every
         # read path degrades to "no semantic matches" without erroring and the
-        # build pipeline runs exactly as it did before pgvector existed. But the
-        # embeddings CronJob exits 1 without it, so an unnoticed absence shows
-        # up as a nightly red job and a permanently empty embeddings table.
+        # build pipeline runs exactly as it did before pgvector existed. The
+        # key is still needed at request time, not just for the (now suspended,
+        # run-by-hand) embeddings job: every vector name lookup embeds the
+        # user's query first, so without it only exact names and aliases match.
         kubectl -n "$_NAMESPACE" get secret palladium-secrets-builder \
           -o jsonpath='{.data.OPENAI_API_KEY}' 2>/dev/null | grep -q . \
-          || echo "WARNING: OPENAI_API_KEY missing from palladium-secrets-builder. The embeddings CronJob will fail and catalog matching stays disabled" >&2
+          || echo "WARNING: OPENAI_API_KEY missing from palladium-secrets-builder. Vector name matching is disabled (exact names and aliases still work) and a manual embeddings run will fail" >&2
 
         # The price-alert shared secret is ONE value under two names: the
         # builder sends COMMERCE_INTERNAL_KEY, commerce checks INTERNAL_API_KEY.

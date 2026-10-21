@@ -89,7 +89,8 @@ unrecoverable control plane. `minikube-cilium-up.sh` is the only supported way t
 header explains why.
 
 Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres `:5433`, Valkey
-`:6379`, Jaeger UI `:16686` (the local stand-in for Managed OTel and Cloud Trace). `scripts/gateway-forward.sh` relays `127.0.0.1:8081` → the Cilium Gateway (hosts
+`:6379`, Jaeger UI `:16686` (the local stand-in for Managed OTel and Cloud Trace), fake-gcs-server
+`:4443` (the local stand-in for the raw SerpApi response bucket). `scripts/gateway-forward.sh` relays `127.0.0.1:8081` → the Cilium Gateway (hosts
 `api.palladium.local`, `commerce.palladium.local`); port 80 is unavailable under WSL2.
 
 ```bash
@@ -97,6 +98,7 @@ Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres 
 ./scripts/mk-verify-locked-parts.sh    # locked-parts machinery against the real seeded catalog
 ./scripts/mk-verify-system-offer.sh    # system offers: fit, offer store, picks via a worker, commerce
 ./scripts/mk-verify-tracing.sh         # OTel: request spans, probe exclusion, one trace across Pub/Sub
+./scripts/mk-verify-pricing-raw.sh     # raw SerpApi capture: fetch row, GCS object, write-once; no quota spent
 ./scripts/seed-local-db.sh [--force]   # restore .local-seed/palladium.dump, strip PII
 ./scripts/dump-prod-db.sh              # refresh that dump from Cloud SQL
 ./scripts/logs.sh [-H]                 # prod GKE logs (live kubectl, or -H for Cloud Logging history)
@@ -231,6 +233,12 @@ CronJobs in `deploy/base/jobs/`, each `python -m app.jobs.<name>`: `discovery` (
 expansion: fetch, extract, dedup, evidence-check, validate, reconcile), `pricing_etl` (SerpAPI →
 retail listings), `embeddings` (pgvector), `benchmarks`, `telemetry_drain`,
 `listing_failure_digest`.
+
+`embeddings` is **suspended**: vectors exist only to resolve names (games, software, AI models,
+parts) that the exact name/alias tier misses, and they do not go stale. Run it by hand after a
+catalog import (`kubectl create job --from=cronjob/embeddings embed-once`); the sweep is
+content-addressed, so it embeds only new or changed rows. Community names ("R6", "Siege") belong in
+the row's `aliases` in admin, not in code: the alias tier resolves them before any vector search.
 
 ## Data and migrations
 

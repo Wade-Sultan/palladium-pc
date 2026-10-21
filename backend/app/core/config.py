@@ -226,6 +226,12 @@ class Settings(BaseSettings):
 
     SERPAPI_KEY: str
 
+    # GCS bucket for raw SerpApi responses (app/services/pricing_etl/raw_store.py).
+    # Empty means the product-bound pricing pipeline refuses to spend a search:
+    # a response that cannot be kept is a response that can never be re-parsed.
+    # Locally this names a bucket in the fake-gcs-server, never the real one.
+    PRICING_RAW_BUCKET: str = ""
+
     # --- Price alerts ---------------------------------------------------------
     # The master switch on whether a price drop actually mails anyone. Off means
     # the pricing ETL still evaluates every subscription and logs what it would

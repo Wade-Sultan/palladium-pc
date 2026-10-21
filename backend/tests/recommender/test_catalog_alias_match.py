@@ -13,12 +13,17 @@ measuring it against real data.
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from types import SimpleNamespace
 
+import pytest
+
+from app.models.embeddings import EmbeddedEntity
 from app.services.recommender.catalog_match import (
     CatalogRequirements,
     _apply_performance_profile,
+    _match_by_alias,
     _normalize_term,
     _select_performance_profile,
 )
@@ -48,6 +53,68 @@ def test_normalization_keeps_distinct_names_distinct():
     """Folding must not go so far that different titles collide."""
     assert _normalize_term("Valorant") != _normalize_term("Valheim")
     assert _normalize_term("R6") != _normalize_term("R7")
+
+
+def test_normalization_folds_apostrophes_straight_and_curly():
+    """An LLM or a phone keyboard writes the curly one; a hurried user drops
+    it. All three must hit the catalog title exactly."""
+    variants = [
+        "Tom Clancy's Rainbow Six Siege",
+        "Tom Clancys Rainbow Six Siege",
+        "Tom Clancy’s Rainbow Six Siege",
+    ]
+    assert len({_normalize_term(v) for v in variants}) == 1
+
+
+# --- The alias tier against a catalog row --------------------------------------
+
+_SIEGE_ID = uuid.uuid4()
+_SIEGE_TITLE = "Tom Clancy's Rainbow Six Siege"
+# Curated in admin, as Game.aliases says. Data, not code: this list stands in
+# for whatever the production row carries.
+_SIEGE_ALIASES = ["R6", "Siege", "Rainbow Six", "R6 Siege"]
+
+
+class _CatalogSession:
+    """Answers _match_by_alias's three scans (games, software, AI models) in
+    order, ignoring the statement itself."""
+
+    def __init__(self, games):
+        self._tables = iter([games, [], []])
+
+    async def execute(self, _stmt):
+        return next(self._tables)
+
+
+def _resolve(term):
+    session = _CatalogSession([(_SIEGE_ID, _SIEGE_TITLE, _SIEGE_ALIASES)])
+    return asyncio.run(_match_by_alias(session, term))
+
+
+@pytest.mark.parametrize(
+    "term",
+    [
+        "R6",
+        "Siege",
+        "Rainbow Six",
+        "R6 Siege",
+        "r6siege",
+        "Rainbow six",
+        "Tom Clancy's Rainbow Six Siege",
+        "tom clancys rainbow six siege",
+    ],
+)
+def test_every_community_name_resolves_to_the_catalog_title(term):
+    """R6, Siege, Rainbow Six and R6 Siege are one game. They resolve here, by
+    exact alias, so none of them depends on a vector being present."""
+    assert _resolve(term) == (EmbeddedEntity.GAME.value, _SIEGE_ID)
+
+
+@pytest.mark.parametrize("term", ["R7", "Rainbow Seven", "Siege of Avalon", ""])
+def test_near_misses_do_not_resolve_by_alias(term):
+    """The alias tier is exact after folding. Anything looser is the vector
+    tier's job, with its own distance cutoff."""
+    assert _resolve(term) is None
 
 
 def test_empty_and_whitespace_terms_normalize_to_empty():

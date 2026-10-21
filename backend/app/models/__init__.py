@@ -32,6 +32,14 @@ from .paused_build import PausedBuild
 from .pcbuild import BuildPart, PCBuild
 from .pcparts import PCPart
 from .price_subscription import PriceSubscription, PriceSubscriptionTarget
+from .price_tracking import (
+    DailyPriceEstimate,
+    GoogleProductBinding,
+    PriceFetch,
+    PriceMerchantRule,
+    PriceOffer,
+    PriceTrackingState,
+)
 from .pricing_etl import PriceCheck, PricingRun, SerpApiQuota
 from .shared_build import SharedBuild
 from .software_catalog import Software, SoftwareCategory, SoftwareMinimumPart
