@@ -111,6 +111,17 @@ data:
   #
   # DSPY_ARTIFACT_URI: "gs://<bucket>/dspy-releases/2026-09-12/manifest.json"
   # DSPY_ARTIFACT_SHA256: "<digest printed by export>"
+
+  # --- Raw SerpApi responses -------------------------------------------------
+  # Every product-bound pricing fetch writes its response here before parsing
+  # (app/services/pricing_etl/raw_store.py), write-once, under
+  # serpapi/<engine>/q<profile version>/dt=<date>/<fetch id>.json.gz.
+  #
+  # The builder's GSA (palladium-backend) needs roles/storage.objectCreator
+  # and roles/storage.objectViewer on this bucket, and nothing more. Creator
+  # without delete or update is what makes write-once hold even against a bug:
+  # the runtime can add evidence and read it back, never replace or remove it.
+  PRICING_RAW_BUCKET: "palladium-shopping-results"
 ---
 apiVersion: v1
 kind: ConfigMap

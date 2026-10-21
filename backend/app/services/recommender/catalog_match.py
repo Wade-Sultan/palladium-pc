@@ -734,8 +734,12 @@ def _normalize_term(value: str) -> str:
     the admin panel and by users in chat, and neither is going to agree on case
     or spacing. "Rainbow 6", "rainbow6" and "RAINBOW 6" must all be the same
     key, or curating aliases becomes an exercise in guessing punctuation.
+
+    Apostrophes fold too, straight and curly: "Tom Clancy's", "Tom Clancys" and
+    the "Tom Clancy’s" an LLM or a phone keyboard produces must all hit the
+    catalog title exactly instead of falling through to vector search.
     """
-    return re.sub(r"[\s\-_:]+", "", value.strip().lower())
+    return re.sub(r"[\s\-_:'‘’]+", "", value.strip().lower())
 
 
 async def _match_by_alias(db: AsyncSession, term: str) -> _Hit | None:

@@ -12,6 +12,9 @@ resources:
   - pubsub-emulator.yaml
   # Stands in for Managed OpenTelemetry's collector and Cloud Trace.
   - jaeger.yaml
+  # Stands in for the GCS bucket of raw SerpApi responses. Required, not a
+  # convenience: see the header for what happens without it.
+  - fake-gcs.yaml
   # Requires KEDA on the cluster, installed by scripts/minikube-cilium-up.sh.
   - keda-worker.yaml
   - gateway.yaml

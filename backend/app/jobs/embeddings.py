@@ -1,19 +1,22 @@
-"""Scheduled job entrypoint: `python -m app.jobs.embeddings`.
+"""On-demand job entrypoint: `python -m app.jobs.embeddings`.
 
 Reconciles the `embeddings` table against the catalog and parts tables: embeds
 anything new, re-embeds anything whose descriptive text changed, and deletes
 vectors whose entity is gone.
 
-WHY A SCHEDULED SWEEP RATHER THAN A WRITE HOOK. Rows reach this database from
-the discovery pipeline, the admin app's Prisma writes, and hand-run SQL, and
-only the first goes through the backend at all. A create hook would cover that
-one path and silently miss the others. Reconciliation is content-addressed
-(see services/embeddings/store.py), so it picks up every write no matter who
-made it.
+RUN BY HAND, NOT ON A SCHEDULE. Vectors are only used to resolve names the
+exact name/alias tier misses (catalog_match.py, discussion.find_part), and a
+name's vector does not drift. The CronJob is suspended; run it once after a
+catalog import or a batch of admin edits. See
+deploy/base/jobs/embeddings-cronjob.yaml.
 
-CHEAP WHEN IDLE, which is what makes a frequent schedule reasonable: an
-unchanged catalog costs one indexed SELECT per entity type and zero API calls.
-Cost scales with churn, not with catalog size.
+WHY A SWEEP RATHER THAN A WRITE HOOK. Rows reach this database from the
+discovery pipeline, the admin app's Prisma writes, and hand-run SQL, and only
+the first goes through the backend at all. A create hook would cover that one
+path and silently miss the others. Reconciliation is content-addressed (see
+services/embeddings/store.py), so it picks up every write no matter who made
+it, and a run over an unchanged catalog costs one indexed SELECT per entity
+type and zero API calls.
 
 Runs to completion and exits, reusing the backend image with an overridden
 command: same shape as app.jobs.discovery and app.jobs.ai_models.

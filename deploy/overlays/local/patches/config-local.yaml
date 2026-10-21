@@ -234,6 +234,14 @@ data:
   # Google half of app/core/tracing.py runs locally too. The worker reads this
   # same ConfigMap, which is what lets one trace cross the Pub/Sub hop.
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318"
+
+  # Raw SerpApi responses go to fake-gcs-server (fake-gcs.yaml), never to the
+  # real bucket. Not optional: the builder has real ADC mounted, and raw_store
+  # refuses to build a GCS client in ENVIRONMENT=local without the emulator
+  # host, precisely so a missing line here fails loudly instead of writing to
+  # production. The bucket name matches the init container in fake-gcs.yaml.
+  STORAGE_EMULATOR_HOST: "http://fake-gcs:4443"
+  PRICING_RAW_BUCKET: "palladium-shopping-results"
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -3,16 +3,24 @@ kind: CronJob
 metadata:
   name: embeddings
 spec:
-  # Daily, 04:00, after the pricing ETL and well clear of the monthly
-  # discovery window. Frequent because the sweep is content-addressed and costs
-  # nothing when nothing changed: an unchanged catalog is one indexed SELECT per
-  # entity type and zero API calls. Spend tracks churn, not catalog size or
-  # schedule frequency.
-  # 04:30, not 04:00. Pricing-etl already holds 04:00 daily, and on Autopilot
-  # two jobs requesting capacity at once is two nodes scaling up. There is no
-  # ordering requirement between them: price changes do not touch embedding
-  # hashes (services/embeddings/text.py excludes price precisely so the ETL
-  # never dirties a vector), so this is purely about not colliding.
+  # SUSPENDED: run by hand, never on a schedule. Vectors serve exactly one
+  # purpose, resolving names (games, software, AI models, parts) that the exact
+  # name/alias tier misses, and a name's vector does not go stale on its own.
+  # Generate once, then again only after a catalog import or a batch of admin
+  # edits:
+  #
+  #   kubectl create job --from=cronjob/embeddings embed-once
+  #
+  # The sweep is content-addressed, so a manual run embeds only rows that are
+  # new or whose text changed, and costs nothing when nothing did.
+  #
+  # Until that run, a newly added row is reachable by exact name or alias only.
+  # Kept as a CronJob rather than a bare Job so `create job --from` has a
+  # template to copy; `kubectl apply` writes suspend onto the existing object,
+  # which is what stops it in prod (the deploy step does not prune).
+  suspend: true
+  # Required by the CronJob schema and inert while suspended. 04:30 keeps it
+  # clear of pricing-etl at 04:00 if it is ever unsuspended.
   schedule: "30 4 * * *"
   timeZone: "America/Los_Angeles"
   # Two concurrent sweeps would race on the same (entity_type, entity_id) rows

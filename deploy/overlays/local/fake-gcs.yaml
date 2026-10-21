@@ -1,0 +1,89 @@
+# fake-gcs-server, standing in for the GCS bucket that holds raw SerpApi
+# responses (backend/app/services/pricing_etl/raw_store.py).
+#
+# WHY THIS IS NOT OPTIONAL. The builder pod has real Application Default
+# Credentials mounted (patches/gcp-adc.yaml) for Firebase. A storage client
+# built with those writes to the production bucket from a laptop. raw_store
+# refuses to build one in ENVIRONMENT=local unless STORAGE_EMULATOR_HOST points
+# here, and with it set the client switches to anonymous credentials.
+#
+# PERSISTS NOTHING, like the Pub/Sub emulator: objects live in memory and die
+# with the pod. The bucket itself is recreated on every start from the empty
+# directory the init container makes (fake-gcs-server treats each directory
+# under -data as a bucket). price_fetches rows written before a restart will
+# point at objects that no longer exist, which is fine for local testing and
+# exactly why nothing here is a source of truth.
+#
+# The bucket name must match PRICING_RAW_BUCKET in patches/config-local.yaml.
+apiVersion: v1
+kind: Service
+metadata:
+  name: fake-gcs
+spec:
+  selector:
+    app: fake-gcs
+  ports:
+    - name: http
+      port: 4443
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fake-gcs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fake-gcs
+  template:
+    metadata:
+      labels:
+        app: fake-gcs
+    spec:
+      # Kubernetes injects <SERVICE>_PORT=tcp://<ip>:<port> for every Service,
+      # and this Service's name makes that FAKE_GCS_PORT, which fake-gcs-server
+      # reads as its own port setting and crashes parsing. Service links are
+      # unused here anyway; DNS is how anything finds anything.
+      enableServiceLinks: false
+      initContainers:
+        - name: bucket
+          image: busybox:1.36
+          command: ["mkdir", "-p", "/data/palladium-shopping-results"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      containers:
+        - name: fake-gcs
+          image: fsouza/fake-gcs-server:1.56.1
+          args:
+            - -scheme=http
+            - -port=4443
+            - -backend=memory
+            - -data=/data
+            # What the server writes into upload Location headers and object
+            # self-links. Must be the in-cluster name clients dial, or a
+            # resumable upload's second request goes to localhost and fails.
+            - -external-url=http://fake-gcs:4443
+            - -public-host=fake-gcs:4443
+          ports:
+            - containerPort: 4443
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /storage/v1/b
+              port: http
+            periodSeconds: 5
+            failureThreshold: 12
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "50m"
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: data
+          emptyDir: {}

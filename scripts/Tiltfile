@@ -130,6 +130,10 @@ k8s_resource('pubsub-emulator', labels=['data'])
 # The trace backend that config-local.yaml's OTEL_EXPORTER_OTLP_ENDPOINT points
 # at. The forward is the UI and query API: http://localhost:16686.
 k8s_resource('jaeger', port_forwards='16686:16686', labels=['data'])
+# Raw SerpApi responses (STORAGE_EMULATOR_HOST in config-local.yaml). In memory
+# only; the forward is for listing objects from the host:
+#   curl -s localhost:4443/storage/v1/b/palladium-shopping-results/o
+k8s_resource('fake-gcs', port_forwards='4443:4443', labels=['data'])
 
 # Declares the topics and subscriptions into the emulator, which starts empty
 # and persists nothing. MANUAL trigger mode with the default auto_init: it runs

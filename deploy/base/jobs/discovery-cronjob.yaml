@@ -12,7 +12,8 @@ spec:
   # tracks what users are actually asking for within days.
   #
   # WHY 06:00. It has to clear the daily jobs it would otherwise contend with
-  # for Cloud SQL: pricing-etl at 04:00 and embeddings at 04:30. 05:00 is taken
+  # for Cloud SQL: pricing-etl at 04:00 (embeddings is suspended, run by hand).
+  # 05:00 is taken
   # by benchmarks on Sundays, so an hour after that is the first clean slot.
   #
   # KNOWN QUIRK: */3 restarts each month, so the 31st-to-1st gap is one day
