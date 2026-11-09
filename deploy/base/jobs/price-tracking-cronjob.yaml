@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: price-tracking
+spec:
+  # Product-bound pricing's daily run (backend/app/jobs/price_tracking.py):
+  # re-rank volatility bins weekly, fetch the targets that are due (5 daily,
+  # 100 weekly, the rest every two weeks), write one daily_price_estimates row
+  # per target.
+  #
+  # SUSPENDED until cutover. It spends from the same 1000/month SerpApi account
+  # as pricing-etl, and both running would overrun it (about 725 + 600 a
+  # month). Cutover is: unsuspend this and suspend pricing-etl in one deploy.
+  #
+  # Preview a run (re-ranks if due, lists what it would fetch, spends nothing,
+  # writes no daily rows):
+  #   kubectl exec deploy/builder -- env PRICE_TRACKING_DRY_RUN=1 \
+  #     python -m app.jobs.price_tracking
+  suspend: true
+  # 04:30, half an hour after pricing-etl's slot, so the two never contend for
+  # Cloud SQL or Autopilot capacity during the overlap before cutover.
+  schedule: "30 4 * * *"
+  timeZone: "America/Los_Angeles"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # No retry: a retried run gets a fresh daily cap, so a crash could double
+      # the day's spend. Targets it did not reach stay due for tomorrow.
+      backoffLimit: 0
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: builder
+          containers:
+            - name: price-tracking
+              image: palladium/builder
+              command: ["python", "-m", "app.jobs.price_tracking"]
+              envFrom:
+                - configMapRef:
+                    name: builder-config
+                - secretRef:
+                    name: palladium-secrets
+              resources:
+                requests:
+                  cpu: "250m"
+                  memory: 512Mi
+                limits:
+                  memory: 1Gi

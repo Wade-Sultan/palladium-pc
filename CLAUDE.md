@@ -101,6 +101,9 @@ Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres 
 ./scripts/mk-verify-system-offer.sh    # system offers: fit, offer store, picks via a worker, commerce
 ./scripts/mk-verify-tracing.sh         # OTel: request spans, probe exclusion, one trace across Pub/Sub
 ./scripts/mk-verify-pricing-raw.sh     # raw SerpApi capture: fetch row, GCS object, write-once; no quota spent
+./scripts/mk-verify-pricing-offers.sh  # offer parser: estimate, band, history, re-parse from GCS; no quota spent
+./scripts/mk-verify-product-bindings.sh # product-id discovery, admin review actions, job dry run; no quota spent
+./scripts/mk-verify-price-tracking.sh  # scheduler: bins, due fetches, stale/failure handling, daily rows; no quota spent
 ./scripts/seed-local-db.sh [--force]   # restore .local-seed/palladium.dump, strip PII
 ./scripts/dump-prod-db.sh              # refresh that dump from Cloud SQL
 ./scripts/logs.sh [-H]                 # prod GKE logs (live kubectl, or -H for Cloud Logging history)
@@ -235,6 +238,15 @@ CronJobs in `deploy/base/jobs/`, each `python -m app.jobs.<name>`: `discovery` (
 expansion: fetch, extract, dedup, evidence-check, validate, reconcile), `pricing_etl` (SerpAPI →
 retail listings), `embeddings` (pgvector), `benchmarks`, `telemetry_drain`,
 `listing_failure_digest`.
+
+`price_tracking` is product-bound pricing's daily run (volatility bins: 5 daily, 100 weekly, the rest
+every two weeks; one `daily_price_estimates` row per target per day). It ships **suspended** because
+it and `pricing_etl` together would overrun the 1000/month SerpApi cap; cutover unsuspends one and
+suspends the other in the same deploy.
+
+`product_bindings` is also **suspended** (run by hand): it finds each tracked part's Google Shopping
+product id, one SerpApi search per part, and leaves unclear matches in admin's Product Bindings page.
+Dry run first: `kubectl exec deploy/builder -- env PRODUCT_BINDING_DRY_RUN=1 python -m app.jobs.product_bindings`.
 
 `embeddings` is **suspended**: vectors exist only to resolve names (games, software, AI models,
 parts) that the exact name/alias tier misses, and they do not go stale. Run it by hand after a

@@ -17,6 +17,7 @@ THE CHAIN, one row each:
   google_product_bindings   which Google product IS this pc_parts row
   price_fetches             one SerpApi call, its raw object in GCS
   price_offers              one store's offer inside that response
+  price_history_points      Google's dated price changes per store, per binding
   price_tracking_state      how often a target is fetched (its volatility bin)
   daily_price_estimates     one row per target per day, fetched that day or not
 
@@ -64,6 +65,8 @@ FETCH_PURPOSES = ("offers", "discovery")
 BINS = ("high", "medium", "low")
 
 MERCHANT_RULES = ("membership", "exclude")
+
+ESTIMATE_SOURCES = ("fetch", "history", "carried", "none")
 
 
 def _in(column: str, values: tuple[str, ...]) -> str:
@@ -198,6 +201,18 @@ class PriceFetch(Base):
     n_offers_total = Column(Integer, nullable=False, server_default="0")
     n_offers_used = Column(Integer, nullable=False, server_default="0")
     parser_version = Column(Integer, nullable=True)
+    # Why estimate_cents is what it is ("median_of_2", "single_in_band",
+    # "too_few_offers", ...), so a missing price is explained, not just null.
+    estimate_method = Column(Text, nullable=True)
+
+    # Google's price_range for the product ("$349-$416"). NOT a live min/max
+    # across stores: in the first real capture a live offer ($420) sat above
+    # its top, while its low matched recent dips in the price history. It reads
+    # as Google's smoothed "typical price" band, built over a window and a set
+    # of stores Google does not disclose. Used to vet a lone offer and to flag
+    # outliers; never published as the price.
+    price_range_low_cents = Column(Integer, nullable=True)
+    price_range_high_cents = Column(Integer, nullable=True)
 
     fetched_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
@@ -251,6 +266,41 @@ class PriceOffer(Base):
     fetch = relationship("PriceFetch", back_populates="offers")
 
 
+class PriceHistoryPoint(Base):
+    """One dated price change for one store, from Google's price_insights.
+
+    Every google_product response carries about a year of price changes for
+    each store it shows. That is what lets volatility be ranked from the first
+    fetch instead of after a month of our own observations, and what fills the
+    days between fetches with real prices rather than carried-forward ones.
+
+    Keyed by binding, not by fetch: each response repeats the whole year, so
+    per-fetch rows would store the same points dozens of times. A later fetch
+    that reports a different price for a date already stored wins, and
+    last_seen_fetch_id says which response it came from.
+
+    The prices are Google's, for the stores Google chose to show; they have not
+    passed through the offer rules. Treat them as a market signal, not as
+    validated estimates.
+    """
+
+    __tablename__ = "price_history_points"
+    __table_args__ = (
+        PrimaryKeyConstraint("binding_id", "merchant_name", "price_date"),
+    )
+
+    binding_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("google_product_bindings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    merchant_name = Column(Text, nullable=False)
+    price_date = Column(Date, nullable=False)
+    price_cents = Column(Integer, nullable=False)
+    first_seen_fetch_id = Column(UUID(as_uuid=True), nullable=False)
+    last_seen_fetch_id = Column(UUID(as_uuid=True), nullable=False)
+
+
 class PriceTrackingState(Base):
     """How often a target is fetched.
 
@@ -285,6 +335,8 @@ class PriceTrackingState(Base):
 
     bin = Column(Text, nullable=False, server_default="medium")
     volatility = Column(Float, nullable=True)
+    # Place in the weekly ranking, 1 = most volatile; null until ranked.
+    volatility_rank = Column(Integer, nullable=True)
     n_observations = Column(Integer, nullable=False, server_default="0")
     volatility_computed_at = Column(DateTime(timezone=True), nullable=True)
     out_of_top_streak = Column(Integer, nullable=False, server_default="0")
@@ -317,6 +369,9 @@ class DailyPriceEstimate(Base):
         CheckConstraint(
             _in("target_kind", TARGET_KINDS), name="ck_daily_price_estimates_kind"
         ),
+        CheckConstraint(
+            _in("source", ESTIMATE_SOURCES), name="ck_daily_price_estimates_source"
+        ),
     )
 
     target_kind = Column(Text, nullable=False)
@@ -327,6 +382,8 @@ class DailyPriceEstimate(Base):
     last_observed_at = Column(DateTime(timezone=True), nullable=True)
     source_fetch_id = Column(UUID(as_uuid=True), nullable=True)
     bin = Column(Text, nullable=True)
+    # fetch | history | carried | none: see migration f3b5d7e9a1c2.
+    source = Column(Text, nullable=False, server_default="none")
 
     created_at = Column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -165,6 +165,17 @@ TARGET_MODELS: dict[str, type] = {
 }
 
 
+class CheckOutcome(NamedTuple):
+    """What a target looked like before record_check_outcome wrote to it."""
+
+    name: str | None
+    previous_cents: int | None
+    # Which method produced previous_cents ("serpapi" for the free-text ETL,
+    # "google_product" for product-bound pricing, "msrp" for seeded systems).
+    # Alerts compare like with like: see alerts.comparable.
+    previous_source: str | None
+
+
 async def record_check_outcome(
     db: AsyncSession,
     *,
@@ -172,27 +183,27 @@ async def record_check_outcome(
     target_id: uuid.UUID,
     checked_at: datetime,
     price_cents: int | None,
-) -> tuple[str | None, int | None]:
+    price_source: str = "serpapi",
+) -> CheckOutcome:
     """Always stamps last_price_checked_at (so an unmatched part isn't picked
     again next run), and additionally writes street_price_cents/price_source
     when the check produced a usable price.
 
-    Returns (name, previous street_price_cents) read before the write. The
-    price-alert evaluation needs both, and after this commit the old price is
-    gone. (None, None) if the row has vanished since the batch was built.
+    Returns the name, price and price source read before the write. The
+    price-alert evaluation needs all three, and after this commit the old
+    values are gone. All None if the row has vanished since the batch was built.
     """
     model = TARGET_MODELS[target_kind]
     target = await db.get(model, target_id)
     if target is None:
-        return None, None
-    name = target.name
-    previous_price_cents = target.street_price_cents
+        return CheckOutcome(None, None, None)
+    before = CheckOutcome(target.name, target.street_price_cents, target.price_source)
     target.last_price_checked_at = checked_at
     if price_cents is not None:
         target.street_price_cents = price_cents
-        target.price_source = "serpapi"
+        target.price_source = price_source
     await db.commit()
-    return name, previous_price_cents
+    return before
 
 
 async def get_quota_used(db: AsyncSession, month: Any) -> int:

@@ -105,6 +105,21 @@ def _capacities(title: str) -> set[Decimal]:
     return capacities
 
 
+def recognized_identity(part_title: str) -> str | None:
+    """What exclusion_reason can actually check for this part: "model" when a
+    known model scheme is in the name, "capacity" for a sized part, or None
+    when neither is, in which case exclusion_reason passes every title and
+    only the similarity gate stands between a part and a wrong match. Binding
+    discovery uses this to decide whether a match is strong enough to confirm
+    without a human."""
+    normalized = _normalize(part_title)
+    if _models(normalized):
+        return "model"
+    if _capacities(normalized):
+        return "capacity"
+    return None
+
+
 def exclusion_reason(part_title: str, result_title: str) -> str | None:
     expected = _normalize(part_title)
     actual = _normalize(result_title)

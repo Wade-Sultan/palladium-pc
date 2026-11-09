@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: product-bindings
+spec:
+  # SUSPENDED: run by hand. Finds the Google Shopping product id for each
+  # tracked SKU that has none, one search per SKU
+  # (backend/app/services/pricing_etl/binding_discovery.py). A one-time cost per
+  # SKU, so there is nothing to schedule; strong matches confirm themselves and
+  # the rest wait in admin's Product Bindings page.
+  #
+  # See what a run would search, spending nothing (in the builder pod, which
+  # has the same image and config):
+  #   kubectl exec deploy/builder -- env PRODUCT_BINDING_DRY_RUN=1 \
+  #     python -m app.jobs.product_bindings
+  # Then run it for real (PRODUCT_BINDING_LIMIT below, 25 searches):
+  #   kubectl create job --from=cronjob/product-bindings bind-1
+  #
+  # It stops while fewer than 150 searches remain this month (QUOTA_RESERVE in
+  # app/jobs/product_bindings.py), so it cannot starve the pricing ETL.
+  suspend: true
+  # Required by the schema, inert while suspended.
+  schedule: "0 5 1 * *"
+  timeZone: "America/Los_Angeles"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # No retry: a retried run re-buys searches for every SKU the failed run
+      # had not yet recorded. Run it again by hand after reading the logs.
+      backoffLimit: 0
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          restartPolicy: Never
+          serviceAccountName: builder
+          containers:
+            - name: product-bindings
+              image: palladium/builder
+              command: ["python", "-m", "app.jobs.product_bindings"]
+              env:
+                # SKUs searched per run. Each is one SerpApi search.
+                - name: PRODUCT_BINDING_LIMIT
+                  value: "25"
+                # "1" logs what would be searched and spends nothing.
+                - name: PRODUCT_BINDING_DRY_RUN
+                  value: "0"
+              envFrom:
+                - configMapRef:
+                    name: builder-config
+                - secretRef:
+                    name: palladium-secrets
+              resources:
+                requests:
+                  cpu: "250m"
+                  memory: 512Mi
+                limits:
+                  memory: 1Gi

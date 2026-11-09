@@ -152,6 +152,21 @@ if ! kubectl wait --for=condition=Accepted=True gatewayclass/cilium --timeout=12
   exit 1
 fi
 
+# CoreDNS forwards to public resolvers, not the node's /etc/resolv.conf.
+#
+# Under WSL2 the node's resolver is 192.168.65.254 (Docker's embedded DNS), and
+# it stops answering: CoreDNS logs `read udp ...->192.168.65.254:53: i/o
+# timeout` and every external hostname fails to resolve from every pod, while
+# raw IPs still route fine. Cluster-internal names keep working, so the cluster
+# looks healthy and the failure only shows up as a job that cannot reach
+# SerpApi, Tavily or Hugging Face ("Temporary failure in name resolution").
+# Forwarding upstream directly removes the dependency on that resolver.
+kubectl -n kube-system get configmap coredns -o yaml \
+  | sed 's#forward \. /etc/resolv\.conf#forward . 1.1.1.1 8.8.8.8#' \
+  | kubectl replace -f -
+kubectl -n kube-system rollout restart deployment/coredns
+kubectl -n kube-system rollout status deployment/coredns --timeout=120s
+
 # KEDA, which is what scales the worker Deployment. Installed here rather than
 # left as a separate manual step because this script BEGINS with `minikube
 # delete`, so without it every cluster rebuild silently comes back with no

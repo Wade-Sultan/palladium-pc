@@ -12,6 +12,9 @@ from app.services.pricing_etl.serpapi_client import SerpApiConfigError, search_s
 
 logger = logging.getLogger(__name__)
 
+# The price_source this runner writes alongside street_price_cents.
+PRICE_SOURCE = "serpapi"
+
 # How many parts/groups one Cloud Run Job execution attempts, on top of
 # whatever's left in the monthly SerpAPI budget. 30/day keeps the monthly
 # total (~930) comfortably under the 1000 cap even on a full month, leaving
@@ -143,20 +146,38 @@ async def _check_target(
         price_stddev_cents=price_stats.stddev_cents if price_stats else None,
         applied=applied_cents is not None,
     )
-    name, previous_cents = await crud.record_check_outcome(
+    before = await crud.record_check_outcome(
         db,
         target_kind=target.kind,
         target_id=target.id,
         checked_at=datetime.now(UTC),
         price_cents=applied_cents,
+        price_source=PRICE_SOURCE,
     )
+
+    # Only alert against a price this same method produced. Product-bound
+    # pricing (scheduler.py) writes street_price_cents too, and a different
+    # method's number is not a market movement. See alerts.comparable.
+    if applied_cents is not None and not alerts.comparable(
+        before.previous_cents, before.previous_source, PRICE_SOURCE
+    ):
+        logger.info(
+            "pricing run %s: %s %s price method changed (%s -> %s); new price "
+            "written as a baseline, no alerts evaluated",
+            run_id,
+            target.kind,
+            target.id,
+            before.previous_source,
+            PRICE_SOURCE,
+        )
+        return len(queries), True, 0
 
     outcome = await alerts.process_target(
         db,
         target_kind=target.kind,
         target_id=target.id,
-        target_name=name,
-        previous_cents=previous_cents,
+        target_name=before.name,
+        previous_cents=before.previous_cents,
         new_cents=applied_cents,
     )
 

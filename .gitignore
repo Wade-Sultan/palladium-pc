@@ -13,6 +13,12 @@
 *.dump
 *.sql.gz
 
+# Raw SerpApi responses stay out of the repository. Real captures live in
+# .local-seed/serpapi/ (ignored above) and in the GCS raw bucket; committed
+# tests use the hand-written sample in backend/tests/pricing/serpapi_samples.py.
+# This line guards the path where captures were first saved.
+backend/tests/pricing/fixtures/serpapi/
+
 # Supabase CLI (local dev)
 supabase/.temp/
 supabase/.branches/

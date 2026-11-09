@@ -31,6 +31,24 @@ SKIP_NOT_A_DROP = "not_a_drop"
 SKIP_ALREADY_BELOW = "already_below_threshold"
 
 
+def comparable(
+    previous_cents: int | None, previous_source: str | None, new_source: str
+) -> bool:
+    """May a price from `new_source` be compared with the stored one for an alert?
+
+    Only when the stored price came from the same method, or there is none.
+    Two jobs write street_price_cents: the free-text ETL ("serpapi") and
+    product-bound pricing ("google_product"), and seeded systems start at
+    "msrp". They measure differently; the same 7800X3D can read $449 by one
+    and $415.99 by the other on the same day. Without this rule the first
+    product-bound write would announce that difference to every subscriber as
+    a price drop, and two jobs overwriting each other would announce it again
+    every time they took turns. A method change instead writes the new price
+    as the baseline, and the next same-method price is compared against it.
+    """
+    return previous_cents is None or previous_source == new_source
+
+
 @dataclass(frozen=True)
 class Decision:
     fire: bool

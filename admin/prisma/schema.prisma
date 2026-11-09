@@ -42,6 +42,8 @@ model PcPart {
   gameMinimums                GameMinimumPart[]
   gamePerformanceObservations GamePerformanceObservation[]
   softwareMinimums            SoftwareMinimumPart[]
+  googleProductBindings       GoogleProductBinding[]
+  trackedFor                  PriceTrackingState[]
 
   @@map("pc_parts")
 }
@@ -986,4 +988,62 @@ model GuideVideo {
 
   @@index([isPublished, sortOrder], map: "ix_guide_videos_published_order")
   @@map("guide_videos")
+}
+
+// --- Product-bound pricing ---------------------------------------------------
+// Tables owned by backend alembic migrations d9e1f3a5b7c2 and e2a4c6e8f0b1; see
+// backend/app/models/price_tracking.py for what each row means. Only what the
+// Product Bindings page reads or writes is mapped here.
+
+// Which Google Shopping product a pc_parts row IS. googleProductId is never
+// edited in place: a rebind is a new row and the old one is retired, so every
+// fetched offer stays attributable to the product it was fetched for. At most
+// one row per part is 'confirmed' (partial unique index in the migration).
+model GoogleProductBinding {
+  id                  String    @id @default(uuid()) @db.Uuid
+  partId              String    @map("part_id") @db.Uuid
+  part                PcPart    @relation(fields: [partId], references: [id], onDelete: Cascade)
+  googleProductId     String    @map("google_product_id")
+  status              String    @default("candidate") // candidate | confirmed | stale | rejected | retired
+  confirmedBy         String?   @map("confirmed_by") // auto | admin
+  googleTitle         String?   @map("google_title")
+  matchEvidence       Json      @default("{}") @map("match_evidence")
+  discoveryFetchId    String?   @map("discovery_fetch_id") @db.Uuid
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastFetchedAt       DateTime? @map("last_fetched_at")
+  lastSuccessAt       DateTime? @map("last_success_at")
+  statusChangedAt     DateTime  @default(now()) @map("status_changed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  @@unique([partId, googleProductId], map: "uq_google_product_bindings_part")
+  @@index([partId], map: "ix_google_product_bindings_part_id")
+  @@map("google_product_bindings")
+}
+
+// One row per price target. trackedPartId is the SKU whose binding is fetched:
+// the part itself for a pc_part target, one chosen variant for a group.
+model PriceTrackingState {
+  targetKind    String    @map("target_kind")
+  targetId      String    @map("target_id") @db.Uuid
+  trackedPartId String?   @map("tracked_part_id") @db.Uuid
+  trackedPart   PcPart?   @relation(fields: [trackedPartId], references: [id], onDelete: SetNull)
+  bin           String    @default("medium")
+  nextDueAt     DateTime? @map("next_due_at")
+
+  @@id([targetKind, targetId])
+  @@index([trackedPartId], map: "ix_price_tracking_state_tracked_part_id")
+  @@map("price_tracking_state")
+}
+
+// One SerpApi call. Read here only to show when a part was last searched for
+// a binding (purpose = 'discovery') and what went wrong if it failed.
+model PriceFetch {
+  id          String   @id @default(uuid()) @db.Uuid
+  purpose     String
+  partId      String?  @map("part_id") @db.Uuid
+  errorDetail String?  @map("error_detail")
+  fetchedAt   DateTime @default(now()) @map("fetched_at")
+
+  @@index([partId], map: "ix_price_fetches_part_id")
+  @@map("price_fetches")
 }
