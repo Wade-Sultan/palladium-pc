@@ -44,6 +44,8 @@ resources:
   - jobs/pricing-etl-cronjob.yaml
   - jobs/discovery-cronjob.yaml
   - jobs/embeddings-cronjob.yaml
+  - jobs/product-bindings-cronjob.yaml
+  - jobs/price-tracking-cronjob.yaml
   - jobs/benchmarks-cronjob.yaml
   - jobs/listing-digest-cronjob.yaml
   - jobs/telemetry-drain-cronjob.yaml

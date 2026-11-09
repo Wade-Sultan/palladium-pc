@@ -36,6 +36,7 @@ from .price_tracking import (
     DailyPriceEstimate,
     GoogleProductBinding,
     PriceFetch,
+    PriceHistoryPoint,
     PriceMerchantRule,
     PriceOffer,
     PriceTrackingState,
