@@ -184,6 +184,7 @@ async def record_check_outcome(
     checked_at: datetime,
     price_cents: int | None,
     price_source: str = "serpapi",
+    commit: bool = True,
 ) -> CheckOutcome:
     """Always stamps last_price_checked_at (so an unmatched part isn't picked
     again next run), and additionally writes street_price_cents/price_source
@@ -192,6 +193,9 @@ async def record_check_outcome(
     Returns the name, price and price source read before the write. The
     price-alert evaluation needs all three, and after this commit the old
     values are gone. All None if the row has vanished since the batch was built.
+
+    With commit=False the caller commits, so the price can share a
+    transaction with other writes.
     """
     model = TARGET_MODELS[target_kind]
     target = await db.get(model, target_id)
@@ -202,7 +206,8 @@ async def record_check_outcome(
     if price_cents is not None:
         target.street_price_cents = price_cents
         target.price_source = price_source
-    await db.commit()
+    if commit:
+        await db.commit()
     return before
 
 

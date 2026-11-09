@@ -45,12 +45,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.pcparts import PCPart
 from app.models.price_tracking import (
     PriceFetch,
     PriceHistoryPoint,
     PriceMerchantRule,
     PriceOffer,
 )
+from app.services.pricing_etl import identity_check
 
 logger = logging.getLogger(__name__)
 
@@ -388,9 +390,13 @@ async def record_parsed(
     fetch_id: uuid.UUID,
     binding_id: uuid.UUID | None,
     parsed: ParsedFetch,
+    commit: bool = True,
 ) -> None:
     """Write one parse of one fetch. Idempotent per fetch: a re-parse replaces
-    that fetch's offers and figures rather than adding to them."""
+    that fetch's offers and figures rather than adding to them.
+
+    With commit=False the caller commits, so the parse can share a
+    transaction with other writes."""
     fetch = await db.get(PriceFetch, fetch_id)
     if fetch is None:
         raise LookupError(f"price_fetches row {fetch_id} not found")
@@ -449,7 +455,8 @@ async def record_parsed(
             )
         )
 
-    await db.commit()
+    if commit:
+        await db.commit()
 
 
 async def reparse_fetch(
@@ -462,8 +469,14 @@ async def reparse_fetch(
     fetch = await db.get(PriceFetch, fetch_id)
     if fetch is None or not fetch.raw_uri:
         raise LookupError(f"fetch {fetch_id} has no stored raw response")
+    part = await db.get(PCPart, fetch.part_id) if fetch.part_id else None
+    if part is None:
+        raise LookupError(f"fetch {fetch_id} has no part to verify the product against")
     payload = json.loads(await store.get(fetch.raw_uri))
     parsed = parse_product_response(payload, await load_merchant_rules(db))
+    # Same identity check as scheduler.fetch_target. Without it, a re-parse
+    # gives a usable estimate to a response that was rejected as another product.
+    identity_check.reject_mismatch(part, parsed)
     await record_parsed(
         db, fetch_id=fetch_id, binding_id=fetch.binding_id, parsed=parsed
     )

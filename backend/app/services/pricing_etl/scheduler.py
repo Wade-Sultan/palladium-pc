@@ -6,9 +6,10 @@ ONE RUN A DAY, three steps (app/jobs/price_tracking.py):
   2. fetch what is due: next_due_at passed (or never fetched), confirmed
      binding, high bin first, then most overdue, within DAILY_MAX_FETCHES and
      the month's remaining quota. Each fetch is checked before it is trusted
-     (verify_product), publishes its price to street_price_cents with the
-     same price-drop alerts as the free-text ETL, and pushes next_due_at out
-     by its bin's interval.
+     (identity_check.verify_product), publishes its price to
+     street_price_cents with the same price-drop alerts as the free-text ETL,
+     and pushes next_due_at out by its bin's interval. The parse, the schedule
+     and the price commit in one transaction.
   3. write_daily_rows: one daily_price_estimates row per target for today,
      whether or not it was fetched, and replace carried-forward days with
      Google's history whenever a fetch brings it.
@@ -50,11 +51,9 @@ from app.models.price_tracking import (
 )
 from app.services.pricing_etl import (
     alerts,
-    binding_discovery,
     fetches,
+    identity_check,
     offers,
-    product_identity,
-    title_match,
 )
 from app.services.pricing_etl import volatility as vol
 from app.services.pricing_etl.query_profile import offers_params
@@ -66,12 +65,7 @@ FAILURES_BEFORE_STALE = 3
 RERANK_EVERY = timedelta(days=7)
 RETRY_AFTER_FAILURE = timedelta(days=1)
 
-# Below this name coverage, a returned product title is not this part.
-VERIFY_MIN_COVERAGE = 80.0
-
 _BIN_ORDER = {"high": 0, "medium": 1, "low": 2}
-
-REASON_PRODUCT_MISMATCH = "product_mismatch"
 
 # The price_source written alongside street_price_cents.
 PRICE_SOURCE = "google_product"
@@ -96,23 +90,6 @@ class DueTarget:
     next_due_at: datetime | None
     part: PCPart
     binding: GoogleProductBinding
-
-
-def verify_product(part: PCPart, product_title: str | None) -> str | None:
-    """Why the product google_product returned is not this part, or None.
-    No title is not a mismatch: there is nothing to contradict the binding."""
-    if not product_title:
-        return None
-    ref = binding_discovery.PartRef.of(part)
-    reason = title_match.disqualifier(product_title)
-    if reason is None:
-        reason = product_identity.exclusion_reason(ref.title, product_title)
-    if (
-        reason is None
-        and binding_discovery.coverage(ref.title, product_title) < VERIFY_MIN_COVERAGE
-    ):
-        reason = binding_discovery.REASON_LOW_COVERAGE
-    return reason
 
 
 # --- 1. weekly re-rank ----------------------------------------------------------------
@@ -297,15 +274,18 @@ async def fetch_target(
     parsed = offers.parse_product_response(
         outcome.payload, await offers.load_merchant_rules(db)
     )
-    mismatch = verify_product(t.part, parsed.product_title)
-    if mismatch:
-        # Keep the offers as evidence, but this fetch prices nothing.
-        parsed.estimate_cents, parsed.estimate_method = None, REASON_PRODUCT_MISMATCH
+    mismatch = identity_check.reject_mismatch(t.part, parsed)
+    # The parse, the binding, the schedule and the published price commit in
+    # one transaction. If the run stops before that commit, the target stays
+    # due and the next run fetches it again.
     await offers.record_parsed(
-        db, fetch_id=outcome.fetch_id, binding_id=binding.id, parsed=parsed
+        db,
+        fetch_id=outcome.fetch_id,
+        binding_id=binding.id,
+        parsed=parsed,
+        commit=False,
     )
 
-    binding = await db.get(GoogleProductBinding, t.binding.id)
     if mismatch:
         binding.status, binding.status_changed_at = "stale", now
         await _set_state(db, t, last_fetched_at=now, next_due_at=None)
@@ -328,28 +308,38 @@ async def fetch_target(
         last_fetched_at=now,
         next_due_at=now + vol.BIN_INTERVALS.get(t.bin, vol.BIN_INTERVALS["medium"]),
     )
-    await db.commit()
-    await backfill_from_history(
-        db, t.kind, t.target_id, binding.id, now.date(), outcome.fetch_id
-    )
-    return await _publish(db, t, now, parsed.estimate_cents)
-
-
-async def _publish(
-    db: AsyncSession, t: DueTarget, now: datetime, cents: int | None
-) -> FetchResult:
-    """Write the estimate to the target's street_price_cents and fire alerts.
-
-    No estimate still stamps last_price_checked_at, like the free-text ETL, so
-    "when did we last look" means the same thing whichever job looked."""
+    # No estimate still stamps last_price_checked_at, like the free-text ETL.
     before = await crud.record_check_outcome(
         db,
         target_kind=t.kind,
         target_id=t.target_id,
         checked_at=now,
-        price_cents=cents,
+        price_cents=parsed.estimate_cents,
         price_source=PRICE_SOURCE,
+        commit=False,
     )
+    await db.commit()
+
+    # Alerts go before the backfill. The new price is committed, so if the
+    # alerts do not run now, the next fetch compares against the new price
+    # and the drop is lost.
+    result = await _evaluate_alerts(db, t, before, parsed.estimate_cents)
+    try:
+        await backfill_from_history(
+            db, t.kind, t.target_id, binding.id, now.date(), outcome.fetch_id
+        )
+    except Exception:
+        await db.rollback()
+        logger.exception(
+            "%s %s: history backfill failed; the price is kept", t.kind, t.target_id
+        )
+    return result
+
+
+async def _evaluate_alerts(
+    db: AsyncSession, t: DueTarget, before: crud.CheckOutcome, cents: int | None
+) -> FetchResult:
+    """Evaluate price-drop alerts for a price that is already committed."""
     if cents is None:
         return FetchResult("no_estimate")
     if not alerts.comparable(

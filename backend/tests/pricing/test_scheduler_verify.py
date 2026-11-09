@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.services.pricing_etl.scheduler import verify_product
+from app.services.pricing_etl.identity_check import verify_product
 
 
 def _part(name, manufacturer, part_type="cpu"):
