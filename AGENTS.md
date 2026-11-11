@@ -62,5 +62,5 @@ implies a new decision, end the session with a draft ADR for Wade to file, in th
 - Lint gates: `uv run bash scripts/lint.sh` in `backend/`, `npx biome ci ./` and
   `npx tsc --noEmit` in `frontend/`. `npm run lint` in `frontend/` rewrites files.
 - Never run a bare `minikube start`; `scripts/minikube-cilium-up.sh` is the only supported way to
-  (re)create the local cluster.
+  (re)create the local cluster. `scripts/minikube-resume.sh` restarts a cleanly stopped one.
 - Never point Tilt or `kubectl` at anything but the `minikube` context.

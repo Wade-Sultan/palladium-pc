@@ -82,13 +82,20 @@ cluster. It stays on the host.
 
 ```bash
 ./scripts/minikube-cilium-up.sh      # cold-boot the cluster (DESTRUCTIVE: deletes the profile)
+./scripts/minikube-resume.sh         # everyday start: resume a cleanly `minikube stop`ped cluster, no rebuild
 tilt up -f scripts/Tiltfile          # backend, worker, commerce, admin, postgres, valkey, pubsub emulator
 cd frontend && npm run dev           # host, :3000
 ```
 
 Never run a bare `minikube start` to repair the cluster. It can wipe `/etc/kubernetes` and leave an
 unrecoverable control plane. `minikube-cilium-up.sh` is the only supported way to (re)create it; its
-header explains why.
+header explains why. `minikube-resume.sh` is not a repair tool: it starts the profile only from a clean
+`Stopped` state and refuses anything else.
+
+The API server's own host port changes on every node start. Both scripts run
+`scripts/apiserver-relay.sh up`, a socat container that publishes it on a fixed `127.0.0.1:18443`
+for clients outside WSL (e.g. a Docker Sandbox via `host.docker.internal:18443`). The certificate
+does not name that host, so such a kubeconfig needs `tls-server-name: localhost`.
 
 Ports Tilt forwards: builder `:8000`, commerce `:8080`, admin `:3001`, Postgres `:5433`, Valkey
 `:6379`, Jaeger UI `:16686` (the local stand-in for Managed OTel and Cloud Trace), fake-gcs-server
