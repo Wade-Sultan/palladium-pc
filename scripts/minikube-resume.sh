@@ -46,22 +46,16 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 # Same reason as in minikube-cilium-up.sh: Tilt snapshots the kubeconfig at
-# startup, and the API server's host port can change across a stop/start.
+# startup, and the API server's host port changes across a stop/start.
 if pgrep -x tilt >/dev/null; then
   echo "tilt is running. Stop it first (Ctrl-C), then re-run this script and 'tilt up -f scripts/Tiltfile' after." >&2
   exit 1
 fi
 
-api_server() {
-  kubectl config view -o jsonpath='{.clusters[?(@.name=="minikube")].cluster.server}' 2>/dev/null || true
-}
-
 # `minikube status` exits non-zero for any state other than fully running, so
 # the exit code is deliberately ignored and only the fields are read.
 status="$(minikube status --format '{{.Host}} {{.Kubelet}} {{.APIServer}}' 2>/dev/null || true)"
 echo "minikube status: ${status:-<none>}"
-
-before="$(api_server)"
 
 case "$status" in
   "Running Running Running")
@@ -92,12 +86,10 @@ kubectl wait --for=condition=Accepted=True gatewayclass/cilium --timeout=120s ||
 kubectl -n kube-system rollout status deployment/coredns --timeout=120s || rebuild_hint
 kubectl wait --for=condition=available --timeout=300s -n keda deployment/keda-operator || rebuild_hint
 
-after="$(api_server)"
-if [ -n "$before" ] && [ "$before" != "$after" ]; then
-  echo
-  echo "API server moved: ${before} -> ${after}"
-  echo "Anything holding a copy of the kubeconfig (a Docker Sandbox, say) needs the new port."
-fi
+# The API server's own host port moves on every node start. The relay gives
+# clients outside WSL a fixed one; it normally restarts with Docker on its own,
+# and `up` recreates it if it was never created or was removed.
+"$(dirname "$0")/apiserver-relay.sh" up
 
 cat <<'EOF'
 

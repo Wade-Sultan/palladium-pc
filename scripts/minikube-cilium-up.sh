@@ -70,6 +70,9 @@ if pgrep -x tilt >/dev/null; then
   exit 1
 fi
 
+# The API server relay sits on the `minikube` docker network, and minikube
+# cannot delete a network that still has a container attached.
+"$(dirname "$0")/apiserver-relay.sh" down
 minikube delete
 
 # --container-runtime=docker is REQUIRED, not a preference, and it is a pin
@@ -109,6 +112,8 @@ minikube start --driver=docker --cpus=4 --memory=12g \
   --network-plugin=cni --cni=false \
   --extra-config=kubeadm.skip-phases=addon/kube-proxy \
   --docker-opt dns=8.8.8.8 --docker-opt dns=1.1.1.1
+
+"$(dirname "$0")/apiserver-relay.sh" up
 
 # Verify the above actually took, rather than trusting the flag: a silent
 # regression here surfaces much later as a confusing mid-build failure.
