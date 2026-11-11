@@ -18,7 +18,7 @@
 # Running), then verifies the pieces the cold boot installs. Anything else, or
 # any failed check, stops here and points at minikube-cilium-up.sh.
 #
-# Shut down with `minikube stop` (not by quitting Docker Desktop mid-run) so the
+# Shut down with `minikube stop` (not by stopping Docker or WSL under it) so the
 # next resume starts from a clean Stopped state.
 #
 # After a resume, the app pods were restarted by the kubelet in no particular
@@ -41,7 +41,7 @@ rebuild_hint() {
 # The docker driver needs a reachable daemon. Without one, `minikube status`
 # reports the host as an error state, which would read as a broken profile.
 if ! docker info >/dev/null 2>&1; then
-  echo "Docker is not reachable. Start Docker Desktop (with WSL integration for this distro) and re-run." >&2
+  echo "Docker is not reachable. Start it (sudo systemctl start docker) and re-run." >&2
   exit 1
 fi
 

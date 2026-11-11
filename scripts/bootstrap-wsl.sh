@@ -13,12 +13,14 @@
 #   socat              the gateway relay      (scripts/gateway-forward.sh has a
 #                                              python fallback, socat is faster)
 #   jq, make, unzip    used by test scripts
+#   Docker Engine      minikube's docker driver and Tilt's image builds, run
+#                                              natively in this distro under systemd
+#                                              (see step 7 for why not Docker Desktop)
 #   uv + Python 3.12   runs pytest on the host (backend/pyproject.toml caps
 #                                              Python below 3.14; Ubuntu 26.04
 #                                              ships 3.14)
 #
-# NOT installed here: docker (Docker Desktop's WSL integration provides it),
-# kubectl (already present), gcloud (only needed for prod, lives on Windows),
+# NOT installed here: kubectl (already present), gcloud (only needed for prod, lives on Windows),
 # KEDA itself (a cluster component, not a tool. See minikube-cilium-up.sh).
 #
 # Needs sudo for apt and for /usr/local/bin. Run it as yourself, not as root,
@@ -113,8 +115,50 @@ uv python install "$PYTHON_VERSION"
 # interpreter in it). uv sync recreates it against the pinned interpreter.
 (cd "$REPO_ROOT/backend" && uv sync --python "$PYTHON_VERSION")
 
-# --- 7. docker group ---------------------------------------------------------
-step "docker"
+# --- 7. Docker Engine --------------------------------------------------------
+# Native Docker Engine in this distro, not Docker Desktop's WSL integration.
+# Desktop had to be running before the cluster could start, and nothing else
+# in the loop needs it (Docker Sandboxes run on their own VM). Moving engines
+# means the cluster is rebuilt once: images, volumes and the minikube profile
+# live in whichever engine created them.
+#
+# Desktop's integration puts its own docker CLI on PATH, and docker-ce would
+# fight it for /usr/bin/docker, so the integration has to be switched off for
+# this distro first. The engine is started by systemd, so WSL must boot with it.
+step "Docker Engine"
+if docker info --format '{{.OperatingSystem}}' 2>/dev/null | grep -q "Docker Desktop" \
+   || readlink -f "$(command -v docker 2>/dev/null || echo /nonexistent)" | grep -q docker-desktop; then
+  echo "docker on PATH is Docker Desktop's WSL integration. Turn it off for this distro first:" >&2
+  echo "  Docker Desktop > Settings > Resources > WSL integration > untick this distro, Apply," >&2
+  echo "  then from PowerShell: wsl --shutdown, reopen the terminal, and re-run this script." >&2
+  exit 1
+fi
+if [ "$(ps -p 1 -o comm=)" != "systemd" ]; then
+  echo "WSL is not booted with systemd, which starts the Docker daemon. Add to /etc/wsl.conf:" >&2
+  printf '  [boot]\n  systemd=true\n' >&2
+  echo "then from PowerShell: wsl --shutdown, reopen the terminal, and re-run this script." >&2
+  exit 1
+fi
+if dpkg -s docker-ce >/dev/null 2>&1; then
+  echo "already installed"
+else
+  # Docker's own apt repository, per https://docs.docker.com/engine/install/ubuntu/
+  # (Ubuntu's docker.io lags and splits buildx out).
+  . /etc/os-release
+  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  sudo chmod a+r /etc/apt/keyrings/docker.asc
+  if ! curl -fsSL -o /dev/null "https://download.docker.com/linux/ubuntu/dists/${VERSION_CODENAME}/Release"; then
+    echo "Docker's apt repo has no '${VERSION_CODENAME}' release yet; see the URL above." >&2
+    exit 1
+  fi
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
+    | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+  sudo apt-get update -qq
+  sudo apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
+fi
+sudo systemctl enable --now docker.service containerd.service
+
 if ! getent group docker | grep -qw "$USER"; then
   sudo usermod -aG docker "$USER"
   echo "added $USER to the docker group"
@@ -122,7 +166,7 @@ fi
 if ! id -nG | grep -qw docker; then
   echo "This shell does not have the docker group yet. From PowerShell run:"
   echo "    wsl --shutdown"
-  echo "then reopen the terminal. Docker Desktop must have WSL integration on for this distro."
+  echo "then reopen the terminal."
 fi
 
 # --- summary -----------------------------------------------------------------
@@ -131,6 +175,7 @@ printf '%-10s %s\n' minikube "$(minikube version --short)"
 printf '%-10s %s\n' tilt     "$(tilt version)"
 printf '%-10s %s\n' cilium   "$(cilium version --client | head -1)"
 printf '%-10s %s\n' helm     "$(helm version --template '{{.Version}}')"
+printf '%-10s %s\n' docker   "$(docker version --format '{{.Server.Version}}' 2>/dev/null || echo 'not reachable yet (docker group?)')"
 printf '%-10s %s\n' kubectl  "$(kubectl version --client 2>/dev/null | head -1)"
 printf '%-10s %s\n' psql     "$(psql --version)"
 printf '%-10s %s\n' uv       "$(uv --version)"

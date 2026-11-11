@@ -11,9 +11,11 @@
 #
 # How: a socat container joined to the `minikube` network, so it reaches the
 # node by container name on the API server's real port, which never changes.
-# It is published through Docker Desktop like minikube's own port, so it is
-# reachable from the Windows host. `--restart unless-stopped` brings it back
-# with Docker; it simply refuses connections while the node is down.
+# It is published on 127.0.0.1 in the engine's host, like minikube's own port.
+# With Docker Engine in WSL that is WSL's loopback, which Windows reaches as its
+# own localhost under WSL2 mirrored networking (or localhost forwarding in NAT
+# mode). `--restart unless-stopped` brings it back with Docker; it simply
+# refuses connections while the node is down.
 #
 # The certificate does not name host.docker.internal, so a client using this
 # port needs `tls-server-name: localhost` in its kubeconfig cluster entry.
