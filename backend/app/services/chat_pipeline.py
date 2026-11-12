@@ -183,7 +183,7 @@ def _get_extract_program():
 
 
 def warm_dspy_pipeline() -> None:
-    """Force the DSPy/litellm import chain, LM configuration, and Decide*
+    """Force the DSPy import chain, LM configuration, and Decide*
     module construction to happen once, off the request path (called from
     main.py's lifespan background task)."""
     _get_extract_program()
@@ -247,10 +247,11 @@ def _log_extraction_runaway(lm: Any) -> None:
     finish_reason = None
     generation_id = None
     try:
+        # DSPy's native Response: one message, finish_reason on the response
+        # itself (no `.choices`, which was litellm's shape).
         entry = lm.history[-1]
         response = entry.get("response")
-        choice = response.choices[0]
-        finish_reason = getattr(choice, "finish_reason", None)
+        finish_reason = getattr(response, "finish_reason", None)
         generation_id = getattr(response, "id", None)
     except Exception:  # noqa: BLE001 - diagnostics must not mask the parse error
         logger.debug("could not read finish_reason for a failed extraction")

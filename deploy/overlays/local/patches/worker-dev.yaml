@@ -6,8 +6,9 @@
 # that request competes with Postgres, Valkey, a JVM emulator and the API for a
 # fixed 16Gi minikube VM.
 #
-# The LIMIT stays at 2Gi rather than dropping with the request: the DSPy and
-# litellm import chain in warm_dspy_pipeline() is genuinely large, and an OOMKill
+# The LIMIT stays at 2Gi rather than dropping with the request: the DSPy
+# import chain in warm_dspy_pipeline() is genuinely large (measured when it
+# still included litellm; re-measure before lowering), and an OOMKill
 # during startup looks like a mysterious crash-loop rather than a resource
 # problem.
 apiVersion: apps/v1

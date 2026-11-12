@@ -65,17 +65,9 @@ def build_reflection_lm(model: str | None = None) -> dspy.LM:
     not a field value: truncating it produces a malformed prompt that GEPA then
     scores badly and discards, which looks like "optimization did nothing".
     """
-    from app.core.config import settings
-    from app.services.recommender.dspy_pipeline import litellm_model
+    from app.services.recommender.dspy_pipeline import make_lm
 
-    endpoint = settings.chat_endpoint
-    return dspy.LM(
-        model=litellm_model(model or REFLECTION_MODEL),
-        api_key=endpoint.api_key,
-        api_base=endpoint.url,
-        max_tokens=8192,
-        temperature=1.0,
-    )
+    return make_lm(model or REFLECTION_MODEL, max_tokens=8192, temperature=1.0)
 
 
 def run_gepa(
