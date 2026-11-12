@@ -240,3 +240,49 @@ def test_every_program_keeps_a_plain_reasoning_field():
                     f"{name}.{pred_name}.{field_name}: build it with "
                     "artifacts.chain_of_thought, not dspy.ChainOfThought"
                 )
+
+
+def test_dspy_keeps_a_bounded_number_of_calls(monkeypatch):
+    """A worker runs for thousands of turns through the same cached Decide*
+    modules. DSPy records every call (full prompt, candidate list included) in
+    a global history, the LM's history, each calling module's history and
+    settings.trace, at 10,000 entries apiece by default. Uncapped, that grew a
+    worker ~130 KB per turn far past its memory limit."""
+    import dspy
+    from dspy.clients import base_lm
+
+    from app.core import loadtest_stubs
+    from app.core.loadtest_stubs import make_stub_lm
+    from app.services.recommender.components.decidecpu import DecideCPU
+    from app.services.recommender.dspy_pipeline import (
+        DSPY_HISTORY_CAP,
+        configure_dspy,
+    )
+
+    monkeypatch.setattr(base_lm, "MAX_HISTORY_SIZE", base_lm.MAX_HISTORY_SIZE)
+    monkeypatch.setattr(loadtest_stubs, "_DSPY_CALL_S", 0)
+    configure_dspy()
+    dspy.settings.trace.clear()
+
+    module = DecideCPU()
+    lm = make_stub_lm()
+    with dspy.context(lm=lm):
+        for i in range(DSPY_HISTORY_CAP * 3):
+            module(
+                use_cases=f"call {i}",
+                budget_total=1500,
+                cpu_budget_ceiling=300,
+                candidates="[]",
+            )
+
+    histories = {
+        "global": base_lm.GLOBAL_HISTORY,
+        "lm": lm.history,
+        "trace": dspy.settings.trace,
+        **{f"module {n or 'root'}": m.history for n, m in module.named_sub_modules()},
+    }
+    for where, kept in histories.items():
+        assert 0 < len(kept) <= DSPY_HISTORY_CAP, (where, len(kept))
+    # What recording reads: the newest entry, still the call just made.
+    last = lm.history[-1]["messages"][-1]["content"]
+    assert f"call {DSPY_HISTORY_CAP * 3 - 1}" in str(last)

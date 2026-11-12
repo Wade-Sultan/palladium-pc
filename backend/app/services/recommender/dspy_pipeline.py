@@ -48,6 +48,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import dspy
+from dspy.clients import base_lm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -334,7 +335,31 @@ def configure_dspy() -> None:
     # against ChatAdapter's `[[ ## field ## ]]` format, and the load-test stub
     # answers in it, so taking the new default would silently change every
     # prompt on the wire. See artifacts.chain_of_thought for the other half.
-    dspy.configure(lm=lm, track_usage=True, adapter=dspy.ChatAdapter())
+    #
+    # The two size caps are what bound a long-lived worker's memory. DSPy keeps
+    # every call it makes, full rendered prompt and candidate list included, in
+    # a global history, in each LM's history, in the history of every module
+    # on the call path, and in settings.trace. Each defaults to 10,000 entries,
+    # and the Decide* modules are process-lifetime singletons (load_program is
+    # lru_cached), so at the defaults a worker grew ~130 KB per turn for
+    # thousands of turns before plateauing, well past its memory limit. This
+    # code reads only lm.history[-1], the call it just made, and never reads the
+    # trace; optimizers (GEPA) open their own trace per evaluation.
+    dspy.configure(
+        lm=lm,
+        track_usage=True,
+        adapter=dspy.ChatAdapter(),
+        max_history_size=DSPY_HISTORY_CAP,
+        max_trace_size=DSPY_HISTORY_CAP,
+    )
+    # The global history ignores max_history_size: it has its own module-level
+    # cap, read at call time, so it is lowered here rather than configured.
+    base_lm.MAX_HISTORY_SIZE = DSPY_HISTORY_CAP
+
+
+# Entries DSPy may keep per history and in its trace. See configure_dspy. Must
+# stay >= 1: recording reads lm.history[-1].
+DSPY_HISTORY_CAP = 64
 
 
 def load_all_programs() -> None:
