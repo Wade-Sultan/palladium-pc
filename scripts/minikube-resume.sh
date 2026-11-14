@@ -87,8 +87,9 @@ kubectl -n kube-system rollout status deployment/coredns --timeout=120s || rebui
 kubectl wait --for=condition=available --timeout=300s -n keda deployment/keda-operator || rebuild_hint
 
 # The API server's own host port moves on every node start. The relay gives
-# clients outside WSL a fixed one; it normally restarts with Docker on its own,
-# and `up` recreates it if it was never created or was removed.
+# clients outside WSL a fixed one. It has no restart policy (it would take the
+# node's address if Docker started it first, see its header), so it is created
+# here, after the node is up, on every resume.
 "$(dirname "$0")/apiserver-relay.sh" up
 
 cat <<'EOF'
