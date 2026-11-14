@@ -2,8 +2,9 @@
 name = "app"
 version = "0.1.0"
 description = ""
-# Floor of 3.12: see the note in Dockerfile. The ceiling is litellm's (<3.14),
-# reached transitively through dspy.
+# Floor of 3.12: see the note in Dockerfile. The ceiling was litellm's (<3.14),
+# which DSPy no longer installs; raising it is its own change, since every other
+# dependency has to be checked against 3.14 first.
 requires-python = ">=3.12,<3.14"
 dependencies = [
     # 0.142.2 floor: native OpenTelemetry (FastAPI(telemetry=...), see app/main.py)
@@ -28,7 +29,14 @@ dependencies = [
     "pg8000>=1.31.5",
     "asyncpg>=0.29.0",
     "firebase-admin>=7.3.0",
-    "dspy-ai>=3.2.1",
+    # Base dspy, NOT dspy[litellm] and not the dspy-ai alias: since 3.5 the LM
+    # layer speaks to OpenRouter and OpenAI-compatible servers natively, and
+    # litellm is an optional extra this image does not install. Capped at the
+    # minor because 3.5 changed defaults the pinned prompt releases depend on
+    # (the implicit adapter, ChainOfThought's reasoning field type); read
+    # configure_dspy, plus chain_of_thought and LOADABLE_DSPY_VERSIONS in
+    # app/services/recommender/artifacts.py, before raising it.
+    "dspy>=3.5.0,<3.6",
     "psycopg2-binary>=2.9.12",
     "sqlalchemy>=2.0.35",
     # 8.1.0 floor, and with it starlette>=1.0. Below 8.0.1 it resolves route
@@ -64,8 +72,9 @@ dependencies = [
     # Emits the graph's spans through OpenTelemetry rather than LangSmith's
     # native REST transport (see LANGSMITH_TRACING_MODE in app/core/tracing.py).
     "langsmith[otel]>=0.2.0",
-    # opentelemetry-api/-sdk arrive transitively via dspy; the exporter and the
-    # openai instrumentor do not, and both are needed on the tracing path.
+    # opentelemetry-api/-sdk arrive transitively via the exporter and
+    # google-cloud-pubsub; the exporter and the openai instrumentor are needed
+    # on the tracing path.
     "opentelemetry-exporter-otlp-proto-http>=1.44.0",
     "opentelemetry-instrumentation-openai-v2>=2.0b0",
     # The non-LLM half of the trace, and the only half Google gets that

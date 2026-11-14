@@ -48,6 +48,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import dspy
+from dspy.clients import base_lm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -141,11 +142,12 @@ RECOMMEND_MAX_TOKENS = int(os.getenv("RECOMMEND_MAX_TOKENS", "1024"))
 # ends the failure where a step thinks past RECOMMEND_MAX_TOKENS, is truncated,
 # and the whole ladder is discarded for a reference build.
 #
-# Only for an OpenAI-compatible server (LLM_BASE_URL). Two things there are
-# not obvious. litellm refuses `reasoning_effort` as an argument for an
-# `openai/` model (UnsupportedParamsError), so it travels in extra_body, which
-# is forwarded verbatim. And Qwen's "/no_think" prompt suffix is NOT an
-# equivalent: measured on this model it only roughly halved the thinking.
+# Only for an OpenAI-compatible server (LLM_BASE_URL). It is sent as a plain
+# `reasoning_effort` argument, which DSPy's native engine writes onto the Chat
+# Completions body as-is. (Under litellm it had to travel in extra_body, because
+# litellm refused it for an `openai/` model; the native engine refuses
+# extra_body instead, see configure_dspy.) Qwen's "/no_think" prompt suffix is
+# NOT an equivalent: measured on this model it only roughly halved the thinking.
 # On OpenRouter the setting is ignored, see step_lm.
 _THINK_STEPS_ENV = os.getenv("RECOMMEND_THINK_STEPS")
 RECOMMEND_THINK_STEPS: frozenset[str] | None = (
@@ -233,42 +235,89 @@ PIPELINE_VERSION = _resolve_pipeline_version()
 
 # --- DSPy configuration -------------------------------------------------------
 
-# Base extra_body sent on every OpenRouter call. Copied (not mutated) per
-# session so the "usage" flag survives alongside a per-session session_id.
-_OPENROUTER_EXTRA_BODY: dict[str, Any] = {"usage": {"include": True}}
 
-
-def _openrouter_extra_body() -> dict[str, Any]:
-    """The base extra_body, plus the provider pin when one is configured.
+def _openrouter_options() -> dict[str, Any]:
+    """OpenRouter request options for every DSPy call: the provider pin, if set.
 
     A function rather than a module constant because OPENROUTER_PROVIDER is
     settings, and freezing it at import time would make the pin depend on
     whether this module was imported before or after the environment was read.
+
+    WHAT IS NO LONGER SENT, AND WHY. Under litellm this was an extra_body of
+    `usage: {include: true}` plus the pin, and session_lm added `session_id`.
+    DSPy's native engine refuses extra_body and any top-level key it has no
+    mapping for (`usage`, `session_id` among them) with LMUnsupportedFeatureError
+    rather than dropping it. `provider` is one of the few keys it forwards
+    verbatim. So:
+
+    - `usage` is gone. OpenRouter returns `usage.cost` without it, which is what
+      the chat path (app/services/llm/openrouter.py) has always relied on, and
+      recording.extract_usage reads it off the raw response.
+    - `session_id` is gone. It only grouped a turn's calls in OpenRouter's own
+      dashboard; per-conversation cost is recorded in our database either way.
     """
-    body = dict(_OPENROUTER_EXTRA_BODY)
     if settings.OPENROUTER_PROVIDER:
-        body["provider"] = settings.OPENROUTER_PROVIDER
-    return body
+        return {"provider": settings.OPENROUTER_PROVIDER}
+    return {}
 
 
-def litellm_model(name: str) -> str:
-    """Normalise a model slug to the provider prefix litellm needs right now.
+def dspy_model(name: str) -> str:
+    """Normalise a model slug to the provider prefix DSPy routes on.
 
-    litellm routes on the prefix, not on api_base: `openrouter/…` sends the
-    request to OpenRouter no matter what api_base says, so pointing DSPy at a
-    local server means re-prefixing as `openai/…` (litellm's name for "an
-    OpenAI-compatible endpoint", which is what LM Studio serves).
+    DSPy routes on the prefix, not on api_base: `openrouter/…` goes to
+    OpenRouter, so pointing DSPy at a local server means re-prefixing as
+    `openai/…` (an OpenAI-compatible endpoint, which is what LM Studio serves;
+    make_lm supplies its address as api_base).
 
     Rewriting rather than demanding the caller get it right keeps the existing
     RECOMMEND_MODEL / GEPA_REFLECTION_MODEL values and their defaults working
     unchanged. An environment on LM Studio only has to name a model it has
-    loaded, not also learn litellm's prefix convention. The separate extraction
+    loaded, not also learn the prefix convention. The separate extraction
     model may likewise use a bare OpenRouter slug.
     """
     if settings.chat_endpoint.is_openrouter:
         return name if name.startswith("openrouter/") else f"openrouter/{name}"
     bare = name.split("/", 1)[1] if name.startswith("openrouter/") else name
     return bare if bare.startswith("openai/") else f"openai/{bare}"
+
+
+def make_lm(model: str, **kwargs: Any) -> dspy.LM:
+    """Build a dspy.LM for the configured chat endpoint. Every LM goes through here.
+
+    THREE SETTINGS THAT ARE NOT DEFAULTS, each of which fails quietly without it:
+
+    - engine="lm15": DSPy's native engine, never litellm (not installed). The
+      default "auto" falls back to litellm for any option the native engine
+      cannot carry, and without litellm that surfaces only at call time as an
+      ImportError from inside a build step. "lm15" refuses the same option with
+      a message naming it.
+    - model_type="chat": the default "auto" sends an `openai/` model to the
+      Responses API (/v1/responses), not Chat Completions. LM Studio and every
+      OpenAI-compatible server this project runs against speak Chat Completions.
+    - The provider pin is set on lm.kwargs AFTER construction. `dspy.LM` has a
+      `provider=` parameter of its own (a finetuning Provider object), so
+      `dspy.LM(..., provider=pin)` swallows the pin without a word and it never
+      reaches the wire. lm.copy(provider=...) is safe; the constructor is not.
+
+    Every LM also carries the tracing callbacks (one span per call), which
+    replace litellm's OTel and LangSmith callbacks. See app/core/tracing.py.
+    """
+    from app.core.tracing import dspy_lm_callbacks
+
+    endpoint = settings.chat_endpoint
+    lm = dspy.LM(
+        model=dspy_model(model),
+        model_type="chat",
+        engine="lm15",
+        callbacks=dspy_lm_callbacks(),
+        api_key=endpoint.api_key,
+        # Unset on OpenRouter: the `openrouter/` prefix already names its URL.
+        **({} if endpoint.is_openrouter else {"api_base": endpoint.url}),
+        **kwargs,
+    )
+    if endpoint.is_openrouter:
+        lm.kwargs.update(_openrouter_options())
+    return lm
 
 
 def configure_dspy() -> None:
@@ -278,22 +327,39 @@ def configure_dspy() -> None:
     OpenAI-compatible server it names. The Decide* modules themselves do not
     change; only where their completions are served from.
     """
-    endpoint = settings.chat_endpoint
-    lm = dspy.LM(
-        model=litellm_model(RECOMMEND_MODEL),
-        api_key=endpoint.api_key,
-        max_tokens=RECOMMEND_MAX_TOKENS,
-        temperature=0.3,
-        # api_base is ignored by litellm for an `openrouter/` model, so passing
-        # None here on the OpenRouter path is the same as not passing it.
-        api_base=None if endpoint.is_openrouter else endpoint.url,
-        # Ask OpenRouter to include usage/cost accounting in the response so
-        # litellm surfaces the real cost per call in the LM history. OpenRouter
-        # extension, so omitted when talking to anything else.
-        extra_body=_openrouter_extra_body() if endpoint.is_openrouter else None,
-    )
+    lm = make_lm(RECOMMEND_MODEL, max_tokens=RECOMMEND_MAX_TOKENS, temperature=0.3)
     # track_usage lets prediction.get_lm_usage() return per-prediction tokens.
-    dspy.configure(lm=lm, track_usage=True)
+    #
+    # adapter is explicit because DSPy 3.5 changed the implicit default from
+    # ChatAdapter to XMLAdapter. Every pinned prompt release was optimized
+    # against ChatAdapter's `[[ ## field ## ]]` format, and the load-test stub
+    # answers in it, so taking the new default would silently change every
+    # prompt on the wire. See artifacts.chain_of_thought for the other half.
+    #
+    # The two size caps are what bound a long-lived worker's memory. DSPy keeps
+    # every call it makes, full rendered prompt and candidate list included, in
+    # a global history, in each LM's history, in the history of every module
+    # on the call path, and in settings.trace. Each defaults to 10,000 entries,
+    # and the Decide* modules are process-lifetime singletons (load_program is
+    # lru_cached), so at the defaults a worker grew ~130 KB per turn for
+    # thousands of turns before plateauing, well past its memory limit. This
+    # code reads only lm.history[-1], the call it just made, and never reads the
+    # trace; optimizers (GEPA) open their own trace per evaluation.
+    dspy.configure(
+        lm=lm,
+        track_usage=True,
+        adapter=dspy.ChatAdapter(),
+        max_history_size=DSPY_HISTORY_CAP,
+        max_trace_size=DSPY_HISTORY_CAP,
+    )
+    # The global history ignores max_history_size: it has its own module-level
+    # cap, read at call time, so it is lowered here rather than configured.
+    base_lm.MAX_HISTORY_SIZE = DSPY_HISTORY_CAP
+
+
+# Entries DSPy may keep per history and in its trace. See configure_dspy. Must
+# stay >= 1: recording reads lm.history[-1].
+DSPY_HISTORY_CAP = 64
 
 
 def load_all_programs() -> None:
@@ -320,14 +386,31 @@ def load_all_programs() -> None:
         load()
 
 
-def session_lm(session_id: str | None, model: str | None = None) -> dspy.LM:
+def session_lm(
+    session_id: str | None,  # noqa: ARG001 - kept for callers, see docstring
+    model: str | None = None,
+) -> dspy.LM:
     """
-    Clone the configured LM for a session or a different model.
+    Clone the configured LM for one session, optionally on a different model.
 
     An explicit model lets profile extraction use its own configured model
     while keeping the same DSPy adapter, endpoint, and usage recording as the
-    build steps. OpenRouter's `session_id` groups a turn's calls in its dashboard.
-    With neither override, return the configured LM unchanged.
+    build steps.
+
+    ALWAYS A COPY, NEVER THE CONFIGURED LM ITSELF. A copy starts with its own
+    empty history, and usage recording depends on that: _run_step and
+    chat_pipeline._capture_dspy_usage read `lm.history[-1]` as "the call I just
+    made". A worker runs several turns at once, so on one shared LM that entry
+    can be another turn's call that finished while this one was awaiting its
+    module thread, which bills the wrong conversation under the wrong prompt
+    hash. Within one session the calls are strictly sequential, so the session's
+    own copy is enough. Before DSPy 3.5 the per-session OpenRouter `session_id`
+    happened to force this copy; it is explicit now that the field is gone.
+
+    session_id is accepted and unused off the load-test path. It used to become
+    OpenRouter's `session_id`, which DSPy's native engine cannot send; see
+    _openrouter_options. Kept in the signature so call sites, which all hold one,
+    need not change if a way to send it returns.
 
     Use via `with dspy.context(lm=session_lm(...)):` around a run. Dspy.context
     is safe to call from any thread/task, unlike dspy.configure (which is
@@ -346,21 +429,13 @@ def session_lm(session_id: str | None, model: str | None = None) -> dspy.LM:
 
         return make_stub_lm()
 
-    # `session_id` is an OpenRouter dashboard concept and travels in extra_body,
-    # which litellm sends verbatim, so off OpenRouter there is nothing to group
-    # calls into and nowhere safe to put the field.
     lm = dspy.settings.lm
-    overrides: dict[str, Any] = {}
+    # A copy keeps engine, model_type, api_base, callbacks and the provider pin.
     if model is not None:
-        resolved = litellm_model(model)
+        resolved = dspy_model(model)
         if resolved != lm.model:
-            overrides["model"] = resolved
-    if session_id and settings.chat_endpoint.is_openrouter:
-        overrides["extra_body"] = {
-            **_openrouter_extra_body(),
-            "session_id": session_id,
-        }
-    return lm.copy(**overrides) if overrides else lm
+            return lm.copy(model=resolved)
+    return lm.copy()
 
 
 def step_lm(lm: dspy.LM, step: str) -> dspy.LM:
@@ -381,12 +456,7 @@ def step_lm(lm: dspy.LM, step: str) -> dspy.LM:
         or settings.chat_endpoint.is_openrouter
     ):
         return lm
-    return lm.copy(
-        extra_body={
-            **(lm.kwargs.get("extra_body") or {}),
-            "reasoning_effort": "none",
-        }
-    )
+    return lm.copy(reasoning_effort="none")
 
 
 # --- Module execution ---------------------------------------------------------

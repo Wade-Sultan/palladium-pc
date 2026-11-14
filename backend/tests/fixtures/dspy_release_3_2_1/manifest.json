@@ -1,0 +1,60 @@
+{
+  "created_at": "2026-11-12T03:09:02+00:00",
+  "dspy_version": "3.2.1",
+  "evaluation": {
+    "note": "fixture exported under dspy 3.2.1"
+  },
+  "format_version": 1,
+  "modules": {
+    "decidecase": {
+      "builtin": true,
+      "schema_hash": "0e3ec10100799edfa9ded7a68c41709f16de38dcd3bedff200b4c2d8ce4903ed"
+    },
+    "decidecpu": {
+      "builtin": false,
+      "schema_hash": "add601a4dbcc4d9694fa9717c2ebfc68c0b4431a390a6987e34ad7f406692a75",
+      "sha256": "091e20a5cb3e0e0e6809eab438973614a36538196e7aba5032dfe61babe38842"
+    },
+    "decidecpucooler": {
+      "builtin": true,
+      "schema_hash": "4fabc4d6dbbab29e44a8c2713b220fc028d7dbf2c2c7c0fc81301b029206bd69"
+    },
+    "decideddr": {
+      "builtin": true,
+      "schema_hash": "0f213aa394c770067744e6eea59bb08b6cba79539ea809f18f9c96f61d78d88a"
+    },
+    "decidefans": {
+      "builtin": true,
+      "schema_hash": "ebb5250f9e3121f628bba1ef268b9fb78aa5f26928af19d16c0c232b1d3a6afe"
+    },
+    "decidegpu": {
+      "builtin": true,
+      "schema_hash": "6d2ad99309bb14b7bbc0ddaa6d2cd4b39be40501102bd8d5857e62d0acafb189"
+    },
+    "decidemotherboard": {
+      "builtin": true,
+      "schema_hash": "44affb75ec6d1296f81f4891f563a0efd9330fc4c5490a3c6d6bbc707b6d7465"
+    },
+    "decidepsu": {
+      "builtin": true,
+      "schema_hash": "2f1a5d685dd8588a222e4dd549af03668880434e12c21accfdf27c0d0d20869b"
+    },
+    "decideram": {
+      "builtin": true,
+      "schema_hash": "2965ea2d000438aa4ecdb5cf195592f4476ab7b4c190f9fe04cd8811ff2bfc4e"
+    },
+    "decidestorage": {
+      "builtin": true,
+      "schema_hash": "cb96b13c0bf72d70ebd005bf474b71441d2badccef3a030b4e7f10caedf0f03f"
+    },
+    "extractprofile": {
+      "builtin": true,
+      "schema_hash": "656cb6fd3a76328fa7c0521c67b5141efa0ca4acf042b191d3ea5dde0e7532d2"
+    },
+    "followup": {
+      "builtin": true,
+      "schema_hash": "777e739ba486ebfdcb45d3b4a5b68f0bcf579523c24fba8a978023ee1b594ebf"
+    }
+  },
+  "serving_model": "openrouter/google/gemma-4-31b-it"
+}

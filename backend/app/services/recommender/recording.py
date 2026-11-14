@@ -104,12 +104,35 @@ def _as_int(value: Any) -> int | None:
 
 
 def _usage_field(usage: Any, key: str) -> int | None:
-    """litellm usage may be a dict or a pydantic-ish object."""
+    """Usage may be a dict or an attribute-style object; read either."""
     if usage is None:
         return None
     if isinstance(usage, dict):
         return _as_int(usage.get(key))
     return _as_int(getattr(usage, key, None))
+
+
+def provider_cost(response: Any) -> float | None:
+    """OpenRouter's billed dollar cost for one call, off DSPy's raw response.
+
+    WHY NOT history["cost"]. Under litellm that field carried OpenRouter's own
+    `usage.cost`. DSPy's native engine (3.5+) fills it from its bundled price
+    table instead, and for a model the table has no rate for (google/gemma-*
+    included) it records None with cost_details "a billed token dimension has
+    no known rate". OpenRouter's figure still arrives: the engine keeps the
+    provider's response body verbatim as `response.provider_data`, and this
+    reads `usage.cost` from there. It is also the number OpenRouter bills, which
+    a price-table estimate is not.
+    """
+    data = getattr(response, "provider_data", None)
+    if not isinstance(data, dict):
+        return None
+    usage = data.get("usage")
+    cost = usage.get("cost") if isinstance(usage, dict) else None
+    try:
+        return float(cost) if cost is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def extract_usage(
@@ -121,8 +144,9 @@ def extract_usage(
     DSPy prediction plus the LM history entry for this call.
 
     Tokens come preferentially from prediction.get_lm_usage() (per-prediction,
-    isolated); cost + rendered prompt come from the history entry, which under
-    OpenRouter carries litellm's computed cost and the actual messages.
+    isolated); cost + rendered prompt come from the history entry. Cost prefers
+    the provider's billed figure on the raw response over DSPy's own estimate;
+    see provider_cost.
     """
     tokens_in = tokens_out = None
     cost = None
@@ -141,7 +165,9 @@ def extract_usage(
 
     messages = None
     if history_entry:
-        cost = history_entry.get("cost")
+        cost = provider_cost(history_entry.get("response"))
+        if cost is None:
+            cost = history_entry.get("cost")
         model = model or history_entry.get("model")
         messages = history_entry.get("messages") or history_entry.get("prompt")
         if tokens_in is None and tokens_out is None:

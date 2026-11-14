@@ -267,13 +267,14 @@ async def discuss(messages, proposed_build: dict, session_id: str | None):
     lookup_status = "No additional part lookup requested."
     try:
         program = load_program()
-        with dspy.context(lm=step_lm(session_lm(session_id), "discuss")):
+        lm = step_lm(session_lm(session_id), "discuss")
+        with dspy.context(lm=lm):
             plan = await asyncio.to_thread(
                 program,
                 conversation=cp._format_conversation(messages),
                 proposed_build=json.dumps(proposed_build),
             )
-        cp._capture_dspy_usage(plan, usage)
+        cp._capture_dspy_usage(plan, usage, lm)
         if plan.query.strip() and plan.category != "none":
             async with AsyncSessionLocal() as db:
                 part = await find_part(db, plan.query[:500], plan.category)

@@ -149,8 +149,8 @@ data:
   DSPY_CHAT_TIMEOUT_S: "900"
 
   # The DSPy Decide* steps. Same model; the `openrouter/` prefix the default
-  # carries is litellm routing rather than part of the name, and
-  # dspy_pipeline.litellm_model rewrites it to `openai/` when the endpoint is
+  # carries is DSPy routing rather than part of the name, and
+  # dspy_pipeline.dspy_model rewrites it to `openai/` when the endpoint is
   # not OpenRouter, so name the bare model here.
   RECOMMEND_MODEL: "qwen3.8-27b"
 

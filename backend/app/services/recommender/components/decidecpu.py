@@ -5,7 +5,7 @@ from pathlib import Path
 
 import dspy
 
-from app.services.recommender.artifacts import load_artifact
+from app.services.recommender.artifacts import chain_of_thought, load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "decidecpu.json"
@@ -75,7 +75,7 @@ class DecideCPU(dspy.Module):
     output_name_field = "cpu_name"
 
     def __init__(self) -> None:
-        self.chain = dspy.ChainOfThought(CPUSelection)
+        self.chain = chain_of_thought(CPUSelection)
 
     def forward(
         self,

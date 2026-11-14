@@ -20,8 +20,8 @@ class LLMEndpoint:
     Exists so that "am I talking to OpenRouter?" is asked one way rather than
     once per client-construction site, and so that the answer carries the right
     key with it. Several things hang off that question beyond the URL: the
-    credential, litellm's model prefix, whether OpenRouter's `usage`/`session_id`
-    extensions are safe to put in the request body, and whether a completion id
+    credential, DSPy's model prefix, whether OpenRouter's request extensions
+    (`usage`, `session_id`, `provider`) are safe to put in the request body, and whether a completion id
     means anything to the /generation cost endpoint.
     """
 

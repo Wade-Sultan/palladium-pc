@@ -54,12 +54,23 @@ spec:
               memory: 1Gi
 ---
 # The worker's CPU request stays low for the same reason builder's does, turns
-# are blocked on OpenRouter, not computing, but memory does NOT get the same
-# treatment. It runs up to PUBSUB_MAX_CONCURRENCY turns at once, each holding a
-# DSPy state and its candidate set, so 2Gi is a working-set requirement rather
-# than a ceiling to burst against. Memory request equals limit here as
-# everywhere: over-limit memory is an OOM kill, and an OOM-killed worker drops
-# every turn it was running.
+# are blocked on OpenRouter, not computing. It runs up to PUBSUB_MAX_CONCURRENCY
+# turns at once, each holding a DSPy state and its candidate set. Memory request
+# equals limit here as everywhere: over-limit memory is an OOM kill, and an
+# OOM-killed worker drops every turn it was running.
+#
+# 1Gi, DOWN FROM 2Gi, from a measurement (DSPy 3.5, no litellm): the real
+# worker code running 8 concurrent load-test turns against the seeded catalog
+# holds ~200 MB after warm-up and ~220 MB at peak, and stays flat near 260 MB
+# over 2,400 turns. Flat only because configure_dspy caps DSPy's call
+# histories and trace (DSPY_HISTORY_CAP); at DSPy's defaults the same worker
+# grew ~130 KB per turn for thousands of turns, which is what 2Gi had been
+# quietly absorbing. Under litellm the baseline was ~120 MB higher.
+#
+# The CPU limit drops from 2 to 1 with it, by the ratio rule above. That costs
+# nothing measurable: start-up (imports, configure_dspy, the Decide* weights)
+# uses 0.9 of one core, and a Python process is single-core bound by the GIL
+# for this work anyway.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -72,10 +83,10 @@ spec:
           resources:
             requests:
               cpu: "250m"
-              memory: 2Gi
+              memory: 1Gi
             limits:
-              cpu: "2"
-              memory: 2Gi
+              cpu: "1"
+              memory: 1Gi
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -116,7 +116,10 @@ def test_extraction_model_override_keeps_local_endpoint(monkeypatch):
         same = session_lm("turn-1", model="qwen3.8-27b")
         other = session_lm("turn-1", model="qwen3.6-27b")
 
-    assert same is base
+    # Same model, still a copy: each session needs its own history.
+    assert same is not base
+    assert same.model == base.model
+    assert same.history == []
     assert other.model == "openai/qwen3.6-27b"
     assert other.kwargs["api_base"] == _LOCAL
 
@@ -125,15 +128,20 @@ def test_extraction_model_override_keeps_openrouter_session(monkeypatch):
     import dspy
 
     from app.core.config import settings
-    from app.services.recommender.dspy_pipeline import session_lm
+    from app.services.recommender.dspy_pipeline import make_lm, session_lm
 
     monkeypatch.setattr(settings, "LLM_BASE_URL", "")
-    base = dspy.LM(model="openrouter/google/gemma-4-31b-it", api_key="test")
+    monkeypatch.setattr(settings, "OPENROUTER_PROVIDER", {"order": ["X"]})
+    base = make_lm("google/gemma-4-31b-it")
     with dspy.context(lm=base):
         extraction = session_lm("turn-1", model="google/gemma-3-4b-it")
 
     assert extraction.model == "openrouter/google/gemma-3-4b-it"
-    assert extraction.kwargs["extra_body"]["session_id"] == "turn-1"
+    # The copy keeps what make_lm set up, the provider pin included.
+    assert extraction.kwargs["provider"] == {"order": ["X"]}
+    assert extraction.engine == "lm15"
+    # session_id is no longer sent: DSPy's native engine refuses extra_body.
+    assert "extra_body" not in extraction.kwargs
 
 
 # --- Token budgets ------------------------------------------------------------
@@ -192,7 +200,7 @@ def test_provider_pin_reaches_discovery_and_dspy(monkeypatch):
     """A pin that covered only some calls to a model would be worse than none."""
     from app.core.config import settings
     from app.services.discovery.openrouter_client import extra_body
-    from app.services.recommender.dspy_pipeline import _openrouter_extra_body
+    from app.services.recommender.dspy_pipeline import configure_dspy
 
     pin = {"ignore": ["SomeUpstream"]}
     monkeypatch.setattr(settings, "OPENROUTER_PROVIDER", pin)
@@ -200,7 +208,10 @@ def test_provider_pin_reaches_discovery_and_dspy(monkeypatch):
     monkeypatch.setattr(settings, "DISCOVERY_LLM_BASE_URL", "")
 
     assert extra_body(None)["extra_body"]["provider"] == pin
-    assert _openrouter_extra_body()["provider"] == pin
+    configure_dspy()
+    import dspy
+
+    assert dspy.settings.lm.kwargs["provider"] == pin
 
 
 def test_provider_pin_is_not_sent_to_a_local_server(monkeypatch):
@@ -217,13 +228,15 @@ def test_provider_pin_is_not_sent_to_a_local_server(monkeypatch):
     configure_dspy()
     import dspy
 
+    assert "provider" not in dspy.settings.lm.kwargs
     assert not dspy.settings.lm.kwargs.get("extra_body")
 
 
 # --- Native thinking switched off per call -------------------------------------
-# reasoning_effort=none travels in extra_body because litellm refuses it as an
-# argument for an `openai/` model. Measured on qwen3.8-27b in LM Studio it removed
-# thinking entirely, where Qwen's "/no_think" prompt suffix only roughly halved it.
+# reasoning_effort=none. The chat path sends it in extra_body (LangChain); DSPy's
+# native engine takes it as a plain argument and refuses extra_body. Measured on
+# qwen3.8-27b in LM Studio it removed thinking entirely, where Qwen's
+# "/no_think" prompt suffix only roughly halved it.
 
 
 def test_think_false_asks_a_local_server_to_skip_thinking(monkeypatch):
@@ -252,7 +265,12 @@ def _local_lm():
     import dspy
 
     return dspy.LM(
-        "openai/qwen3.8-27b", api_base=_LOCAL, api_key="x", extra_body={"keep": 1}
+        "openai/qwen3.8-27b",
+        model_type="chat",
+        engine="lm15",
+        api_base=_LOCAL,
+        api_key="x",
+        temperature=0.3,
     )
 
 
@@ -282,9 +300,11 @@ def test_step_lm_lets_only_the_named_steps_think(monkeypatch):
     for step in ("extract", "ddr", "storage", "case", "fans", "discuss"):
         quiet = dp.step_lm(lm, step)
         assert quiet is not lm
-        # Merged into whatever extra_body the LM already carried, not replacing it.
-        assert quiet.kwargs["extra_body"] == {"keep": 1, "reasoning_effort": "none"}
-    assert lm.kwargs["extra_body"] == {"keep": 1}
+        # Added to what the LM already carried, not replacing it.
+        assert quiet.kwargs["reasoning_effort"] == "none"
+        assert quiet.kwargs["temperature"] == 0.3
+        assert "extra_body" not in quiet.kwargs
+    assert "reasoning_effort" not in lm.kwargs
 
 
 def test_step_lm_is_ignored_on_openrouter(monkeypatch):
