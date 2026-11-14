@@ -125,9 +125,11 @@ steps:
   # --------------------------------------------------------------- render ----
   # Runs in parallel with the image builds: it only touches text.
   #
-  # cloud-sdk rather than the kubectl builder because this step needs python3
-  # as well as kubectl, and cloud-sdk is guaranteed to have both (gcloud itself
-  # is a python application).
+  # cloud-sdk for its kubectl (kustomize). It is unpinned, so this step may use
+  # nothing else from it: bash, sed, grep and kubectl only. Splitting the render
+  # is the `split` step's job, on a pinned python image, because cloud-sdk once
+  # carried python3 here (gcloud is a python application) and a later :latest
+  # stopped putting it on PATH, which failed every deploy at this step.
   #
   # sed rather than `kustomize edit set image`: the substitution is two fields,
   # and the \b boundaries keep FIREBASE_PROJECT_ID from being rewritten, which
@@ -215,6 +217,20 @@ steps:
           exit 1
         fi
 
+  # ---------------------------------------------------------------- split ----
+  # Splits render's output into the files migrate and deploy apply. Its own step
+  # on a pinned image because it needs python3, which render's unpinned cloud-sdk
+  # does not guarantee (see render). mirror.gcr.io is Google's Docker Hub mirror,
+  # which keeps the pull off Docker Hub's rate limit.
+  - id: split
+    name: mirror.gcr.io/library/python:3.12-slim
+    entrypoint: bash
+    waitFor: [render]
+    args:
+      - -c
+      - |
+        set -euo pipefail
+
         # Split the migration Job from everything else: it must complete BEFORE
         # the Deployments roll, so it cannot ride along in the same apply.
         # Splitting on document separators needs no YAML parser. Kustomize
@@ -265,7 +281,7 @@ steps:
   - id: credentials
     name: gcr.io/cloud-builders/kubectl
     entrypoint: bash
-    waitFor: [render]
+    waitFor: [split]
     env: ['KUBECONFIG=/workspace/kubeconfig']
     args:
       - -c
