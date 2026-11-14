@@ -39,6 +39,15 @@ spec:
       # turn it might be finishing. The drain cancels the Pub/Sub pull first so
       # no new turns start, making this a bound on in-flight work only.
       terminationGracePeriodSeconds: 260
+      # Keeps the worker from being PID 1. The kernel discards any signal sent to
+      # a namespace's PID 1 that has no handler for it, and app/worker.py can
+      # install its SIGTERM handler only after its imports, which take seconds.
+      # A rollout or KEDA scale-in landing in that window lost its SIGTERM: the
+      # pod went on to subscribe, took new turns while Terminating, and ran until
+      # SIGKILL killed whatever it held. With a shared PID namespace the pause
+      # container is PID 1, so an early SIGTERM ends the process at once (nothing
+      # is leased yet) and a later one reaches the handler and drains as usual.
+      shareProcessNamespace: true
       containers:
         - name: worker
           image: palladium/builder
