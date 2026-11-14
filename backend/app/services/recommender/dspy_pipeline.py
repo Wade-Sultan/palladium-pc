@@ -391,11 +391,21 @@ def session_lm(
     model: str | None = None,
 ) -> dspy.LM:
     """
-    Clone the configured LM for a session or a different model.
+    Clone the configured LM for one session, optionally on a different model.
 
     An explicit model lets profile extraction use its own configured model
     while keeping the same DSPy adapter, endpoint, and usage recording as the
-    build steps. Without one, return the configured LM unchanged.
+    build steps.
+
+    ALWAYS A COPY, NEVER THE CONFIGURED LM ITSELF. A copy starts with its own
+    empty history, and usage recording depends on that: _run_step and
+    chat_pipeline._capture_dspy_usage read `lm.history[-1]` as "the call I just
+    made". A worker runs several turns at once, so on one shared LM that entry
+    can be another turn's call that finished while this one was awaiting its
+    module thread, which bills the wrong conversation under the wrong prompt
+    hash. Within one session the calls are strictly sequential, so the session's
+    own copy is enough. Before DSPy 3.5 the per-session OpenRouter `session_id`
+    happened to force this copy; it is explicit now that the field is gone.
 
     session_id is accepted and unused off the load-test path. It used to become
     OpenRouter's `session_id`, which DSPy's native engine cannot send; see
@@ -420,12 +430,12 @@ def session_lm(
         return make_stub_lm()
 
     lm = dspy.settings.lm
+    # A copy keeps engine, model_type, api_base, callbacks and the provider pin.
     if model is not None:
         resolved = dspy_model(model)
         if resolved != lm.model:
-            # A copy keeps engine, model_type, api_base and the provider pin.
             return lm.copy(model=resolved)
-    return lm
+    return lm.copy()
 
 
 def step_lm(lm: dspy.LM, step: str) -> dspy.LM:

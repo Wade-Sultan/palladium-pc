@@ -116,7 +116,10 @@ def test_extraction_model_override_keeps_local_endpoint(monkeypatch):
         same = session_lm("turn-1", model="qwen3.8-27b")
         other = session_lm("turn-1", model="qwen3.6-27b")
 
-    assert same is base
+    # Same model, still a copy: each session needs its own history.
+    assert same is not base
+    assert same.model == base.model
+    assert same.history == []
     assert other.model == "openai/qwen3.6-27b"
     assert other.kwargs["api_base"] == _LOCAL
 

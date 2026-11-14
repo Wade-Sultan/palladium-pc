@@ -204,14 +204,17 @@ def warm_dspy_pipeline() -> None:
     import app.services.graph.graph  # noqa: F401
 
 
-def _capture_dspy_usage(prediction: Any, usage_sink: dict) -> None:
-    """Pull tokens + cost for the extractprofile DSPy call from the LM history."""
-    try:
-        import dspy
+def _capture_dspy_usage(prediction: Any, usage_sink: dict, lm: Any) -> None:
+    """Pull tokens + cost for one DSPy call from the history of the LM it ran on.
 
+    `lm` is passed rather than read from dspy.settings, because callers capture
+    after their dspy.context has exited, where dspy.settings.lm is the shared
+    configured LM: its last entry is whichever call in the process finished
+    last, not this one. See session_lm.
+    """
+    try:
         from app.services.recommender.recording import extract_usage
 
-        lm = dspy.settings.lm
         history_entry = dict(lm.history[-1]) if getattr(lm, "history", None) else None
         tokens_in, tokens_out, cost, model, _hash = extract_usage(
             prediction, history_entry
@@ -494,11 +497,12 @@ async def extract_profile(
             # fresh sample almost always parses; a model that has genuinely
             # stopped honouring the signature will not be fixed by asking
             # again, and the second failure is worth surfacing as one.
-            with dspy.context(lm=lm.copy(cache=False)):
+            lm = lm.copy(cache=False)
+            with dspy.context(lm=lm):
                 result = await asyncio.to_thread(program, conversation=conversation)
 
     if usage_sink is not None:
-        _capture_dspy_usage(result, usage_sink)
+        _capture_dspy_usage(result, usage_sink, lm)
 
     games = [g.strip() for g in result.games.split(",") if g.strip()]
     workloads = [w.strip() for w in result.workloads.split(",") if w.strip()]

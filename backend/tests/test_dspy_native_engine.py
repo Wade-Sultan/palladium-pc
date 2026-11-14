@@ -12,6 +12,8 @@ OpenAI-compatible server, so the assertion is about what reached the wire:
 - model_type="auto" sends an `openai/` model to /v1/responses.
 - DSPy's own history["cost"] is None for models without a bundled price, so
   OpenRouter's billed cost has to be read off the raw response.
+- session_lm handed every session the one configured LM, so concurrent turns
+  appended to one shared history and `history[-1]` could be another turn's call.
 - 3.5 changed ChainOfThought's reasoning field type, which would change
   artifacts.schema_hash and reject every pinned prompt release.
 
@@ -38,6 +40,9 @@ class _FakeServer:
 
     def __init__(self) -> None:
         self.requests: list[dict[str, Any]] = []
+        # The billed cost to report for a request body. A test that has to tell
+        # two calls' records apart gives each its own figure.
+        self.cost_for: Any = lambda _body: 0.00042
         server = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -65,7 +70,7 @@ class _FakeServer:
                             "prompt_tokens": 11,
                             "completion_tokens": 7,
                             "total_tokens": 18,
-                            "cost": 0.00042,
+                            "cost": server.cost_for(body),
                         },
                     }
                 ).encode()
@@ -170,6 +175,81 @@ def test_cost_and_tokens_are_recorded_from_the_billed_response():
     assert cost == pytest.approx(0.00042)
     assert model == "openrouter/google/gemma-4-31b-it"
     assert prompt_hash
+
+
+def test_concurrent_turns_each_record_their_own_call(monkeypatch, openrouter):
+    """A turn's recorded cost and prompt are its own call's, not the latest one's.
+
+    _run_step reads `history[-1]` after awaiting a module that ran in a worker
+    thread. A worker runs several turns at once, so if two turns share one LM
+    history, the entry it reads can be another turn's call that finished in the
+    meantime: the wrong conversation is billed, and under the wrong prompt hash.
+    This forces exactly that interleaving: A's call lands, then B's, and only
+    then does A read its history.
+    """
+    import asyncio
+
+    import dspy
+
+    from app.services.recommender import dspy_pipeline as dp
+    from app.services.recommender.artifacts import chain_of_thought
+    from app.services.recommender.recording import extract_usage
+
+    openrouter.cost_for = lambda body: 0.001 if "turn-a" in json.dumps(body) else 0.002
+    monkeypatch.setattr(dp, "RECOMMEND_THINK_STEPS", None)
+
+    class _Recorder:
+        def __init__(self) -> None:
+            self.usage: list[tuple[Any, ...]] = []
+
+        def record_decision(self, *, prediction: Any, history_entry: Any, **_: Any):
+            self.usage.append(extract_usage(prediction, history_entry))
+
+    # One shared program, as in production, where load_program is lru_cached.
+    program = chain_of_thought("candidates, question -> answer")
+    program.category = "ddr"
+
+    real_call = dp._call_program
+
+    async def main() -> tuple[_Recorder, _Recorder]:
+        a_called, b_done = asyncio.Event(), asyncio.Event()
+
+        async def interleaved(program: Any, **kwargs: Any) -> Any:
+            if kwargs["question"] == "turn-b":
+                await a_called.wait()
+                result = await real_call(program, **kwargs)
+                b_done.set()
+                return result
+            result = await real_call(program, **kwargs)
+            a_called.set()
+            await b_done.wait()
+            return result
+
+        monkeypatch.setattr(dp, "_call_program", interleaved)
+
+        async def turn(session_id: str, recorder: _Recorder) -> None:
+            with dspy.context(lm=dp.session_lm(session_id)):
+                await dp._run_step(
+                    recorder, program, candidates="[]", question=session_id
+                )
+
+        a, b = _Recorder(), _Recorder()
+        await asyncio.gather(turn("turn-a", a), turn("turn-b", b))
+        return a, b
+
+    with dspy.context(
+        lm=dp.make_lm("google/gemma-4-31b-it", cache=False),
+        adapter=dspy.ChatAdapter(),
+        track_usage=True,
+    ):
+        a, b = asyncio.run(main())
+
+    assert len(openrouter.requests) == 2
+    [(_, _, cost_a, _, hash_a)] = a.usage
+    [(_, _, cost_b, _, hash_b)] = b.usage
+    assert cost_a == pytest.approx(0.001)
+    assert cost_b == pytest.approx(0.002)
+    assert hash_a != hash_b
 
 
 def test_local_server_gets_chat_completions_and_no_think(monkeypatch, fake_server):
