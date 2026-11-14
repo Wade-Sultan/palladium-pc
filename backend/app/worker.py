@@ -427,6 +427,11 @@ def main() -> None:
         logger.info("received %s", signal.Signals(signum).name)
         worker.stop()
 
+    # Installed only once every import above has run, which takes seconds. A
+    # SIGTERM before this point gets the default action, which ends the process,
+    # but only because the Deployment sets shareProcessNamespace: as a
+    # container's PID 1 the signal would be discarded instead, and the pod would
+    # subscribe and take turns while Terminating. See deploy/base/worker/.
     signal.signal(signal.SIGTERM, _on_signal)
     signal.signal(signal.SIGINT, _on_signal)
 
