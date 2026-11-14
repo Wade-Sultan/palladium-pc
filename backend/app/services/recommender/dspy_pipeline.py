@@ -345,6 +345,12 @@ def configure_dspy() -> None:
     # thousands of turns before plateauing, well past its memory limit. This
     # code reads only lm.history[-1], the call it just made, and never reads the
     # trace; optimizers (GEPA) open their own trace per evaluation.
+    #
+    # The cap is small because a module's history fills at the rate that
+    # module is called, about once per build. At 64 the global history was full
+    # within a few builds but each Decide* module's took ~64 builds, so a 50
+    # build soak still grew every build (tracemalloc: the rendered prompts,
+    # ~10 per build, held by module histories).
     dspy.configure(
         lm=lm,
         track_usage=True,
@@ -355,11 +361,31 @@ def configure_dspy() -> None:
     # The global history ignores max_history_size: it has its own module-level
     # cap, read at call time, so it is lowered here rather than configured.
     base_lm.MAX_HISTORY_SIZE = DSPY_HISTORY_CAP
+    # DSPy evicts one entry per call, so a list already past the cap (calls made
+    # before this ran) would stay that long forever. Trim it to the cap now.
+    del base_lm.GLOBAL_HISTORY[:-DSPY_HISTORY_CAP]
+    # The in-process response cache is the third store sized for a notebook,
+    # not a server: it defaults to 1,000,000 entries, and every real build's
+    # prompts are new, so it only ever grows. Only an identical request
+    # repeated within one process hits it, so a small cap costs nothing.
+    #
+    # The disk cache is off. It is a 30 GB, 16-shard SQLite store under
+    # ~/.dspy_cache, so in a pod it grew the writable layer ~0.4 MB per build
+    # and each shard's SQLite page cache (up to 32 MiB, native, invisible to
+    # tracemalloc) with it. A pod's disk does not outlive the pod, so it never
+    # saves a call another process would have made.
+    dspy.configure_cache(
+        enable_disk_cache=False,
+        memory_max_entries=DSPY_MEMORY_CACHE_ENTRIES,
+    )
 
 
 # Entries DSPy may keep per history and in its trace. See configure_dspy. Must
 # stay >= 1: recording reads lm.history[-1].
-DSPY_HISTORY_CAP = 64
+DSPY_HISTORY_CAP = 4
+
+# Responses DSPy's in-process cache may hold. See configure_dspy.
+DSPY_MEMORY_CACHE_ENTRIES = 64
 
 
 def load_all_programs() -> None:
