@@ -84,13 +84,14 @@ spec:
             periodSeconds: 30
             failureThreshold: 3
           resources:
-            # Higher memory than builder's request, lower CPU. A worker runs up
-            # to PUBSUB_MAX_CONCURRENCY turns at once, each holding a DSPy state
-            # and a candidate set, but spends nearly all of that time blocked on
-            # OpenRouter rather than computing.
+            # Lower CPU than builder. A worker runs up to PUBSUB_MAX_CONCURRENCY
+            # turns at once, each holding a DSPy state and a candidate set, but
+            # spends nearly all of that time blocked on OpenRouter rather than
+            # computing. 1Gi is ~4x the measured steady state; see the worker
+            # note in overlays/prod/patches/resources.yaml.
             requests:
               cpu: "500m"
-              memory: 2Gi
+              memory: 1Gi
             limits:
-              cpu: "2"
-              memory: 2Gi
+              cpu: "1"
+              memory: 1Gi

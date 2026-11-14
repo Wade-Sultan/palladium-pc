@@ -52,7 +52,7 @@ spec:
   # apply` resets the Deployment to a count KEDA then has to undo.
   #
   # ZERO. There is no warm floor: between bursts this Deployment runs no pods at
-  # all and the 2Gi of permanently reserved Autopilot memory per replica goes
+  # all and the 1Gi of permanently reserved Autopilot memory per replica goes
   # back to the cluster, which is what left the migration Job unschedulable at
   # deploy time on a cluster capped at 4 nodes by SSD_TOTAL_GB quota.
   #
@@ -76,15 +76,15 @@ spec:
   # directly, so the budget is pollingInterval (<=10s) + pod scheduling (~5s) +
   # process start (~10-20s), or roughly 25-35s when a node has room.
   #
-  # WHAT IS LEFT IS AUTOPILOT. If no node can fit a 2Gi pod, node provisioning
+  # WHAT IS LEFT IS AUTOPILOT. If no node can fit a 1Gi pod, node provisioning
   # adds 60-120s and no scaler change can help. The cluster is capped at 4
   # nodes by SSD_TOTAL_GB quota, so this is the term to expect on a genuinely
-  # cold cluster. A low-priority balloon pod holding 2Gi would remove it, at the
+  # cold cluster. A low-priority balloon pod holding 1Gi would remove it, at the
   # cost of reserving the memory this floor exists to release.
   minReplicaCount: 1
 
   # 8 x 8 concurrency = 64 turns in flight. A ceiling, not a target: at the
-  # worker's prod resources (250m/2Gi requested) a fully scaled-out pool is 16Gi
+  # worker's prod resources (250m/1Gi requested) a fully scaled-out pool is 8Gi
   # of Autopilot memory, so this is the number to revisit deliberately rather
   # than raise reflexively when a run looks slow.
   maxReplicaCount: 8
@@ -118,7 +118,7 @@ spec:
   # change one, decide about the other rather than discovering the split later.
   #
   # Not shorter: this is dead time after the queue empties, and buying back five
-  # minutes of a 2Gi reservation is not worth paying the 0->1 cold start again
+  # minutes of a 1Gi reservation is not worth paying the 0->1 cold start again
   # for the next turn that arrives 90 seconds into a lull.
   cooldownPeriod: 300
 

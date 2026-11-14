@@ -1,4 +1,4 @@
-"""Process-local readiness flag for the DSPy/litellm warm-up.
+"""Process-local readiness flag for the DSPy warm-up.
 
 Lives in its own module, not in chat_pipeline, so the readiness probe can
 import it without dragging in the pipeline's import chain, which is the very

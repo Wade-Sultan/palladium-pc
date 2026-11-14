@@ -239,7 +239,7 @@ class Worker:
         )
 
         # BEFORE subscribing, not lazily on the first turn. chat_pipeline defers
-        # the dspy/litellm import into its function bodies, so importing this
+        # the dspy import into its function bodies, so importing this
         # module costs ~1s and the real work, the import chain, configure_dspy,
         # and reading all ten Decide* weights files, lands on whichever turn
         # happens to arrive first. That was survivable at a warm floor of 1,

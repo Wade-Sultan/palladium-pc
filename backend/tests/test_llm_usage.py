@@ -15,6 +15,7 @@ and *recovered* in the right places, rather than about any happy path.
 from __future__ import annotations
 
 import asyncio
+from types import SimpleNamespace
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -268,6 +269,25 @@ class _FakeLM:
         clone = _FakeLM()
         clone.cache = kwargs.get("cache", self.cache)
         return clone
+
+
+def test_dspy_usage_is_read_from_the_lm_the_call_ran_on():
+    """Not from dspy.settings.lm, which after the call's context has exited is
+    the shared configured LM, whose last entry is whichever call in the process
+    finished last."""
+    import dspy
+
+    from app.services import chat_pipeline as cp
+
+    def _lm(cost: float) -> SimpleNamespace:
+        return SimpleNamespace(history=[{"cost": cost, "model": "m", "usage": {}}])
+
+    prediction = SimpleNamespace(get_lm_usage=lambda: {})
+    sink: dict = {}
+    with dspy.context(lm=_lm(0.9)):
+        cp._capture_dspy_usage(prediction, sink, _lm(0.1))
+
+    assert sink["cost_usd"] == pytest.approx(0.1)
 
 
 def test_extraction_retries_once_with_the_cache_disabled(monkeypatch):

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import dspy
 
-from app.services.recommender.artifacts import load_artifact
+from app.services.recommender.artifacts import chain_of_thought, load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "decidecpucooler.json"
@@ -50,7 +50,7 @@ class DecideCPUCooler(dspy.Module):
     output_name_field = "cooler_name"
 
     def __init__(self) -> None:
-        self.chain = dspy.ChainOfThought(CoolerSelection)
+        self.chain = chain_of_thought(CoolerSelection)
 
     def forward(self, use_cases, cpu_name, cpu_tdp_w, budget_ceiling, candidates):
         return self.chain(

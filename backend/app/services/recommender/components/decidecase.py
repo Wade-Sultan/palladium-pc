@@ -4,7 +4,7 @@ from functools import lru_cache
 
 import dspy
 
-from app.services.recommender.artifacts import load_artifact
+from app.services.recommender.artifacts import chain_of_thought, load_artifact
 
 
 class CaseOptions(dspy.Signature):
@@ -51,7 +51,7 @@ class DecideCase(dspy.Module):
     output_name_field = "option_1"
 
     def __init__(self) -> None:
-        self.chain = dspy.ChainOfThought(CaseOptions)
+        self.chain = chain_of_thought(CaseOptions)
 
     def forward(self, use_cases, mobo_form_factor, budget_ceiling, candidates):
         return self.chain(

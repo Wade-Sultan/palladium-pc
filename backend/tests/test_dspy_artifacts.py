@@ -177,3 +177,85 @@ def test_a_paused_build_from_another_release_cannot_resume():
 def test_the_export_refuses_an_unknown_module_name(tmp_path):
     with pytest.raises(artifacts.ArtifactError, match="Unknown module"):
         build_manifest(tmp_path / "rel", {"decidewidget": tmp_path / "x.json"}, None)
+
+
+# --- releases exported under an older DSPy ---------------------------------
+#
+# A real release, exported by scripts/export_dspy_release.py under dspy 3.2.1
+# with an optimized DecideCPU (rewritten instructions and one demo), committed
+# with the prompt 3.2.1 rendered from it. It is what pins made before the 3.5
+# upgrade look like, and it is the evidence behind LOADABLE_DSPY_VERSIONS.
+
+RELEASE_3_2_1 = Path(__file__).parent / "fixtures" / "dspy_release_3_2_1"
+
+
+def _messages(prompt) -> list[dict]:
+    """ChatAdapter.format output as role/content dicts on any DSPy version.
+
+    3.2.1 returns that list; 3.5 returns an lm15 Prompt carrying the same text.
+    """
+    if isinstance(prompt, list):
+        return prompt
+    system = [{"role": "system", "content": prompt.system}] if prompt.system else []
+    return system + [
+        {"role": m.role, "content": "".join(part.text for part in m.parts)}
+        for m in prompt.messages
+    ]
+
+
+def _pin_3_2_1(monkeypatch):
+    raw = (RELEASE_3_2_1 / "manifest.json").read_bytes()
+    _pin(monkeypatch, RELEASE_3_2_1, artifacts.digest(raw))
+    return json.loads(raw)
+
+
+def test_a_3_2_1_release_loads_and_renders_the_prompt_it_was_scored_on(monkeypatch):
+    """Loading is not enough: the instructions GEPA scored were scored inside a
+    3.2.1 prompt, so the prompt this runtime sends must be that prompt."""
+    import dspy
+
+    from app.services.recommender import dspy_pipeline
+
+    manifest = _pin_3_2_1(monkeypatch)
+    assert manifest["dspy_version"] == "3.2.1"
+    monkeypatch.setattr(dspy_pipeline, "RECOMMEND_MODEL", manifest["serving_model"])
+
+    loaded = artifacts.load_artifact(DecideCPU(), "decidecpu")
+
+    ((_, predictor),) = loaded.named_predictors()
+    assert predictor.signature.instructions.startswith("OPTIMIZED")
+    assert len(predictor.demos) == 1
+    inputs = {k: f"q-{k}" for k in predictor.signature.input_fields}
+    rendered = dspy.ChatAdapter().format(predictor.signature, predictor.demos, inputs)
+    expected = json.loads((RELEASE_3_2_1 / "decidecpu.prompt.json").read_text())
+    assert _messages(rendered) == expected
+
+
+def test_a_release_from_an_unverified_dspy_version_is_refused(monkeypatch, tmp_path):
+    """The allowlist is the policy, not "any older version": a version nobody
+    checked could load cleanly and still send a different prompt."""
+    from app.services.recommender import dspy_pipeline
+
+    manifest = json.loads((RELEASE_3_2_1 / "manifest.json").read_text())
+    manifest["dspy_version"] = "3.0.0"
+    monkeypatch.setattr(dspy_pipeline, "RECOMMEND_MODEL", manifest["serving_model"])
+    out = tmp_path / "rel"
+    out.mkdir()
+    (out / "decidecpu.json").write_bytes(
+        (RELEASE_3_2_1 / "decidecpu.json").read_bytes()
+    )
+    raw = json.dumps(manifest).encode()
+    (out / "manifest.json").write_bytes(raw)
+    _pin(monkeypatch, out, artifacts.digest(raw))
+
+    with pytest.raises(artifacts.ArtifactError, match="dspy 3.0.0"):
+        artifacts.release()
+
+
+def test_every_loadable_version_has_a_committed_release():
+    """An allowlist entry without a fixture is an unchecked claim."""
+    for version in artifacts.LOADABLE_DSPY_VERSIONS:
+        fixture = Path(__file__).parent / "fixtures"
+        fixture /= f"dspy_release_{version.replace('.', '_')}"
+        manifest = json.loads((fixture / "manifest.json").read_text())
+        assert manifest["dspy_version"] == version

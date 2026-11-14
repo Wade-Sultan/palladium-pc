@@ -6,10 +6,11 @@ produces. `ChatOpenRouter` populates `usage_metadata` automatically, which is
 what makes the per-project spend view in LangSmith work at all.
 
 The DSPy build steps deliberately do NOT come through here. They reach
-OpenRouter via litellm, and `app/services/recommender/recording.py` reads
-`dspy.settings.lm.history` for their cost. Swapping their LM would break that
-and the GEPA tooling with it. They reach LangSmith through litellm's own
-callback instead; see app/core/tracing.py.
+OpenRouter through DSPy's own native engine, and
+`app/services/recommender/recording.py` reads `dspy.settings.lm.history` for
+their cost. Swapping their LM would break that and the GEPA tooling with it.
+They reach LangSmith through a DSPy callback instead; see
+`dspy_lm_callbacks` in app/core/tracing.py.
 """
 
 from app.services.llm.openrouter import (

@@ -238,7 +238,9 @@ def test_stub_lm_satisfies_typed_signatures(monkeypatch) -> None:
         tags: list[str] = dspy.OutputField()
         ok: bool = dspy.OutputField()
 
-    with dspy.context(lm=make_stub_lm()):
+    # ChatAdapter as configure_dspy sets it: the stub answers in its format, and
+    # DSPy 3.5's implicit default is XMLAdapter.
+    with dspy.context(lm=make_stub_lm(), adapter=dspy.ChatAdapter()):
         r = dspy.Predict(Sig)(question="best gpu?")
 
     assert isinstance(r.score, int)

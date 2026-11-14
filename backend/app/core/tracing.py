@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,6 @@ _LLM_SCOPE_PREFIXES = (
     "langchain",
     "langgraph",
     "opentelemetry.instrumentation.openai",
-    "litellm",
     "dspy",
 )
 
@@ -212,17 +212,13 @@ def _instrument_infra() -> None:
         logger.warning("httpx OTel instrumentation failed", exc_info=True)
 
 
-def _instrument_llm_clients(langsmith_enabled: bool) -> None:
-    """Attach span emission to the LLM calls LangChain does not already cover.
+def _instrument_llm_clients() -> None:
+    """Attach span emission to the openai SDK calls LangChain does not cover.
 
     The chat pipeline's own calls go through ChatOpenRouter and are traced by
-    LangChain itself. Nothing to do for those. What is left is the recommender:
-    DSPy's ten build steps reach OpenRouter through litellm, and they are where
-    most of a completed build's spend goes, so leaving them out would make the
-    per-conversation total in LangSmith an understatement rather than a number.
-
-    Each failure is caught separately; losing the DSPy spans should not also
-    lose the openai ones.
+    LangChain itself. The DSPy build steps are traced by dspy_lm_callbacks,
+    which every DSPy LM carries from construction, so there is nothing to
+    install for them here.
     """
     try:
         from opentelemetry.instrumentation.openai_v2 import OpenAIInstrumentor
@@ -231,24 +227,126 @@ def _instrument_llm_clients(langsmith_enabled: bool) -> None:
     except Exception:
         logger.warning("openai OTel instrumentation failed", exc_info=True)
 
-    try:
-        import litellm
 
-        # Appended, not assigned. DSPy installs its own callbacks and
-        # overwriting them would break its LM history, which
-        # app/services/recommender/recording.py reads for cost capture.
-        if "otel" not in litellm.callbacks:
-            litellm.callbacks.append("otel")
+# --- DSPy LM spans -----------------------------------------------------------
+#
+# The recommender's DSPy calls are most of a completed build's spend, so leaving
+# them untraced would make the per-conversation total in LangSmith an
+# understatement rather than a number.
+#
+# WHY A CALLBACK OF OUR OWN. These calls used to reach OpenRouter through
+# litellm, whose "otel" and "langsmith" callbacks produced the spans. DSPy 3.5
+# speaks to providers natively and litellm is no longer installed. Its native
+# engine has its own HTTP client (not httpx, not requests), so no
+# auto-instrumentation sees these calls either. One span per LM call, from
+# DSPy's own callback hook, is what replaces them.
+#
+# The span carries the gen_ai.* attributes LangSmith's OTel ingestion maps
+# (model, token counts) and `langsmith.span.kind=llm` so it is shown as an LLM
+# run. No cost attribute: LangSmith's mapping has none (see the header of
+# app/services/llm/openrouter.py), and our own cost lives in module_decisions.
+# No prompt or completion text either, which litellm's callbacks did attach:
+# the span also goes to Cloud Trace, and the prompts carry what users typed.
+#
+# Scope name "dspy.lm" matches the "dspy" prefix in _LLM_SCOPE_PREFIXES, so the
+# spans reach LangSmith as well as the OTLP endpoint.
+_DSPY_TRACER_SCOPE = "dspy.lm"
 
-        # Distinct from the OTel callback above and not redundant with it: the
-        # OTel one produces spans, this one produces LangSmith *runs* with token
-        # counts attached, which is what the spend view actually reads. Only
-        # when a key is configured, since litellm would otherwise fail per call
-        # trying to post them.
-        if langsmith_enabled and "langsmith" not in litellm.callbacks:
-            litellm.callbacks.append("langsmith")
-    except Exception:
-        logger.warning("litellm callback setup failed", exc_info=True)
+
+def dspy_lm_callbacks(tracer_provider: Any = None) -> list:
+    """Callbacks to construct every DSPy LM with: one span per LM call.
+
+    Attached per LM (dspy.LM(callbacks=...)) rather than through
+    dspy.configure, which is restricted to the thread that first called it and
+    runs at a different point of startup than configure_tracing. lm.copy keeps
+    them. Without a tracer provider the spans are non-recording and cost next
+    to nothing, so attaching them unconditionally is safe. A failure inside
+    the callback is logged and never fails the LM call.
+
+    tracer_provider is for tests; production uses the global one installed by
+    configure_tracing, looked up per call so an LM built before tracing was
+    configured still traces.
+    """
+    import threading
+
+    from dspy.utils.callback import BaseCallback
+    from opentelemetry import trace
+    from opentelemetry.trace import SpanKind, Status, StatusCode
+
+    class DspyLMSpans(BaseCallback):
+        def __init__(self) -> None:
+            self._spans: dict[str, Any] = {}
+            self._lock = threading.Lock()
+
+        def on_lm_start(self, call_id: str, instance: Any, inputs: dict) -> None:
+            try:
+                model = str(getattr(instance, "model", "") or "")
+                system, _, name = model.partition("/")
+                kwargs = getattr(instance, "kwargs", None) or {}
+                attributes: dict[str, Any] = {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.system": system if name else "unknown",
+                    "gen_ai.request.model": name or model,
+                    "langsmith.span.kind": "llm",
+                }
+                for key in ("temperature", "max_tokens"):
+                    if kwargs.get(key) is not None:
+                        attributes[f"gen_ai.request.{key}"] = kwargs[key]
+                tracer = trace.get_tracer(
+                    _DSPY_TRACER_SCOPE, tracer_provider=tracer_provider
+                )
+                span = tracer.start_span(
+                    f"chat {name or model}", kind=SpanKind.CLIENT, attributes=attributes
+                )
+                with self._lock:
+                    self._spans[call_id] = span
+            except Exception:
+                logger.debug("dspy span start failed", exc_info=True)
+
+        def on_lm_end(
+            self,
+            call_id: str,
+            outputs: Any,
+            exception: BaseException | None = None,
+        ) -> None:
+            with self._lock:
+                span = self._spans.pop(call_id, None)
+            if span is None:
+                return
+            try:
+                if exception is not None:
+                    span.record_exception(exception)
+                    span.set_status(Status(StatusCode.ERROR, type(exception).__name__))
+                else:
+                    # outputs is DSPy's native Response (lm15) for this call.
+                    _set_response_attributes(span, outputs)
+            except Exception:
+                logger.debug("dspy span end failed", exc_info=True)
+            finally:
+                span.end()
+
+    return [DspyLMSpans()]
+
+
+def _set_response_attributes(span: Any, response: Any) -> None:
+    if response is None:
+        return
+    for attr, key in (("model", "gen_ai.response.model"), ("id", "gen_ai.response.id")):
+        value = getattr(response, attr, None)
+        if value:
+            span.set_attribute(key, str(value))
+    finish = getattr(response, "finish_reason", None)
+    if finish:
+        span.set_attribute("gen_ai.response.finish_reasons", [str(finish)])
+    usage = getattr(response, "usage", None)
+    for attr, key in (
+        ("input_tokens", "gen_ai.usage.input_tokens"),
+        ("output_tokens", "gen_ai.usage.output_tokens"),
+        ("total_tokens", "gen_ai.usage.total_tokens"),
+    ):
+        value = getattr(usage, attr, None)
+        if value is not None:
+            span.set_attribute(key, int(value))
 
 
 def configure_tracing(service_name: str) -> None:
@@ -319,7 +417,7 @@ def configure_tracing(service_name: str) -> None:
         )
         # Attaches LangChain's tracer to every chain, graph node and model call.
         # Without it LangChain never instruments anything and the LangSmith pipe
-        # below carries only the DSPy/litellm spans. ChatOpenRouter subclasses
+        # below carries only the DSPy spans. ChatOpenRouter subclasses
         # BaseChatModel over raw httpx, so the openai instrumentor does not see
         # the chat pipeline either, and the graph goes entirely untraced.
         os.environ["LANGSMITH_TRACING"] = "true"
@@ -340,7 +438,7 @@ def configure_tracing(service_name: str) -> None:
     trace.set_tracer_provider(provider)
     _provider = provider
 
-    _instrument_llm_clients(langsmith_enabled=bool(langsmith_key))
+    _instrument_llm_clients()
     _instrument_infra()
 
 

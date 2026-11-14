@@ -40,7 +40,7 @@ spec:
                 name: builder-config
             - secretRef:
                 name: palladium-secrets
-          # Guards the slow DSPy/litellm import: until this passes, the
+          # Guards the slow DSPy import: until this passes, the
           # liveness probe is not evaluated at all. Without it, liveness fires
           # during startup and the pod crash-loops for no visible reason.
           startupProbe:

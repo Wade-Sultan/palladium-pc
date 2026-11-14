@@ -5,7 +5,7 @@ from pathlib import Path
 
 import dspy
 
-from app.services.recommender.artifacts import load_artifact
+from app.services.recommender.artifacts import chain_of_thought, load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "decidemotherboard.json"
@@ -75,7 +75,7 @@ class DecideMotherboard(dspy.Module):
     output_name_field = "motherboard_name"
 
     def __init__(self) -> None:
-        self.chain = dspy.ChainOfThought(MotherboardSelection)
+        self.chain = chain_of_thought(MotherboardSelection)
 
     def forward(self, use_cases, cpu_name, ddr_gen, budget_ceiling, candidates):
         return self.chain(

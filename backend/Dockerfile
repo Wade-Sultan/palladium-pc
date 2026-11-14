@@ -2,7 +2,7 @@
 # node in app/services/graph/ emits its tokens, reads a context variable that
 # does not propagate into async tasks before 3.11, and fails outright there.
 # 3.12 also gives asyncio.timeout(), which is what bounds the DSPy run in the
-# build node. Capped below 3.14 by litellm, which DSPy calls.
+# build node. pyproject.toml caps it below 3.14 (see the note there).
 FROM python:3.12
 
 ENV PYTHONUNBUFFERED=1

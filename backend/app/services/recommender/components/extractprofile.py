@@ -5,7 +5,7 @@ from pathlib import Path
 import dspy
 
 from app.schemas.chat import LockedPart, ProfileUpdate
-from app.services.recommender.artifacts import load_artifact
+from app.services.recommender.artifacts import chain_of_thought, load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "extractprofile.json"
@@ -211,7 +211,7 @@ class ProfileExtraction(dspy.Signature):
 
 class ExtractProfile(dspy.Module):
     def __init__(self) -> None:
-        self.predict = dspy.ChainOfThought(ProfileExtraction)
+        self.predict = chain_of_thought(ProfileExtraction)
 
     def forward(self, conversation: str) -> dspy.Prediction:
         return self.predict(conversation=conversation)

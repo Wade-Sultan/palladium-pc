@@ -1,0 +1,18 @@
+[
+ {
+  "role": "system",
+  "content": "Your input fields are:\n1. `use_cases` (str): User's selected use cases, preferences, and Q&A answers as a summary\n2. `budget_total` (int): Total build budget in USD; -1 means the user has set no budget at all\n3. `cpu_budget_ceiling` (int): Maximum to spend on CPU in USD; -1 means no ceiling. The user has said cost is not a constraint\n4. `candidates` (str): JSON list of compatible CPUs with street prices. Fields: name, brand, cores, threads, base_clock_ghz, boost_clock_ghz, tdp_w, socket, ddr_gen, has_integrated_graphics, pcie_lanes, memory_channels, supports_ecc, street_price_usd. The last three are null on consumer desktop parts. That absence is meaningful, not missing data. When a game performance envelope is available, performance_headroom and meets_performance_profile report whether the measured CPU clears it; prefer a verified fit.\nYour output fields are:\n1. `reasoning` (str): \n2. `cpu_name` (str): Exact product name of the chosen CPU, matching a name from candidates\n3. `reason` (str): 1-2 sentences. Lead with the value argument, not the spec argument.\n4. `reconsideration_threshold` (str): One sentence stating the price point at which a different candidate becomes worth considering. Be specific with a dollar figure.\nAll interactions will be structured in the following way, with the appropriate values filled in.\n\n[[ ## use_cases ## ]]\n{use_cases}\n\n[[ ## budget_total ## ]]\n{budget_total}\n\n[[ ## cpu_budget_ceiling ## ]]\n{cpu_budget_ceiling}\n\n[[ ## candidates ## ]]\n{candidates}\n\n[[ ## reasoning ## ]]\n{reasoning}\n\n[[ ## cpu_name ## ]]\n{cpu_name}\n\n[[ ## reason ## ]]\n{reason}\n\n[[ ## reconsideration_threshold ## ]]\n{reconsideration_threshold}\n\n[[ ## completed ## ]]\nIn adhering to this structure, your objective is: \n        OPTIMIZED decidecpu 0: be precise."
+ },
+ {
+  "role": "user",
+  "content": "[[ ## use_cases ## ]]\nin-use_cases\n\n[[ ## budget_total ## ]]\nin-budget_total\n\n[[ ## cpu_budget_ceiling ## ]]\nin-cpu_budget_ceiling\n\n[[ ## candidates ## ]]\nin-candidates"
+ },
+ {
+  "role": "assistant",
+  "content": "[[ ## reasoning ## ]]\nout-reasoning\n\n[[ ## cpu_name ## ]]\nout-cpu_name\n\n[[ ## reason ## ]]\nout-reason\n\n[[ ## reconsideration_threshold ## ]]\nout-reconsideration_threshold\n\n[[ ## completed ## ]]\n"
+ },
+ {
+  "role": "user",
+  "content": "[[ ## use_cases ## ]]\nq-use_cases\n\n[[ ## budget_total ## ]]\nq-budget_total\n\n[[ ## cpu_budget_ceiling ## ]]\nq-cpu_budget_ceiling\n\n[[ ## candidates ## ]]\nq-candidates\n\nRespond with the corresponding output fields, starting with the field `[[ ## reasoning ## ]]`, then `[[ ## cpu_name ## ]]`, then `[[ ## reason ## ]]`, then `[[ ## reconsideration_threshold ## ]]`, and then ending with the marker for `[[ ## completed ## ]]`."
+ }
+]

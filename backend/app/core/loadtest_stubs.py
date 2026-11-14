@@ -335,58 +335,90 @@ def _render_response(messages: list[dict[str, Any]]) -> str:
     return "\n\n".join(parts)
 
 
+_STUB_MODEL = "stub/load-test"
+
+
+def _request_messages(request: Any) -> list[dict[str, Any]]:
+    """Flatten a DSPy (lm15) Request into the role/content dicts
+    _render_response reads: the system prompt first, then each message's text."""
+    from dspy.lm15 import TextPart
+
+    def text(parts: Any) -> str:
+        return "".join(p.text for p in parts if isinstance(p, TextPart))
+
+    messages: list[dict[str, Any]] = []
+    if request.system is not None:
+        system = (
+            request.system if isinstance(request.system, str) else text(request.system)
+        )
+        messages.append({"role": "system", "content": system})
+    messages.extend(
+        {"role": m.role, "content": text(m.parts)} for m in request.messages
+    )
+    return messages
+
+
+def _stub_response(request: Any) -> Any:
+    from dspy.lm15 import Message, Response, TextPart, Usage
+
+    return Response(
+        id=None,
+        model=_STUB_MODEL,
+        message=Message.assistant(
+            [TextPart(_render_response(_request_messages(request)))]
+        ),
+        finish_reason="stop",
+        usage=Usage(input_tokens=0, output_tokens=0, total_tokens=0),
+        # Where recording.provider_cost reads OpenRouter's billed cost. 0.0, not
+        # absent, for the same reason as _stub_response_metadata: the turn was
+        # free, not of unknown cost.
+        provider_data={"usage": {"cost": 0.0}},
+    )
+
+
+class _StubEngine:
+    """DSPy engine (3.5+) that answers in-process. See make_stub_lm."""
+
+    def complete(self, request: Any) -> Any:
+        # A blocking sleep, deliberately: DSPy runs modules in worker threads
+        # (dspy.asyncify), and a real call blocks one of those threads for its
+        # whole duration. This holds it the same way.
+        if _DSPY_CALL_S:
+            time.sleep(_DSPY_CALL_S)
+        return _stub_response(request)
+
+    def stream(self, request: Any) -> Any:
+        from dspy.lm15 import response_to_events
+
+        return response_to_events(self.complete(request))
+
+
+class _AsyncStubEngine:
+    async def complete(self, request: Any) -> Any:
+        if _DSPY_CALL_S:
+            await asyncio.sleep(_DSPY_CALL_S)
+        return _stub_response(request)
+
+
 def make_stub_lm() -> Any:
-    """A dspy.LM that answers from the prompt's own field declarations."""
+    """A dspy.LM that answers from the prompt's own field declarations.
+
+    WHY AN ENGINE AND NOT A dspy.LM SUBCLASS. Before DSPy 3.5 this overrode
+    LM.forward and returned a litellm-shaped object. 3.5 no longer routes calls
+    through forward: it picks an engine for the model name first, and for an
+    unroutable name like "stub/load-test" it falls back to litellm, which is
+    not installed. A custom engine is 3.5's supported seam: DSPy still owns the
+    adapter, history and usage tracking, so a stubbed call exercises exactly the
+    code a real one does, and only the network hop is replaced.
+    """
     import dspy
 
-    class StubLM(dspy.LM):
-        def __init__(self) -> None:
-            # model_type="chat" so DSPy hands us `messages` rather than a
-            # flat prompt string, which is what _render_response reads.
-            super().__init__(model="stub/load-test", model_type="chat", cache=False)
-
-        def forward(
-            self,
-            prompt: str | None = None,
-            messages: list[dict[str, Any]] | None = None,
-            **kwargs: Any,
-        ) -> Any:
-            # A blocking sleep, deliberately: DSPy runs modules in worker
-            # threads (dspy.asyncify), and a real litellm call blocks one of
-            # those threads for its whole duration. This holds it the same way.
-            if _DSPY_CALL_S:
-                time.sleep(_DSPY_CALL_S)
-            return self._respond(messages)
-
-        def _respond(self, messages: list[dict[str, Any]] | None) -> Any:
-            text = _render_response(messages or [])
-            # Shaped like a litellm ModelResponse: DSPy reads .choices[].message
-            # and, when track_usage is on, .usage.
-            return SimpleNamespace(
-                choices=[
-                    SimpleNamespace(
-                        message=SimpleNamespace(content=text, tool_calls=None)
-                    )
-                ],
-                # A plain dict, not a namespace: DSPy does dict(response.usage)
-                # when recording history, which needs a mapping.
-                usage={
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                    "total_tokens": 0,
-                    "cost": 0.0,
-                },
-                model="stub/load-test",
-            )
-
-        async def aforward(
-            self,
-            prompt: str | None = None,
-            messages: list[dict[str, Any]] | None = None,
-            **kwargs: Any,
-        ) -> Any:
-            if _DSPY_CALL_S:
-                await asyncio.sleep(_DSPY_CALL_S)
-            return self._respond(messages)
-
-    return StubLM()
+    return dspy.LM(
+        _STUB_MODEL,
+        # "chat" so the prompt arrives as system + messages, which is what
+        # _render_response reads.
+        model_type="chat",
+        engine=_StubEngine(),
+        async_engine=_AsyncStubEngine(),
+        cache=False,
+    )

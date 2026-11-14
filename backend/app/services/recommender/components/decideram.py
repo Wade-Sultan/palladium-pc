@@ -5,7 +5,7 @@ from pathlib import Path
 
 import dspy
 
-from app.services.recommender.artifacts import load_artifact
+from app.services.recommender.artifacts import chain_of_thought, load_artifact
 from app.services.recommender.optimizing import run_gepa
 
 WEIGHTS_PATH = Path(__file__).parent / "weights" / "decideram.json"
@@ -66,7 +66,7 @@ class DecideRAM(dspy.Module):
     output_name_field = "ram_group"
 
     def __init__(self) -> None:
-        self.chain = dspy.ChainOfThought(RAMSelection)
+        self.chain = chain_of_thought(RAMSelection)
 
     def forward(self, use_cases, ddr_gen, budget_ceiling, candidates):
         return self.chain(
