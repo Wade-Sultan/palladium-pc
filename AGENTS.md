@@ -34,9 +34,15 @@ non-trivial. This file is the short list of rules that must hold no matter which
   reads `users.email` itself). Anything else needs an ADR (see below).
 - **`amazon_listings.affiliate_tag` stays empty until Associates approval.**
 - **Imports quarantine bad rows; they never drop them.**
-- **Prod secrets live in Secret Manager as `<name>-prod`, scoped to the narrowest service.** See
+- **Prod secrets live in three Kubernetes Secrets, `palladium-secrets-{builder,commerce,admin}`,
+  scoped to the narrowest service.** They are created out-of-band and are the only copy of most
+  values, including all three database URLs. Secret Manager holds just `palladium-db-password-prod`
+  and `palladium-secret-key-prod`; do not go looking there for anything else. See
   `deploy/overlays/prod/patches/secrets-scoped.yaml` for the per-service split, and add every new
   builder-image workload there.
+- **Every prod database URL carries `sslmode=require`.** Cloud SQL accepts TLS connections only, so
+  a URL with `sslmode=disable` is refused and the service never goes Ready. The `credentials` step
+  in `deploy/cloudbuild.yaml` fails the build when one is missing.
 
 ## Before changing architecture
 
