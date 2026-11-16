@@ -368,6 +368,25 @@ steps:
             echo "       host is empty or malformed. See RUNBOOK §7" >&2
             exit 1
           fi
+          # TLS is required, not preferred. The Cloud SQL instance accepts
+          # encrypted connections only, so a URL carrying sslmode=disable is
+          # refused at connect. That is not a startup crash: every readiness
+          # probe pings the database, so the pods just never go Ready and the
+          # failure shows up as a rollout stall (2026-11-15: builder, commerce
+          # and admin all down at once). A URL with no sslmode happens to work,
+          # since all three drivers default to `prefer`, but `prefer` falls
+          # back to plaintext silently, so the parameter is mandatory.
+          #
+          # The `$$` before the closing paren is the end-of-line anchor, written
+          # the Cloud Build way (see the palladium-secrets grep in render). The
+          # message names the Secret and key only, never the URL: it embeds the
+          # password and this log is readable by anyone with build access.
+          if ! echo "$$U" | grep -qE '[?&]sslmode=(require|verify-ca|verify-full)(&|$$)'; then
+            echo "ERROR: palladium-secrets-$$S/$$K does not set sslmode=require." >&2
+            echo "       Cloud SQL refuses unencrypted connections. Append" >&2
+            echo "       ?sslmode=require (or &sslmode=require) to the URL" >&2
+            exit 1
+          fi
         done
         echo "preflight OK"
 
