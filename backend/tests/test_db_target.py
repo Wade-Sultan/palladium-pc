@@ -121,3 +121,60 @@ def test_redact_strips_credentials_but_keeps_the_host():
     out = _redact(_URL)
     assert "hunter2" not in out
     assert "localhost:5432/app" in out
+
+
+# --- asyncpg URL translation (app.core.db._asyncpg_url) ----------------------
+#
+# The 2026-11-15 incident: `sslmode=require` on POSTGRES_DB_URL is right for
+# psycopg and for the deploy preflight, but asyncpg spells it `ssl`, so every
+# async connection (and with it /readyz) failed on an unexpected keyword. These
+# check what the asyncpg dialect would actually hand to asyncpg.connect(),
+# rather than the URL string, because the kwargs are what broke.
+
+_SYNC = "postgresql+psycopg://user:p%40ss@10.0.0.3:5432/palladium"
+
+
+def _connect_kwargs(sync_url: str) -> dict:
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    from app.core.db import _asyncpg_url
+
+    url = _asyncpg_url(sync_url)
+    engine = create_async_engine(url)
+    try:
+        _args, kwargs = engine.dialect.create_connect_args(url)
+    finally:
+        engine.sync_engine.dispose()
+    return kwargs
+
+
+@pytest.mark.parametrize("mode", ["require", "verify-full", "disable"])
+def test_sslmode_reaches_asyncpg_as_ssl(mode):
+    kwargs = _connect_kwargs(f"{_SYNC}?sslmode={mode}")
+    assert kwargs["ssl"] == mode
+    assert "sslmode" not in kwargs
+
+
+def test_other_query_params_and_credentials_survive():
+    kwargs = _connect_kwargs(f"{_SYNC}?timeout=7&sslmode=require")
+    assert kwargs["ssl"] == "require"
+    assert kwargs["timeout"] == "7"
+    # Percent-encoded password decoded once, not mangled by the rewrite.
+    assert kwargs["password"] == "p@ss"
+    assert kwargs["host"] == "10.0.0.3"
+    assert kwargs["database"] == "palladium"
+
+
+def test_explicit_ssl_wins_over_sslmode():
+    kwargs = _connect_kwargs(f"{_SYNC}?ssl=verify-full&sslmode=require")
+    assert kwargs["ssl"] == "verify-full"
+    assert "sslmode" not in kwargs
+
+
+def test_url_without_sslmode_is_unchanged_apart_from_the_driver():
+    from app.core.db import _asyncpg_url
+
+    url = _asyncpg_url(_SYNC)
+    assert url.drivername == "postgresql+asyncpg"
+    assert dict(url.query) == {}
+    assert "ssl" not in _connect_kwargs(_SYNC)
