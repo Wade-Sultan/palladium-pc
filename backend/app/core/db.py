@@ -3,7 +3,7 @@ import logging
 import re
 from collections.abc import AsyncGenerator, Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import URL, create_engine, make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -87,6 +87,34 @@ def _resolve_db_target() -> str:
     )
 
 
+def _asyncpg_url(sync_url: str) -> URL:
+    """Turn the psycopg URL into the asyncpg one, TLS setting included.
+
+    One POSTGRES_DB_URL feeds both engines, but the two drivers spell the TLS
+    parameter differently: psycopg (libpq) takes `sslmode`, asyncpg takes `ssl`
+    with the same values. SQLAlchemy's asyncpg dialect passes query parameters
+    through as connect() keyword arguments, so a URL carrying `sslmode` makes
+    every async connection raise TypeError on an unexpected keyword. That is not
+    a startup crash: the async engine is what /readyz pings, so the pod simply
+    never goes Ready while the sync engine (Alembic, the migrate Job) works
+    fine. Prod hit exactly that on 2026-11-15 once `sslmode=require` was
+    added to the URL for the TLS-only Cloud SQL instance, which the deploy
+    preflight now requires.
+
+    So the URL keeps libpq's spelling, which commerce (pgx), admin (Prisma) and
+    the sync engine all read, and it is translated here. An explicit `ssl` in
+    the URL wins over a translated `sslmode`.
+    """
+    url = make_url(sync_url).set(drivername="postgresql+asyncpg")
+    sslmode = url.query.get("sslmode")
+    if sslmode is None:
+        return url
+    url = url.difference_update_query(["sslmode"])
+    if "ssl" not in url.query:
+        url = url.update_query_dict({"ssl": sslmode})
+    return url
+
+
 def _create_engine():
     """Sync engine: used by Alembic, prestart checks, and one-off scripts only."""
     if _resolve_db_target() == "cloud_sql":
@@ -155,11 +183,8 @@ def _create_async_engine():
             max_overflow=10,
         )
 
-    async_url = str(settings.SQLALCHEMY_DATABASE_URI).replace(
-        "postgresql+psycopg://", "postgresql+asyncpg://"
-    )
     return create_async_engine(
-        async_url,
+        _asyncpg_url(settings.SQLALCHEMY_DATABASE_URI),
         pool_pre_ping=True,
         pool_size=5,
         max_overflow=10,
