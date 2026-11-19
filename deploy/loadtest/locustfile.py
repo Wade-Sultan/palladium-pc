@@ -74,17 +74,27 @@ _STUB_MARKER = "stubbed"
 # the one-word reason "stub".
 _DSPY_STUB_REASON = "stub"
 
-# The server's own fallback texts, from services/transport.py and
-# services/turn_runner.py. These arrive as ordinary append-text operations, so
-# without matching them explicitly a saturated backend is indistinguishable
-# from a real model answering, and the cost guard would abort the run exactly
-# when the load test got interesting. Matched on a distinctive fragment rather
+# The server's own fixed texts, from services/transport.py,
+# services/turn_runner.py and the validation lines noted below. These arrive as
+# ordinary append-text operations, so without matching them explicitly a
+# saturated backend is indistinguishable from a real model answering, and the
+# cost guard would abort the run exactly when the load test got interesting. Matched on a distinctive fragment rather
 # than the full string, which carries leading newlines and trailing
 # punctuation.
 _SERVICE_ERRORS = (
     "That build didn't start",
     "Lost the connection to the build service",
     "Something went wrong generating your recommendation",
+    # A build that failed validation, on either turn: graph/nodes.py (first
+    # turn) and chat_pipeline.py (case pick) both end their fixed line with
+    # this sentence. Matched on the shared ending because the openings differ.
+    # Stub picks can fail validation under load, and before this was listed the
+    # cost guard read that free server line as a real model and aborted.
+    "Please adjust the requirements or budget and try again",
+    # NOT listed, deliberately: systems/pitch.py's fallback_pitch. The real
+    # pitch prompt tells the model to open with that same sentence, so matching
+    # it would hide real spend on the system-offer path. A pitch that falls back
+    # under the stub still aborts the run; that is the safe error.
 )
 
 
