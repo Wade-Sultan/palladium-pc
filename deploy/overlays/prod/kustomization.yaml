@@ -36,15 +36,15 @@ patches:
 # Kept as a `replicas:` transformer rather than a patch because it is one field
 # on one workload, and patches/ is already four files deep.
 #
-# 0, matching the scale-to-zero floor in keda-worker.yaml. Prod and local now
-# ask for the same count for completely different reasons, local because it
-# has no Pub/Sub to subscribe to, prod because KEDA wakes the pool on demand,
-# so do not "simplify" this by deleting the transformer and letting base's
-# replicas: 2 through. A deploy would then start two pods that KEDA immediately
-# scales back to zero, on every build.
+# 1, matching minReplicaCount in keda-worker.yaml. This stayed at 0 after the
+# floor went back to 1, so every deploy scaled the only worker to zero (its
+# in-flight turns redelivered) and KEDA then started a fresh one. Do not
+# "simplify" this by deleting the transformer and letting base's replicas: 2
+# through: a deploy would then start a pod that KEDA scales back down after its
+# stabilization window, on every build.
 replicas:
   - name: worker
-    count: 0
+    count: 1
 
 # NOTE: no secretGenerator here, deliberately, unlike the local overlay there
 # is no .env.prod to read. The three palladium-secrets-* Secrets are created
