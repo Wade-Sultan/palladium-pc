@@ -99,6 +99,7 @@ from app.services.recommender.db.queries import (
     get_ram_candidates,
     get_storage_candidates,
 )
+from app.services.recommender.projected_floors import projected_answers
 from app.services.recommender.recording import BuildRecorder
 from app.services.recommender.scoring import find_dominant
 
@@ -1074,6 +1075,10 @@ def _attach_catalog_floors(
     for key, value in mapping.items():
         if value is not None:
             request.answers[key] = str(value)
+    # Projected floors (unreleased titles) travel under their own prefix, so
+    # the ordinary keys above keep meaning "published or measured". See
+    # projected_floors.py.
+    request.answers.update(projected_answers(requirements.projected_floors))
     if requirements.required_features:
         request.answers["requirements.required_features"] = sorted(
             requirements.required_features

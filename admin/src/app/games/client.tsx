@@ -28,6 +28,7 @@ const TIERS = ['minimum', 'recommended', 'ultra'] as const;
 const ROLES = ['cpu', 'gpu'] as const;
 const RESOLUTIONS = ['1080p', '1440p', '4k'] as const;
 const QUALITY_PRESETS = ['low', 'medium', 'high', 'ultra'] as const;
+const RELEASE_STATUSES = ['announced', 'dated', 'released'] as const;
 const RT_MODES = ['off', 'low', 'medium', 'high', 'ultra', 'path_tracing'] as const;
 const UPSCALING_MODES = ['native', 'quality', 'balanced', 'performance'] as const;
 
@@ -87,6 +88,8 @@ const schema = z.object({
   hardRequirementsInput: z.string(),
   minStorageGb: z.coerce.number().int().nullable(),
   requirementsNotes: z.string(),
+  releaseStatus: z.enum(RELEASE_STATUSES),
+  pcReleaseDate: z.string(),
   minimumParts: z.array(minimumPartSchema),
   performanceProfiles: z.array(performanceProfileSchema),
 });
@@ -96,6 +99,7 @@ function gameDefaults(item: GameWithParts | null): GameFormData {
     return {
       title: '', slug: '', genre: '', storeUrl: '', imageUrl: '',
       hardRequirementsInput: '', minStorageGb: null, requirementsNotes: '',
+      releaseStatus: 'released', pcReleaseDate: '',
       minimumParts: [],
       performanceProfiles: [],
     };
@@ -109,6 +113,8 @@ function gameDefaults(item: GameWithParts | null): GameFormData {
     hardRequirementsInput: joinCommaList(item.hardRequirements),
     minStorageGb: item.minStorageGb,
     requirementsNotes: item.requirementsNotes ?? '',
+    releaseStatus: scenarioOption(item.releaseStatus, RELEASE_STATUSES, 'released'),
+    pcReleaseDate: item.pcReleaseDate ? item.pcReleaseDate.toISOString().slice(0, 10) : '',
     minimumParts: item.minimumParts.map((p) => ({
       tier: p.tier,
       role: p.role,
@@ -201,6 +207,29 @@ function GameForm({
                 <FormControl>
                   <Input {...numField(field as { value: number | null; onChange: (v: number | null) => void })} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField control={form.control} name="releaseStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>PC Release Status</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {RELEASE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField control={form.control} name="pcReleaseDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>PC Release Date (not console)</FormLabel>
+                <FormControl><Input type="date" {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -384,7 +413,7 @@ function GameForm({
                   )} />
                 <FormField control={form.control} name={`performanceProfiles.${i}.derivationMethod`}
                   render={({ field }) => (
-                    <FormItem><FormLabel className="text-xs">Derivation</FormLabel><FormControl><Input {...field} placeholder="measured, aggregate, manual" /></FormControl></FormItem>
+                    <FormItem><FormLabel className="text-xs">Derivation</FormLabel><FormControl><Input {...field} placeholder="measured, aggregate, manual; console_parity or engine_lineage = projected" /></FormControl></FormItem>
                   )} />
                 <div className="flex items-end gap-5 pb-2">
                   <FormField control={form.control} name={`performanceProfiles.${i}.frameGeneration`}

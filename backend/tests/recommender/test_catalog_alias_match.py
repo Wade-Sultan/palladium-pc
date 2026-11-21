@@ -282,3 +282,50 @@ def test_profile_approximation_reports_upscaling_and_frame_generation():
     assert selected is not None
     assert "requested native upscaling" in note
     assert "requested frame generation no" in note
+
+
+def test_projected_profile_floors_stay_out_of_the_ordinary_floors():
+    game = SimpleNamespace(title="Example Heist")
+    profile = _performance_profile(
+        derivation_method="console_parity",
+        confidence=0.3,
+        required_features=["ray_tracing"],
+        ray_tracing_mode="high",
+        min_gpu_rt_score=9000.0,
+    )
+    requirements = CatalogRequirements(matched_names=[game.title])
+
+    _apply_performance_profile(
+        game, profile, None, requirements, requested_ray_tracing="on"
+    )
+
+    # Validation treats ordinary VRAM/RAM floors as hard failures; an
+    # estimate must never become one.
+    assert requirements.min_vram_gb is None
+    assert requirements.min_ram_gb is None
+    assert requirements.min_gpu_raster_score is None
+    assert requirements.projected_floors == {
+        "min_gpu_raster_score": 16000.0,
+        "min_gpu_rt_score": 9000.0,
+        "min_gpu_modern_score": 3500.0,
+        "min_cpu_single_score": 2400.0,
+        "min_vram_gb": 8.0,
+        "min_ram_gb": 16.0,
+    }
+    # Features are not what is being estimated, so they stay hard.
+    assert "ray_tracing" in requirements.required_features
+    snapshot = requirements.to_dict()
+    assert snapshot["game_performance_profiles"][0]["projected"] is True
+    assert snapshot["projected_floors"]["min_vram_gb"] == 8.0
+    assert "PROJECTED performance envelope" in requirements.summary()
+
+
+def test_measured_profiles_are_not_marked_projected():
+    game = SimpleNamespace(title="Example Quest")
+    requirements = CatalogRequirements(matched_names=[game.title])
+
+    _apply_performance_profile(game, _performance_profile(), None, requirements)
+
+    assert requirements.projected_floors == {}
+    assert requirements.game_performance_profiles[0]["projected"] is False
+    assert "PROJECTED" not in requirements.summary()

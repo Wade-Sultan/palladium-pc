@@ -231,6 +231,10 @@ def check_game_performance_profiles(parts: dict, profiles: list[dict]) -> list[s
     A profile is an estimate with explicit confidence, so benchmark shortfalls
     are caveats rather than structural build failures. Feature/VRAM constraints
     are validated separately as hard floors in ``validate_build``.
+
+    A projected profile (a title not out on PC yet) is worded as a projection.
+    Its VRAM and RAM floors are checked in ``validate_build`` as caveats, never
+    as the hard floors above: see recommender/projected_floors.py.
     """
     caveats: list[str] = []
     cpu = (parts.get("cpu") or [None])[0]
@@ -275,7 +279,14 @@ def check_game_performance_profiles(parts: dict, profiles: list[dict]) -> list[s
             if isinstance(confidence, int | float)
             else ""
         )
-        if below:
+        if below and profile.get("projected"):
+            caveats.append(
+                f"{profile.get('game')} is not out on PC yet. The selected hardware "
+                f"is below our projected {scenario} envelope on {', '.join(below)}"
+                f"{confidence_text}; the budget did not reach a part that clears "
+                "it, so expect to lower settings, resolution, or FPS."
+            )
+        elif below:
             caveats.append(
                 f"The selected hardware is below {profile.get('game')}'s {scenario} "
                 f"performance envelope on {', '.join(below)}{confidence_text}; "
@@ -413,6 +424,19 @@ async def validate_build(
             if requirements.get(field) and value < requirements[field]:
                 issues.append(
                     f"Insufficient {label} for the catalog workload requirements"
+                )
+        # Projected floors (unreleased titles) are estimates: a shortfall is a
+        # caveat, never an issue. See recommender/projected_floors.py.
+        projected = requirements.get("projected_floors") or {}
+        for value, field, label in (
+            (ram, "min_ram_gb", "system RAM"),
+            (vram, "min_vram_gb", "VRAM"),
+        ):
+            floor = projected.get(field)
+            if floor and value < floor:
+                caveats.append(
+                    f"The build has {value:g}GB of {label}, below the {floor:g}GB "
+                    "we project for a title that is not out on PC yet."
                 )
         required_features = set(requirements.get("required_features") or [])
         if "ray_tracing" in required_features and not any(
