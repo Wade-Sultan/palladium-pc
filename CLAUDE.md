@@ -223,6 +223,12 @@ ExtractProfile → DDR → CPU → Cooler → Motherboard → RAM → Storage �
   native thinking; every other call is sent `reasoning_effort=none`. Unset, nothing changes.
 - **Locked parts** (`locked_parts.py`): a part the user named short-circuits its Decide step
   entirely. Refused only as `unresolved`, `unaffordable` or `overspec` (plus `insufficient`).
+- **Projected game profiles** (`projected_floors.py`): a game not out on PC yet (`games.release_status`)
+  gets profiles with a projected `derivation_method` (`console_parity`, `engine_lineage`). Their floors
+  live apart from the ordinary ones, so an estimate never becomes a hard VRAM/RAM failure, and are
+  enforced up to the budget: if any CPU/GPU candidate under the slot ceiling verifiably clears them,
+  the rest are dropped before the step runs; if none does, the build carries a caveat. Locked parts
+  are exempt.
 - **Paused builds** (`paused_build.py`): the case step stops the turn rather than holding a worker
   open while a human picks. State is written to Valkey (read path) *and* Postgres (durable), each
   claimed atomically, so a double-click cannot produce two builds. The pick arrives as its own turn

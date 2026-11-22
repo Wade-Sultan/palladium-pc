@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud import components as crud
 from app.models.pcparts import CPU, Case, CPUCooler, Fan, Motherboard
 from app.schemas.chat import UserPreferences
+from app.services.recommender.projected_floors import apply_projected_floors
 from app.services.recommender.scoring import score_candidates
 
 
@@ -221,6 +222,7 @@ async def get_cpu_candidates(
     preferences: UserPreferences,
     use_cases: list[str] | None = None,
     answers: dict | None = None,
+    enforce_projected: bool = True,
 ) -> str:
     """Affordable CPUs, annotated with a workload-weighted `perf_score`.
 
@@ -228,9 +230,14 @@ async def get_cpu_candidates(
     step's own summaries) keeps working; without them scoring falls back to the
     balanced default weights rather than being skipped, so the numbers are
     still there: just not tilted toward a specific workload.
+
+    `enforce_projected` applies projected_floors.apply_projected_floors. Only
+    the locked-part judging path turns it off; see that module's header.
     """
     parts = await crud.get_cpu_candidates(session, budget_ceiling_usd, preferences)
     rows = [_serialize_cpu(p) for p in parts]
+    if enforce_projected:
+        rows = apply_projected_floors(rows, "cpu", answers)
     score_candidates(rows, "cpu", use_cases or [], answers)
     return json.dumps(rows, indent=None)
 
@@ -314,6 +321,7 @@ async def get_gpu_chipset_candidates(
     preferences: UserPreferences,
     use_cases: list[str] | None = None,
     answers: dict | None = None,
+    enforce_projected: bool = True,
 ) -> str:
     """One candidate per GPU chipset (group) for the main GPU step, which chooses
     at the chipset level; the exact board is resolved deterministically later
@@ -330,6 +338,8 @@ async def get_gpu_chipset_candidates(
         _serialize_gpu_chipset,
         extra=lambda row, e: row.setdefault("brand", e.brand),
     )
+    if enforce_projected:
+        rows = apply_projected_floors(rows, "gpu", answers)
     score_candidates(rows, "gpu", use_cases or [], answers)
     return json.dumps(rows, indent=None)
 

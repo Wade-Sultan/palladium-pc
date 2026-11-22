@@ -5,6 +5,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -28,8 +29,28 @@ class RequirementTier(str, enum.Enum):
     ULTRA = "ultra"
 
 
+class ReleaseStatus(str, enum.Enum):
+    ANNOUNCED = "announced"
+    DATED = "dated"
+    RELEASED = "released"
+
+
+# derivation_method values that mean "estimated before the game shipped on PC",
+# as opposed to published requirements or measured benchmarks. Decided by
+# method, never by a confidence threshold: a well-sourced estimate with high
+# confidence is still an estimate. See
+# app/services/recommender/projected_floors.py for how they are enforced.
+PROJECTED_DERIVATIONS = frozenset({"console_parity", "engine_lineage"})
+
+
 class Game(Base):
     __tablename__ = "games"
+    __table_args__ = (
+        CheckConstraint(
+            "release_status IN ('announced', 'dated', 'released')",
+            name="ck_games_release_status",
+        ),
+    )
 
     id = Column(
         UUID(as_uuid=True),
@@ -65,6 +86,11 @@ class Game(Base):
 
     # Publisher's notes
     requirements_notes = Column(Text, nullable=True)
+
+    # Curated in admin. A console launch is not a PC launch, so the date is
+    # PC-specific and stays null until a PC date is announced.
+    release_status = Column(String(20), nullable=False, server_default="released")
+    pc_release_date = Column(Date, nullable=True)
 
     created_at = Column(
         DateTime(timezone=True),

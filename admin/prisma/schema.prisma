@@ -657,6 +657,11 @@ model Game {
   hardRequirements  String[] @map("hard_requirements")
   minStorageGb      Int?     @map("min_storage_gb")
   requirementsNotes String?  @map("requirements_notes")
+  /// announced | dated | released. Profiles for an unreleased title should use
+  /// a projected derivation (console_parity, engine_lineage).
+  releaseStatus     String    @default("released") @map("release_status")
+  /// PC launch only: a console date is not a PC date.
+  pcReleaseDate     DateTime? @map("pc_release_date") @db.Date
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 

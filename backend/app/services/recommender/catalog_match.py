@@ -31,6 +31,15 @@ Aliases also go into the embedded source text, so tier 2 benefits from them
 too: "r6 siege" misses the exact match but lands much closer to a row whose
 text now contains "Also known as R6, Siege".
 
+PROJECTED PROFILES ARE KEPT APART. A profile whose `derivation_method` is in
+`PROJECTED_DERIVATIONS` (a title not yet out on PC, estimated from console
+parity or an engine predecessor) never raises the ordinary floors above. Its
+numbers go into `projected_floors` instead, because the ordinary VRAM and RAM
+floors are hard failures in validation and an estimate must not fail a build.
+Projected floors are enforced up to the budget instead, by
+projected_floors.py. Required features from a projected profile stay hard:
+"needs ray-tracing hardware" is not the part that is being estimated.
+
 EVERYTHING HERE DEGRADES TO EMPTY. No API key, no vectors backfilled, no match
 above threshold. All produce `CatalogRequirements()` with nothing set, and the
 pipeline runs exactly as it did before. Requirements are additive context, never
@@ -51,7 +60,13 @@ from sqlalchemy.orm import selectinload
 
 from app.models.ai_catalog import AIModel
 from app.models.embeddings import EmbeddedEntity
-from app.models.games_catalog import Game, GamePerformanceProfile, RequirementTier
+from app.models.games_catalog import (
+    PROJECTED_DERIVATIONS,
+    Game,
+    GamePerformanceProfile,
+    ReleaseStatus,
+    RequirementTier,
+)
 from app.models.pcparts import CPU, GPU, GPUChipset
 from app.models.software_catalog import Software
 from app.services.embeddings import store
@@ -153,6 +168,19 @@ class CatalogRequirements:
     game_requirements: list[dict] = field(default_factory=list)
     game_performance_profiles: list[dict] = field(default_factory=list)
 
+    # Floors from projected profiles only, keyed by the same attribute names as
+    # the ordinary floors above (min_gpu_raster_score, min_vram_gb, ...). Kept
+    # separate so validation's hard VRAM/RAM checks never see an estimate. See
+    # the module header.
+    projected_floors: dict[str, float] = field(default_factory=dict)
+
+    def _raise_projected_floor(self, attr: str, value: float | None) -> None:
+        if value is None:
+            return
+        current = self.projected_floors.get(attr)
+        if current is None or value > current:
+            self.projected_floors[attr] = float(value)
+
     def _raise_floor(self, attr: str, value: int | None) -> None:
         if value is None:
             return
@@ -226,8 +254,14 @@ class CatalogRequirements:
                 f"{profile['resolution']} {profile['quality_preset']} at "
                 f"{profile['target_fps']} FPS, RT {profile['ray_tracing_mode']}"
             )
+            label = (
+                "PROJECTED performance envelope (an estimate: the game is not "
+                "out on PC, so nothing has been measured)"
+                if profile.get("projected")
+                else "performance envelope"
+            )
             lines.append(
-                f"  {profile['game']} performance envelope: {scenario} "
+                f"  {profile['game']} {label}: {scenario} "
                 f"(confidence {profile['confidence']:.0%}, "
                 f"{profile['derivation_method']})."
             )
@@ -277,6 +311,7 @@ class CatalogRequirements:
             "required_features": sorted(self.required_features),
             "notes": list(self.notes),
             "game_performance_profiles": list(self.game_performance_profiles),
+            "projected_floors": dict(self.projected_floors),
         }
 
 
@@ -420,14 +455,23 @@ def _apply_performance_profile(
     requested_ray_tracing: str | None = None,
 ) -> None:
     wanted_rt = str(requested_ray_tracing or "off").casefold()
-    req._raise_numeric_floor("min_gpu_raster_score", profile.min_gpu_raster_score)
-    if wanted_rt != "off":
-        req._raise_numeric_floor("min_gpu_rt_score", profile.min_gpu_rt_score)
-    req._raise_numeric_floor("min_gpu_modern_score", profile.min_gpu_modern_score)
-    req._raise_numeric_floor("min_cpu_single_score", profile.min_cpu_single_score)
-    req._raise_numeric_floor("min_cpu_multi_score", profile.min_cpu_multi_score)
-    req._raise_floor("min_vram_gb", profile.min_vram_gb)
-    req._raise_floor("min_ram_gb", profile.min_ram_gb)
+    projected = profile.derivation_method in PROJECTED_DERIVATIONS
+    floors: dict[str, float | int | None] = {
+        "min_gpu_raster_score": profile.min_gpu_raster_score,
+        "min_gpu_rt_score": profile.min_gpu_rt_score if wanted_rt != "off" else None,
+        "min_gpu_modern_score": profile.min_gpu_modern_score,
+        "min_cpu_single_score": profile.min_cpu_single_score,
+        "min_cpu_multi_score": profile.min_cpu_multi_score,
+        "min_vram_gb": profile.min_vram_gb,
+        "min_ram_gb": profile.min_ram_gb,
+    }
+    for attr, value in floors.items():
+        if projected:
+            req._raise_projected_floor(attr, value)
+        elif attr in ("min_vram_gb", "min_ram_gb"):
+            req._raise_floor(attr, value)
+        else:
+            req._raise_numeric_floor(attr, value)
     for feature in profile.required_features or []:
         if feature and feature.strip():
             normalized = feature.strip()
@@ -459,6 +503,7 @@ def _apply_performance_profile(
             "derivation_method": profile.derivation_method,
             "source_urls": list(profile.source_urls or []),
             "match_notes": match_notes,
+            "projected": projected,
         }
     )
 
@@ -490,6 +535,19 @@ async def _apply_game(
 
     req.matched_names.append(game.title)
     req._raise_floor("min_storage_gb", game.min_storage_gb)
+    status = getattr(game, "release_status", None) or ReleaseStatus.RELEASED.value
+    if status != ReleaseStatus.RELEASED.value:
+        when = getattr(game, "pc_release_date", None)
+        timing = (
+            f"PC release expected {when.isoformat()}"
+            if when
+            else "no PC release date announced"
+        )
+        req.notes.append(
+            f"{game.title} is not out on PC yet ({timing}). Anything said about "
+            "how it will run is an estimate; never claim a build runs it at a "
+            "given frame rate."
+        )
     for feature in game.hard_requirements or []:
         if feature and feature.strip():
             req.required_features.add(feature.strip())

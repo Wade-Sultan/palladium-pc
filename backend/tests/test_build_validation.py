@@ -494,3 +494,25 @@ def test_insufficient_ram_for_the_workload_is_still_a_rejection(catalog):
     with pytest.raises(BuildValidationError) as exc:
         _validate(catalog, _build_dict(catalog.parts), requirements=requirements)
     assert "Insufficient RAM for the catalog workload requirements" in exc.value.issues
+
+
+def test_projected_shortfalls_are_worded_as_projections():
+    parts = _parts()
+    parts["gpu"][0].chipset.benchmark_scores["port_royal"] = 12000
+    profile = _performance_profile(projected=True, min_cpu_single_score=None)
+
+    caveats = check_game_performance_profiles(parts, [profile])
+
+    assert len(caveats) == 1
+    assert "is not out on PC yet" in caveats[0]
+    assert "projected 1440p ultra at 60 FPS, RT high" in caveats[0]
+
+
+def test_a_projected_vram_shortfall_is_a_caveat_not_a_rejection(catalog):
+    requirements = {
+        "game_requirements": [],
+        "projected_floors": {"min_vram_gb": 24.0, "min_ram_gb": 128.0},
+    }
+    out = _validate(catalog, _build_dict(catalog.parts), requirements=requirements)
+    assert any("below the 24GB" in c and "VRAM" in c for c in out["caveats"])
+    assert any("below the 128GB" in c and "system RAM" in c for c in out["caveats"])

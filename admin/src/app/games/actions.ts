@@ -46,6 +46,9 @@ export interface GameFormData {
   hardRequirementsInput: string;
   minStorageGb: number | null;
   requirementsNotes: string;
+  releaseStatus: 'announced' | 'dated' | 'released';
+  /** yyyy-mm-dd, or '' for none */
+  pcReleaseDate: string;
   minimumParts: GameMinimumPartFormData[];
   performanceProfiles: GamePerformanceProfileFormData[];
 }
@@ -60,6 +63,8 @@ function toData(d: GameFormData) {
     hardRequirements: splitCommaList(d.hardRequirementsInput),
     minStorageGb: d.minStorageGb,
     requirementsNotes: d.requirementsNotes || null,
+    releaseStatus: d.releaseStatus,
+    pcReleaseDate: d.pcReleaseDate ? new Date(`${d.pcReleaseDate}T00:00:00Z`) : null,
   };
 }
 

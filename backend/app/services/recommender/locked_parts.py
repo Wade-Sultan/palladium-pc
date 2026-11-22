@@ -275,6 +275,8 @@ async def _judge_gpu(
             request.preferences,
             request.use_cases,
             request.answers,
+            # A projected estimate never overrides a part the user named.
+            enforce_projected=False,
         )
     )
     row = next((r for r in rows if _same(r.get("chipset"), lock.group_name)), None)
@@ -321,6 +323,8 @@ async def _judge_cpu(
             request.preferences,
             request.use_cases,
             request.answers,
+            # A projected estimate never overrides a part the user named.
+            enforce_projected=False,
         )
     )
     row = next((r for r in rows if _same(r.get("name"), lock.group_name)), None)
